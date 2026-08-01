@@ -10,7 +10,7 @@ import pandas as pd
 import scipy.sparse as sp
 
 from ._sparse import as_dense
-from ._utils import validate_cell_names, validate_feature_names
+from ._utils import sanitize_feature_names, validate_cell_names, validate_feature_names
 from .lazy import is_lazy
 from .logmap import LogMap
 from .mixins import KeyMixin
@@ -703,8 +703,14 @@ def create_assay5_object(
 
     if feature_names is None:
         feature_names = [f"feature_{i}" for i in range(n_features)]
+    else:
+        # Only names the caller supplied are rewritten. The generated fallback
+        # above is internal and has no Seurat counterpart, so mangling it to
+        # `feature-0` would be a change Seurat never makes.
+        feature_names = sanitize_feature_names(feature_names)
     if cell_names is None:
         cell_names = [f"cell_{i}" for i in range(n_cells)]
+
 
     # Filter features by min_cells. Either filter subsets the lazy store
     # through its own indexer, which yields an in-memory sparse block of just

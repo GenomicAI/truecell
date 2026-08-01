@@ -149,12 +149,12 @@ def test_nn_spacing_is_the_lattice_step():
 
 N_RAND = 22
 RAND_GENES = [f"rand{i}" for i in range(N_RAND)]
-STRUCTURED = ["grad_x", "grad_y", "blob"]
+STRUCTURED = ["grad-x", "grad-y", "blob"]
 
 
 @pytest.fixture
 def spatial_obj():
-    """A 24×24 lattice; grad_x/grad_y/blob are spatially structured, rand* are not.
+    """A 24×24 lattice; grad-x/grad-y/blob are spatially structured, rand* are not.
 
     The slide has to be a good deal wider than the distance the variogram is read
     at, or ``r_metric=5`` spans a third of the tissue, few pairs land in the band

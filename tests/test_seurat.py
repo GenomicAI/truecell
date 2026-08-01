@@ -216,3 +216,37 @@ def test_add_meta_data_accepts_a_plain_vector(small_seurat):
 def test_add_meta_data_rejects_a_wrong_length_vector(small_seurat):
     with pytest.raises(ValueError, match="entries but the object"):
         small_seurat.add_meta_data(np.arange(5), "depth")
+
+
+def test_underscores_in_supplied_feature_names_become_dashes():
+    """Seurat rewrites feature names containing '_' and warns; so do we.
+
+    `CreateAssayObject` emits "Feature names cannot have underscores ('_'),
+    replacing with dashes ('-')" and rewrites the names. Without this the same
+    gene carries two names across the two tools -- R's `Y-RNA` against a
+    `Y_RNA` here -- so a script selecting that feature by name silently misses
+    it. Real data hits this: 21 features in the 10x PBMC 3k reference and every
+    Xenium control probe (`NegControlProbe_1`) contain underscores.
+    """
+    counts = sp.csc_matrix(np.arange(1, 10, dtype=float).reshape(3, 3))
+    names = ["Y_RNA", "Metazoa_SRP", "ACTB"]
+
+    with pytest.warns(UserWarning, match="underscores"):
+        obj = create_truecell_object(
+            counts=counts, feature_names=names, cell_names=["c1", "c2", "c3"]
+        )
+
+    assert obj.assays["RNA"].features() == ["Y-RNA", "Metazoa-SRP", "ACTB"]
+    # The renamed feature is reachable under the name Seurat would use.
+    assert "Y-RNA" in obj.assays["RNA"].features()
+
+
+def test_generated_feature_names_are_left_alone():
+    """The `feature_{i}` fallback is internal and has no Seurat counterpart.
+
+    Sanitizing it too would rename every unnamed assay's features to
+    `feature-0`, a change Seurat never makes because R always carries rownames.
+    """
+    counts = sp.csc_matrix(np.arange(1, 10, dtype=float).reshape(3, 3))
+    obj = create_truecell_object(counts=counts, cell_names=["c1", "c2", "c3"])
+    assert obj.assays["RNA"].features() == ["feature_0", "feature_1", "feature_2"]

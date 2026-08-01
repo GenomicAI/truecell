@@ -68,7 +68,7 @@ RAND_GENES = [f"rand{i}" for i in range(N_RAND)]
 
 @pytest.fixture
 def spatial_obj():
-    """120 cells; grad_x/grad_y/blob are spatially structured, rand* are not.
+    """120 cells; grad-x/grad-y/blob are spatially structured, rand* are not.
 
     The flat random genes deliberately dominate the library size. With only a
     couple of background genes, log-normalisation divides every gene by a
@@ -79,7 +79,7 @@ def spatial_obj():
     rng = np.random.default_rng(0)
     n = 120
     xy = rng.uniform(0, 10, (n, 2))
-    genes = ["grad_x", "grad_y", "blob"] + RAND_GENES
+    genes = ["grad-x", "grad-y", "blob"] + RAND_GENES
     X = np.zeros((len(genes), n))
     X[0] = xy[:, 0]
     X[1] = xy[:, 1]
@@ -105,9 +105,9 @@ def test_spatially_variable_ranks_structured_genes_first(spatial_obj):
         "moransi", "moransi_pval", "moransi_padj", "moransi_rank",
     ]
     # The three spatially structured genes take the top three ranks.
-    assert set(res.index[:3]) == {"grad_x", "grad_y", "blob"}
-    assert (res.loc[["grad_x", "grad_y", "blob"], "moransi"] > 0.5).all()
-    assert (res.loc[["grad_x", "grad_y", "blob"], "moransi_padj"] < 0.01).all()
+    assert set(res.index[:3]) == {"grad-x", "grad-y", "blob"}
+    assert (res.loc[["grad-x", "grad-y", "blob"], "moransi"] > 0.5).all()
+    assert (res.loc[["grad-x", "grad-y", "blob"], "moransi_padj"] < 0.01).all()
     # Spatially random genes: I near zero and not significant.
     assert (res.loc[RAND_GENES, "moransi"].abs() < 0.2).all()
     assert (res.loc[RAND_GENES, "moransi_padj"] > 0.05).all()
