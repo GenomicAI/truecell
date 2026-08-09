@@ -10,7 +10,7 @@ use. The [generics](generics.md) live on `truecell.generics` —
 `AttributeError`. Seven of them are re-exported at the top level as well
 (`create_truecell_object`, `create_assay_object`, `create_centroids`,
 `create_segmentation`, `create_fov`, `get_tissue_coordinates`, `as_graph`); the
-other 66 are not. The loaders on [Loading data](io.md) likewise stay on their own
+other 65 are not. The loaders on [Loading data](io.md) likewise stay on their own
 modules: `truecell.io.read_10x`, `truecell.datasets.pbmc3k`,
 `truecell.compat.anndata.as_anndata`.
 

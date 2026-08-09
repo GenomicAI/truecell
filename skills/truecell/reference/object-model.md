@@ -45,7 +45,7 @@ obj.rename_cells(new_names)          -> Truecell
 obj.which_cells(ident=None, cells=None) -> list[str]     # WhichCells()
 obj.set_ident(cells, ident)          -> None
 obj.rename_idents(mapping)           -> Truecell           # RenameIdents()
-obj.reorder_ident(ident, order)      -> Truecell
+obj.reorder_ident(var, reverse=False, afxn=np.mean) -> Truecell  # ReorderIdent()
 obj.stash_ident(save_name)           -> Truecell
 obj.get_tissue_coordinates(image=None) -> pd.DataFrame
 obj.tool(key) / obj.set_tool(key, value)

@@ -18,6 +18,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+An AST sweep of every module for parameters never read in their own function
+body — prompted by the `nn_name` defect above — turned up nine real cases after
+triage. The user-facing ones are fixed here; each had a docstring promising
+behaviour the code did not deliver.
+
+- **`plot_perturb_score(target_gene_class=)` was ignored.** It is documented as
+  the metadata column holding each cell's guide class, but the code took
+  `scores.columns[1]` positionally. R indexes that frame **by name**
+  (`prtb_score[, target.gene.class]`). The two agree at the defaults, which is
+  why it went unnoticed; they diverge as soon as `run_mixscape(labels=...)`
+  names the column something else. Now name-based, falling back to position
+  (where R simply fails) since the stored frame is always `["pvec", <labels>]`.
+
+- **`calc_n(margin=)` was ignored** — it always summed down columns, so
+  `margin=1` silently returned per-cell numbers where per-feature were asked
+  for. Both margins now work, on dense, sparse and on-disk matrices; the lazy
+  path walks the store in cell blocks rather than densifying it.
+
+- **`DimReduc.features(projected=)` was ignored**, and reachable that way
+  through the public `generics.features` too. It returned the unprojected names
+  whichever slot you asked for — so on a reduction with no projected loadings it
+  announced N features for a zero-row matrix. It now follows the matrix, as R's
+  `Features.DimReduc` does (`rownames(Loadings(projected = projected))`, empty
+  when there is none). `DimReduc` gained a `feature_names_projected` axis, since
+  `ProjectDim` scores every gene in the assay while the reduction itself covers
+  only the features it was computed on — the two lists genuinely differ.
+
+### Changed
+
+- **BREAKING: `Truecell.reorder_ident` now takes Seurat's arguments.** It was
+  `reorder_ident(ident, order)` with `ident` never read; it is now
+  `reorder_ident(var, reverse=False, afxn=np.mean)`, R's `ReorderIdent` —
+  summarise `var` within each identity and sort the levels by it. Verified
+  against Seurat 5.5.1 on a fixture whose per-ident means are A=3, B=2, C=4,
+  D=1: both give `D, B, A, C`.
+
+  One deliberate divergence: **R's `reverse` does nothing.** It transforms the
+  *values* of an already-sorted named vector and reads `names()` off the result,
+  which leaves the order untouched — 5.5.1 returns `D, B, A, C` either way.
+  Here it genuinely reverses, because shipping a third argument that silently
+  does nothing is the defect this whole entry is about. R's `reorder.numeric` is
+  not ported: on 5.5.1 it warns `Cannot find cells provided` and leaves the
+  levels unchanged, so there is no working behaviour to match.
+
+### Removed
+
+- **`stitch_matrix` is deleted.** It had no callers, no tests, and ignored both
+  of its `row_names`/`col_names` arguments — the body just `hstack`ed the
+  blocks, where a real `StitchMatrix` aligns *by* those names. It was registered
+  as a generic, so the module-only generic count in `docs/api/index.md` drops
+  from 66 to 65.
+
 ### Added
 
 - **`find_neighbors(return_neighbor=True)`** — Seurat's `return.neighbor`.

@@ -623,3 +623,41 @@ def test_do_heatmap_does_not_warn():
         warnings.simplefilter("error", UserWarning)
         fig = do_heatmap(obj, features=["g0", "g1"], layer="data")
     plt.close(fig)
+
+
+def test_plot_perturb_score_honours_target_gene_class():
+    """`target_gene_class` was documented and never read.
+
+    R indexes the stored score frame by name — `prtb_score[, target.gene.class]`
+    — where truecell hardcoded column 1. The two agree at the defaults, which is
+    why it went unnoticed; they diverge the moment `run_mixscape(labels=...)`
+    names the guide column something else, and the argument's whole purpose is
+    to say so.
+    """
+    obj, _, _ = _fitted()
+    scores = obj.misc["mixscape"]["PRTB"]["genes"]["G1"]["scores"]
+    guide_col = [c for c in scores.columns if c != "pvec"][0]
+
+    # A decoy column placed *before* the real one: positional access would now
+    # read the decoy, so this pins name-based selection rather than luck.
+    scores.insert(1, "decoy", "NOT-A-GUIDE")
+    try:
+        fig = plot_perturb_score(obj, target_gene_ident="G1",
+                                 target_gene_class=guide_col,
+                                 before_mixscape=True)
+        labels = {t.get_text() for t in fig.axes[0].get_legend().get_texts()}
+        assert "G1" in labels, f"guide label missing from {labels}"
+        assert "NOT-A-GUIDE" not in labels
+        plt.close(fig)
+    finally:
+        scores.drop(columns="decoy", inplace=True)
+
+
+def test_plot_perturb_score_reports_an_absent_guide_column():
+    """Naming a column that is not there should say so, not read a neighbour."""
+    obj, _, _ = _fitted()
+    scores = obj.misc["mixscape"]["PRTB"]["genes"]["G1"]["scores"]
+    only_pvec = scores[["pvec"]]
+    obj.misc["mixscape"]["PRTB"]["genes"]["G1"]["scores"] = only_pvec
+    with pytest.raises(KeyError, match="No guide-label column"):
+        plot_perturb_score(obj, target_gene_ident="G1")
