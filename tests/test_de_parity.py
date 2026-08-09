@@ -402,3 +402,147 @@ def test_cluster_labels_are_ordered_numerically_past_ten():
     # non-numeric labels still sort, and sort after the numeric ones
     mixed = sorted(["B", "2", "10", "CD4 T"], key=_ident_sort_key)
     assert mixed == ["2", "10", "B", "CD4 T"]
+
+
+# ---------------------------------------------------------------------------
+# poisson — the other half of GLMDETest
+# ---------------------------------------------------------------------------
+
+def test_poisson_matches_glm_poisson_wald():
+    """Against statsmodels' Poisson GLM directly, which is what R's `glm` does.
+
+    Seurat's `GLMDETest` reads `summary(glm(fmla, family = "poisson"))$coef[2, 4]`
+    — a Wald z-test, because a Poisson GLM holds its dispersion at 1 and so
+    reports z rather than t. Verified against Seurat 5.5.1 on pbmc3k clusters
+    0 vs 1: 50/50 on the top 50 genes, p-value Spearman 0.9999984 on genes
+    detected above 5 %.
+    """
+    import statsmodels.api as sm
+
+    rng = np.random.default_rng(5)
+    n1 = n2 = 60
+    counts = np.vstack([
+        np.r_[rng.poisson(8.0, n1), rng.poisson(2.0, n2)],   # clearly different
+        np.r_[rng.poisson(3.0, n1), rng.poisson(3.0, n2)],   # null
+    ]).astype(float)
+    obj = create_truecell_object(
+        sp.csc_matrix(counts), assay="RNA", feature_names=["hit", "null"],
+        cell_names=[f"c{i}" for i in range(n1 + n2)],
+    )
+    normalize_data(obj)
+    obj.idents = ["A"] * n1 + ["B"] * n2
+    res = find_markers(obj, "A", "B", test_use="poisson",
+                       logfc_threshold=0, min_pct=0)
+
+    grp = np.r_[np.zeros(n1), np.ones(n2)]
+    X = sm.add_constant(grp)
+    for gene, row in (("hit", counts[0]), ("null", counts[1])):
+        want = sm.GLM(row, X, family=sm.families.Poisson()).fit().pvalues[1]
+        # `abs=0` for the same reason as the negbinom test above: approx's
+        # default 1e-12 absolute tolerance exceeds these p-values, so the plain
+        # form would call any two tiny numbers equal. IRLS on the same design is
+        # deterministic, so this one can be tight.
+        assert res.loc[gene, "p_val"] == pytest.approx(want, rel=1e-10, abs=0), gene
+
+    assert res.loc["hit", "p_val"] < 1e-6
+    assert res.loc["null", "p_val"] > 0.01
+
+
+def test_poisson_reads_counts_not_the_data_layer():
+    """`poisson` is one of the three counts-based tests, with negbinom and deseq2.
+
+    Seurat's `DEmethods_counts()` is exactly `negbinom`, `poisson`, `DESeq2`, and
+    `FindMarkers.Assay` switches the slot to "counts" for them. Running a Poisson
+    GLM on log-normalized values instead would still return plausible p-values —
+    that is what makes it worth pinning.
+    """
+    import statsmodels.api as sm
+
+    rng = np.random.default_rng(17)
+    n1 = n2 = 50
+    row = np.r_[rng.poisson(7.0, n1), rng.poisson(2.0, n2)].astype(float)
+    obj = create_truecell_object(
+        sp.csc_matrix(row.reshape(1, -1)), assay="RNA", feature_names=["hit"],
+        cell_names=[f"c{i}" for i in range(n1 + n2)],
+    )
+    normalize_data(obj)          # makes `data` differ sharply from `counts`
+    obj.idents = ["A"] * n1 + ["B"] * n2
+    got = find_markers(obj, "A", "B", test_use="poisson",
+                       logfc_threshold=0, min_pct=0).loc["hit", "p_val"]
+
+    grp = np.r_[np.zeros(n1), np.ones(n2)]
+    X = sm.add_constant(grp)
+    from_counts = sm.GLM(row, X, family=sm.families.Poisson()).fit().pvalues[1]
+    data_layer = np.asarray(
+        obj.assays["RNA"].layer_data("data").todense()).ravel()
+    from_data = sm.GLM(data_layer, X, family=sm.families.Poisson()).fit().pvalues[1]
+
+    assert got == pytest.approx(from_counts, rel=1e-10, abs=0)
+    # Anti-vacuity: the two layers must actually give different answers, or the
+    # assertion above would hold whichever layer were read.
+    assert abs(np.log10(from_counts) - np.log10(from_data)) > 1.0
+
+
+def test_poisson_is_not_negbinom():
+    """Dispatching `poisson` to the negbinom fitter would pass a weaker test.
+
+    The two agree closely on equidispersed data — which is what a synthetic
+    Poisson fixture produces — so "poisson returns something sensible" cannot
+    tell them apart. On overdispersed counts they separate by construction:
+    fixing the dispersion at 1 understates the variance, so the standard error
+    comes out too small and the p-value too extreme. That is also the
+    anti-conservatism the `_poisson_pvalue` docstring warns about, so this
+    pins the warning as well as the dispatch.
+    """
+    rng = np.random.default_rng(23)
+    n1 = n2 = 80
+    # Negative-binomial counts: mean ~6 vs ~3, variance well above the mean.
+    row = np.r_[rng.negative_binomial(2, 2 / (2 + 6.0), n1),
+                rng.negative_binomial(2, 2 / (2 + 3.0), n2)].astype(float)
+    obj = create_truecell_object(
+        sp.csc_matrix(row.reshape(1, -1)), assay="RNA", feature_names=["hit"],
+        cell_names=[f"c{i}" for i in range(n1 + n2)],
+    )
+    normalize_data(obj)
+    obj.idents = ["A"] * n1 + ["B"] * n2
+    kw = dict(logfc_threshold=0, min_pct=0)
+    pois = find_markers(obj, "A", "B", test_use="poisson", **kw).loc["hit", "p_val"]
+    nb = find_markers(obj, "A", "B", test_use="negbinom", **kw).loc["hit", "p_val"]
+
+    assert pois < nb, (
+        f"poisson ({pois:.3e}) should be more extreme than negbinom ({nb:.3e}) "
+        f"on overdispersed counts"
+    )
+    assert abs(np.log10(pois) - np.log10(nb)) > 0.5, (
+        f"poisson and negbinom are too close ({pois:.3e} vs {nb:.3e}) — "
+        f"poisson may be dispatching to the negative-binomial fitter"
+    )
+
+
+def test_poisson_honours_latent_vars():
+    """`poisson` is in Seurat's `DEmethods_latent()`, alongside negbinom/MAST/LR.
+
+    A covariate that carries the group signal should pull the group term's
+    p-value up when it is regressed out; if `latent_vars` were silently dropped
+    for this test — the failure mode when a new test is added to the dispatch
+    but not to the covariate tuple — the two calls would agree exactly.
+    """
+    rng = np.random.default_rng(31)
+    n1 = n2 = 70
+    row = np.r_[rng.poisson(7.0, n1), rng.poisson(3.0, n2)].astype(float)
+    obj = create_truecell_object(
+        sp.csc_matrix(row.reshape(1, -1)), assay="RNA", feature_names=["hit"],
+        cell_names=[f"c{i}" for i in range(n1 + n2)],
+    )
+    normalize_data(obj)
+    obj.idents = ["A"] * n1 + ["B"] * n2
+    # A covariate almost collinear with the group split.
+    obj.meta_data["cov"] = np.r_[np.ones(n1), np.zeros(n2)] + rng.normal(0, 0.1, n1 + n2)
+
+    kw = dict(logfc_threshold=0, min_pct=0)
+    plain = find_markers(obj, "A", "B", test_use="poisson", **kw).loc["hit", "p_val"]
+    adjusted = find_markers(obj, "A", "B", test_use="poisson",
+                            latent_vars=["cov"], **kw).loc["hit", "p_val"]
+
+    assert plain != adjusted, "latent_vars had no effect on the poisson test"
+    assert adjusted > plain

@@ -43,6 +43,36 @@ Two defects, both fixed here.
    sits below that, where the negative-binomial GLM is fitting almost-empty rows
    and Seurat's own ``min.cells.feature`` drops the genes anyway.
 
+Added later: ``poisson``
+------------------------
+The ninth test, and the other half of Seurat's ``GLMDETest`` — ``glm(family =
+"poisson")`` on the counts layer, Wald p-value off the group coefficient. It
+lands at **50/50 on the top 50**, ``avg_log2FC`` exact to 6.2e-15, p-value
+Spearman **0.9999984** on genes detected above 5 %, and **zero** disagreements
+on which genes clear ``p_val_adj < 0.05``.
+
+**The residual is R's, and this is the third time that has been true here.**
+truecell's p-values sit within ~6 significant figures of Seurat's rather than
+being bit-identical, and the gap grows with significance (median |Δlog10 p|
+2.0e-6 below ``-log10 p = 2``, rising to 9.8e-5 above 150) — the signature of
+tail amplification, not of a wrong statistic. At z ≈ 37 a shift of 0.005 in z
+moves p by 20 %. Chasing it down: on GPX1, R's default ``glm.control(epsilon =
+1e-8)`` stops at **iteration 5** with z = 37.002168 and p = 1.0568e-299, while
+``epsilon = 1e-14`` takes **6** and gives z = 36.997126, p = 1.27368e-299 —
+which is truecell's answer, matching R's own converged coefficient to **14
+significant figures**. Re-running the top 200 genes at both tolerances closes
+9/10 of the median gap (5.9e-5 → 6.6e-6) and 57/58 of the worst case (8.1e-2 →
+1.4e-3). truecell is the more converged of the two, so no "fix" was applied;
+see the Visium tutorial for the first instance of a difference being Seurat's.
+
+**Divergence on the gene set, and it is exact.** R returns 11,466 genes to
+truecell's 13,714. All **2,248** of the difference fail Seurat's
+``GLMDETest`` ``min.cells = 3``-in-*both*-groups gate, which flags them with a
+sentinel p-value of 2 and deletes the rows; 365 of those also have zero
+variance. truecell returns them with ``p_val = 1`` instead — no evidence rather
+than no row — which keeps the frame's gene set the same across every
+``test_use``. Verified gene-by-gene, not assumed: the two sets coincide exactly.
+
 Differences left standing, and why
 ----------------------------------
 * **``deseq2`` is not Seurat's DESeq2.** Seurat's ``DESeq2DETest`` builds a
@@ -100,6 +130,7 @@ TEST_MAP = {
     "bimod": "bimod",
     "LR": "LR",
     "negbinom": "negbinom",
+    "poisson": "poisson",
     "roc": "roc",
     "mast": "MAST",
     "deseq2": "DESeq2",
@@ -124,7 +155,7 @@ LOG2FC_TOLERANCE = 1e-12
 # `DESeq2DETest` tests cells as replicates — so its band comes from measurement:
 # resampling the pseudo-replicate split 20 times moves the overlap over 20-26
 # (median 22), and the previous cluster assignment gave 25.
-RANKED_TESTS = ("wilcox", "t", "bimod", "LR", "negbinom", "mast")
+RANKED_TESTS = ("wilcox", "t", "bimod", "LR", "negbinom", "poisson", "mast")
 
 _PARITY_TOP50 = (
     "The same statistic on the same cells: the 50 most significant genes must "
@@ -151,6 +182,11 @@ BANDS: dict[str, Band] = {
         ("negbinom", 0.88,
          "Both fit a negative-binomial GLM but not with the same optimiser, so "
          "the agreement is high rather than exact: 0.9165 here, 0.9194 before."),
+        ("poisson", 0.9999,
+         "Identical Poisson GLM Wald test; measured 0.9999984. The residual is "
+         "R's glm.control(epsilon = 1e-8) stopping an iteration early, not a "
+         "difference in the statistic — see the convergence note in the module "
+         "docstring."),
         ("mast", 0.99,
          "truecell's hurdle model is hand-rolled rather than a call to the MAST "
          "package, so this is the closest a reimplementation gets: 0.9979."),

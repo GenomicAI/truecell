@@ -15,7 +15,7 @@ runs without matplotlib, scikit-learn or umap-learn anywhere on the system.
 
 | Extra | Adds | You need it for |
 |---|---|---|
-| `analysis` | statsmodels, scikit-learn, numba, umap-learn, igraph, leidenalg, matplotlib, seaborn, scikit-misc | Clustering, UMAP/t-SNE, every plot, and the `LR`/`negbinom`/`mast` DE tests |
+| `analysis` | statsmodels, scikit-learn, numba, umap-learn, igraph, leidenalg, matplotlib, seaborn, scikit-misc | Clustering, UMAP/t-SNE, every plot, and the `LR`/`negbinom`/`poisson`/`mast` DE tests |
 | `anndata` | anndata | `as_anndata` / `from_anndata` |
 | `integration` | harmonypy | `run_harmony`, and `integrate_layers(method="harmony")` |
 | `deseq2` | pydeseq2 | `find_markers(test_use="deseq2", ...)` |
