@@ -52,6 +52,7 @@ dimensionality reduction, clustering, and marker detection — entirely in Pytho
 - **Clustering** — `find_clusters` (Louvain via python-igraph, Leiden via leidenalg)
 - **UMAP** — `run_umap` (via umap-learn; embeds a reduction or a precomputed graph)
 - **PC significance** — `jack_straw`, `score_jackstraw` (JackStraw permutation test)
+- **Object slimming** — `diet_truecell` (`DietSeurat`), dropping layers, reductions and graphs before saving or sharing
 - **Multi-sample SCT** — `prep_sct_find_markers` (`PrepSCTFindMarkers`), re-correcting merged SCT counts to a common sequencing depth before DE
 - **Differential expression** — `find_markers`, `find_all_markers` (`wilcox` tie-corrected, `t`, `bimod`, `LR`, `negbinom`, `poisson`, `mast` hurdle, `deseq2` pseudobulk, `roc`), `find_conserved_markers` (cross-condition, Fisher-combined)
 - **Pseudobulk** — `aggregate_expression` (sum counts per group → matrix or one-cell-per-group object), pseudobulk DESeq2 via `find_markers(test_use="deseq2", sample_col=...)`
