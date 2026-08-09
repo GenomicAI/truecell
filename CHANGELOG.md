@@ -20,6 +20,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`find_neighbors(return_neighbor=True)`** — Seurat's `return.neighbor`.
+  Stores the raw KNN result, indices *and* distances, as a `Neighbor` in
+  `seurat.neighbors` instead of building graphs. The distances were already
+  being computed on every call and discarded. `compute_snn` is exposed
+  alongside it, defaulting to `not return_neighbor` as in R, which warns and
+  builds no SNN if you ask for both.
+
+  Verified against Seurat 5.5.1 (`nn.method = "rann"`, the exact search, since
+  the default `annoy` is approximate): on pbmc3k, fed R's own PCA embedding so
+  the comparison isolates the neighbour search, **all 54,000 neighbour indices
+  match** and the distances agree to **1.1e-13**.
+
+  Two details worth knowing. The `Neighbor` is stored under `"<assay>.nn"` — a
+  **dot**, where the graphs use an underscore (`RNA.nn` against `RNA_nn` /
+  `RNA_snn`); that is Seurat's naming. And the stored indices are **0-based**,
+  where R's `Indices()` are 1-based.
+
+### Removed
+
+- **BREAKING: `find_neighbors(nn_name=)` is gone.** It was accepted and never
+  read — no code path in truecell had ever populated `seurat.neighbors`, and
+  Seurat has no `nn.name` argument to be faithful to. It was not given
+  retroactive meaning because every plausible reading is a trap: making it
+  imply `return_neighbor=True` would have *silently stopped storing the graphs*
+  for anyone already passing it. A `TypeError` is the honest outcome.
+  Migration: `nn_name="X"` → `return_neighbor=True, graph_name="X"`.
+
 - **`diet_truecell`** — Seurat's `DietSeurat`. Strips an object down to chosen
   assays, layers, features, reductions and graphs, for saving, sharing, or
   holding several at once. Returns a **new** object and leaves the input alone;
