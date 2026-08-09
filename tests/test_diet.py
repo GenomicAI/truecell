@@ -218,18 +218,12 @@ def test_misc_false_empties_object_misc(obj):
 def test_neighbors_are_left_alone(obj):
     """R filters only DimReduc and Graph; Neighbor objects are not candidates.
 
-    The `Neighbor` is built here rather than produced by `find_neighbors`,
-    which accepts an `nn_name` argument but never writes one — so asking the
-    pipeline for one and skipping when it does not appear would be a test that
-    can only ever skip.
+    The `Neighbor` comes from the pipeline rather than being built by hand:
+    when this test was written `find_neighbors` had an `nn_name` argument it
+    never read and nothing in truecell produced a `Neighbor` at all, so it had
+    to be constructed here or the test could only ever skip. `return_neighbor`
+    now makes one, which is the stronger version of the same assertion.
     """
-    from truecell import Neighbor
-
-    cells = obj.cell_names()
-    k = 5
-    obj.neighbors["RNA.nn"] = Neighbor(
-        nn_idx=np.tile(np.arange(k), (len(cells), 1)),
-        nn_dist=np.zeros((len(cells), k)),
-        cell_names=list(cells),
-    )
+    tc.find_neighbors(obj, dims=range(5), return_neighbor=True)
+    assert list(obj.neighbors) == ["RNA.nn"]
     assert set(diet_truecell(obj).neighbors) == {"RNA.nn"}

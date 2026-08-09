@@ -126,7 +126,16 @@ matching `RunUMAP`'s two modes. `glm_pca` runs on `counts`, not scaled data.
 
 ```python
 find_neighbors(seurat, dims=None, k_param=20, assay=None, reduction="pca",
-               graph_name=None, nn_name=None, prune_snn=1/15, seed=42) -> None
+               graph_name=None, return_neighbor=False, compute_snn=None,
+               prune_snn=1/15, seed=42) -> None
+```
+
+`return_neighbor=True` stores the raw KNN (indices + distances) as a `Neighbor`
+in `seurat.neighbors["<assay>.nn"]` and builds **no** graphs — Seurat's
+`return.neighbor`. Note the dot: `RNA.nn` for the Neighbor, `RNA_nn`/`RNA_snn`
+for the graphs. Indices are 0-based where R's `Indices()` are 1-based.
+
+```python
 find_clusters(seurat, resolution=0.5, algorithm=1, graph_name=None, random_seed=0,
               n_iterations=-1, group_singletons=True) -> None
 find_multi_modal_neighbors(seurat, reduction_list=("pca", "apca"), dims_list=None,

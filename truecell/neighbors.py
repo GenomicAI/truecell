@@ -4,6 +4,7 @@ Mirrors Seurat's FindNeighbors().
 """
 from __future__ import annotations
 
+import warnings
 from typing import Optional, Union
 
 import numpy as np
@@ -11,6 +12,7 @@ import scipy.sparse as sp
 
 from .command import log_truecell_command
 from .graph import Graph
+from .neighbor import Neighbor
 
 
 def find_neighbors(
@@ -20,25 +22,52 @@ def find_neighbors(
     assay: Optional[str] = None,
     reduction: str = "pca",
     graph_name: Optional[str] = None,
-    nn_name: Optional[str] = None,
+    return_neighbor: bool = False,
+    compute_snn: Optional[bool] = None,
     prune_snn: float = 1 / 15,
     seed: int = 42,
 ) -> None:
     """Build KNN and SNN graphs from a low-dimensional embedding.
 
-    Mirrors R's FindNeighbors(pbmc, dims = 1:10).
-    Stores Graph objects in seurat.graphs[graph_name + '_nn'] and
-    seurat.graphs[graph_name + '_snn'].
+    Mirrors R's ``FindNeighbors(pbmc, dims = 1:10)``. Stores ``Graph`` objects in
+    ``seurat.graphs[f"{graph_name}_nn"]`` and ``seurat.graphs[f"{graph_name}_snn"]``.
 
     Parameters
     ----------
     dims        : which PCs to use (0-indexed; default all available)
-    k_param     : number of nearest neighbors
+    k_param     : number of nearest neighbors, **including the cell itself**
     reduction   : which reduction to use ('pca' by default)
-    graph_name  : prefix for graph names (defaults to active assay name)
+    graph_name  : prefix for graph names (defaults to active assay name). With
+                  ``return_neighbor=True`` it names the ``Neighbor`` outright,
+                  rather than acting as a prefix.
+    return_neighbor : store the raw KNN result — indices and distances — as a
+                  ``Neighbor`` in ``seurat.neighbors`` instead of building
+                  graphs. Seurat's ``return.neighbor``.
+    compute_snn : build the SNN graph. Defaults to ``not return_neighbor``,
+                  as in Seurat, which cannot do both.
     prune_snn   : edges with Jaccard index below this are pruned (Seurat default 1/15)
+
+    Notes
+    -----
+    ``return_neighbor=True`` stores a ``Neighbor`` under ``f"{assay}.nn"`` — a
+    **dot**, where the graphs use an underscore (``RNA.nn`` against ``RNA_nn`` /
+    ``RNA_snn``). That is Seurat's naming, and the separator is the only thing
+    distinguishing the two in a printout.
+
+    The stored indices are **0-based**, where R's ``Indices()`` are 1-based.
+    Everything else — the k columns, self first at distance 0, the ordering — is
+    the same.
     """
     assay_name = assay or seurat.active_assay
+    if compute_snn is None:
+        compute_snn = not return_neighbor
+    elif compute_snn and return_neighbor:
+        # R warns and computes no SNN rather than refusing the call.
+        warnings.warn(
+            "The SNN graph is not computed if return_neighbor is True.",
+            stacklevel=2,
+        )
+        compute_snn = False
 
     # Get embeddings
     if reduction not in seurat.reductions:
@@ -58,25 +87,32 @@ def find_neighbors(
     # Build KNN
     nn_idx, nn_dist = _build_knn(emb, k_param, seed)
 
-    # Build KNN sparse graph (symmetric)
-    knn_mat = _knn_to_sparse(nn_idx, n_cells)
+    if return_neighbor:
+        # The distances have always been computed here and thrown away; this is
+        # the branch that keeps them. Seurat stores no graph at all in this mode.
+        seurat.neighbors[graph_name or f"{assay_name}.nn"] = Neighbor(
+            nn_idx=nn_idx,
+            nn_dist=nn_dist,
+            cell_names=cells,
+            alg_info={"k_param": k_param, "reduction": reduction,
+                      "assay": assay_name},
+        )
+    else:
+        prefix = graph_name or assay_name
+        seurat.graphs[f"{prefix}_nn"] = Graph(
+            matrix=_knn_to_sparse(nn_idx, n_cells),
+            cell_names=cells, assay_used=assay_name,
+        )
+        if compute_snn:
+            seurat.graphs[f"{prefix}_snn"] = Graph(
+                matrix=_build_snn(nn_idx, n_cells, k_param, prune_snn),
+                cell_names=cells, assay_used=assay_name,
+            )
 
-    # Build SNN (shared nearest neighbor) sparse graph with Jaccard weights
-    snn_mat = _build_snn(nn_idx, n_cells, k_param, prune_snn)
-
-    prefix = graph_name or assay_name
-    knn_name = f"{prefix}_nn"
-    snn_name = f"{prefix}_snn"
-
-    seurat.graphs[knn_name] = Graph(
-        matrix=knn_mat, cell_names=cells, assay_used=assay_name
-    )
-    seurat.graphs[snn_name] = Graph(
-        matrix=snn_mat, cell_names=cells, assay_used=assay_name
-    )
     log_truecell_command(
         seurat, "FindNeighbors", assay=assay_name, reduction=reduction,
         params={"k_param": k_param, "prune_snn": prune_snn,
+                "return_neighbor": return_neighbor, "compute_snn": compute_snn,
                 "dims": list(dims) if dims is not None else None},
     )
 
