@@ -20,6 +20,7 @@ import warnings
 from pathlib import Path
 
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -620,4 +621,5 @@ def test_do_heatmap_does_not_warn():
     obj, _, _ = _fitted()
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        do_heatmap(obj, features=["g0", "g1"], layer="data")
+        fig = do_heatmap(obj, features=["g0", "g1"], layer="data")
+    plt.close(fig)
