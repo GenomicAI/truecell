@@ -1,6 +1,6 @@
 ---
 name: truecell-differential-expression
-description: Use when finding marker genes or running differential expression in truecell — find_markers, find_all_markers, find_conserved_markers, aggregate_expression, choosing among the eight test_use options (wilcox, t, bimod, LR, negbinom, mast, deseq2, roc), pseudobulk DE with sample_col, or interpreting the output columns and fold changes.
+description: Use when finding marker genes or running differential expression in truecell — find_markers, find_all_markers, find_conserved_markers, aggregate_expression, choosing among the nine test_use options (wilcox, t, bimod, LR, negbinom, poisson, mast, deseq2, roc), pseudobulk DE with sample_col, or interpreting the output columns and fold changes.
 ---
 
 # Differential expression in truecell
@@ -45,7 +45,8 @@ agreeing to 7.1e-15.
 | `"t"` | Student's t on log-normalized data | A parametric cross-check on `wilcox`. |
 | `"bimod"` | McDavid 2013 bimodal likelihood-ratio test | Genes that are bimodal rather than shifted — on/off rather than up/down. |
 | `"LR"` | Logistic-regression LRT | You need covariates: pass `latent_vars=["percent.mt"]`. |
-| `"negbinom"` | Negative-binomial GLM LRT **on counts** | UMI counts directly, no normalization assumption. Slow. |
+| `"negbinom"` | Negative-binomial GLM Wald test **on counts** | UMI counts directly, no normalization assumption. Slow. |
+| `"poisson"` | Poisson GLM Wald test **on counts** | Counts, when speed matters more than calibration. Anti-conservative on overdispersed UMIs — prefer `negbinom`. |
 | `"mast"` | MAST two-part hurdle LRT | The hurdle model — detection and magnitude tested jointly. Supports `latent_vars`. |
 | `"deseq2"` | Pseudobulk DESeq2 | Sample-level inference. **Requires `sample_col`.** Needs `pip install truecell[deseq2]`. |
 | `"roc"` | AUC classifier power | Ranking markers by how well they separate, with no p-value at all. |
@@ -55,7 +56,7 @@ depends on replicate-level significance.
 
 ## Output columns
 
-For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `mast`, sorted by `p_val`:
+For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `poisson` / `mast`, sorted by `p_val`:
 
 | Column | Meaning |
 |---|---|
@@ -101,7 +102,8 @@ truecell.find_markers(obj, ident_1="stim", ident_2="ctrl",
                     test_use="LR", latent_vars=["percent.mt", "nCount_RNA"])
 ```
 
-`latent_vars` is honoured by `LR`, `negbinom` and `mast` only.
+`latent_vars` is honoured by `LR`, `negbinom`, `poisson` and `mast` only —
+the same four as Seurat's `DEmethods_latent()`.
 
 **A deliberate MAST difference:** Seurat's `MASTDETest` fits `~ condition` alone
 and adds **no** cellular detection rate term. Leaving `latent_vars` empty is what

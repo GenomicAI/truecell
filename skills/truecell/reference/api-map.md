@@ -159,7 +159,7 @@ aggregate_expression(seurat, group_by="ident", assays=None, features=None,
                      layer="counts", return_object=False)
 ```
 
-`test_use`: `wilcox` · `t` · `bimod` · `LR` · `negbinom` · `mast` · `deseq2` · `roc`.
+`test_use`: `wilcox` · `t` · `bimod` · `LR` · `negbinom` · `poisson` · `mast` · `deseq2` · `roc`.
 
 ## Integration and mapping → `truecell-integration`
 

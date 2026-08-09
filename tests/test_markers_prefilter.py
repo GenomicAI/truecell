@@ -27,7 +27,7 @@ from truecell import create_truecell_object
 from truecell.markers import _roc_auc, find_markers
 from truecell.preprocessing import normalize_data
 
-TESTS = ["wilcox", "t", "bimod", "LR", "mast", "negbinom", "roc"]
+TESTS = ["wilcox", "t", "bimod", "LR", "mast", "negbinom", "poisson", "roc"]
 
 
 @pytest.fixture

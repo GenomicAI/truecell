@@ -165,6 +165,51 @@ def _negbinom_pvalue(counts: np.ndarray, group: np.ndarray, latent: Optional[np.
     return 1.0 if not np.isfinite(p) else p
 
 
+def _poisson_pvalue(counts: np.ndarray, group: np.ndarray, latent: Optional[np.ndarray]) -> float:
+    """Poisson GLM Wald test on counts (Seurat's 'poisson').
+
+    The other half of Seurat's ``GLMDETest``: where ``negbinom`` fits
+    ``MASS::glm.nb``, this fits ``glm(family = "poisson")`` and reads the same
+    **Wald** p-value off the group coefficient (``summary(...)$coef[2, 4]``).
+    Both run on the **counts** layer, not the normalized one.
+
+    The p-value is normal-based rather than t-based, on both sides: a Poisson
+    GLM holds its dispersion fixed at 1, so R's ``summary.glm`` reports a z
+    value, and ``statsmodels``' ``GLM`` likewise leaves ``use_t`` off when the
+    family's scale is fixed.
+
+    **This test is anti-conservative on scRNA-seq, by construction.** Fixing the
+    dispersion at 1 asserts ``Var = mean``, and UMI counts are overdispersed, so
+    the standard errors come out too small and the p-values too extreme —
+    routinely by tens of orders of magnitude against ``negbinom`` on the same
+    gene. That is a property of the model Seurat exposes, not of this port;
+    ``negbinom`` estimates the dispersion instead and is the better-calibrated
+    of the two. It is offered because Seurat offers it, and it is fast.
+    """
+    import statsmodels.api as sm
+
+    y = counts.astype(float)
+    if y.mean() <= 0:
+        return 1.0
+
+    n = len(y)
+    cols = [np.ones(n), group]
+    if latent is not None and latent.size:
+        cols.append(latent)
+    X = np.column_stack(cols)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            fit = sm.GLM(y, X, family=sm.families.Poisson()).fit()
+        p = float(fit.pvalues[1])
+    except Exception:
+        return 1.0
+    # A gene with no variance leaves the group coefficient exactly 0 (p = 1
+    # already); one that fails to converge gives a non-finite p. Both mean "no
+    # evidence" — see the divergence note in `find_markers`' docstring.
+    return 1.0 if not np.isfinite(p) else p
+
+
 def _mast_pvalue(expr: np.ndarray, group: np.ndarray, latent: Optional[np.ndarray]) -> float:
     """MAST two-part hurdle likelihood-ratio test (Finak 2015; Seurat's 'MAST').
 
@@ -297,18 +342,22 @@ def find_markers(
     ident_2         : cluster label(s) for group 2 (None = all others)
     test_use        : statistical test — 'wilcox' (default), 't', 'bimod'
                       (McDavid 2013 bimodal LRT), 'LR' (logistic-regression LRT),
-                      'negbinom' (negative-binomial GLM LRT on counts), 'mast'
-                      (MAST two-part hurdle LRT on log-normalized data), 'deseq2'
-                      (pseudobulk DESeq2 — sums counts per sample then tests
-                      sample-level, requires ``sample_col``; needs
-                      ``pip install truecell[deseq2]``), or 'roc' (AUC classifier
-                      power).
+                      'negbinom' (negative-binomial GLM Wald test on counts),
+                      'poisson' (Poisson GLM Wald test on counts — fast, but
+                      anti-conservative on overdispersed UMI data; prefer
+                      'negbinom'), 'mast' (MAST two-part hurdle LRT on
+                      log-normalized data), 'deseq2' (pseudobulk DESeq2 — sums
+                      counts per sample then tests sample-level, requires
+                      ``sample_col``; needs ``pip install truecell[deseq2]``),
+                      or 'roc' (AUC classifier power).
     only_pos        : only return positive markers
     min_pct         : minimum fraction cells expressing gene in either group
     logfc_threshold : minimum log2 fold-change filter
     features        : restrict to these genes (default: all)
     latent_vars     : metadata columns to regress out as covariates in the
-                      'LR', 'negbinom', and 'mast' models (Seurat's latent.vars).
+                      'LR', 'negbinom', 'poisson' and 'mast' models — the same
+                      four Seurat's ``DEmethods_latent()`` names for its
+                      ``latent.vars``.
                       Note that Seurat's ``MASTDETest`` fits ``~ condition``
                       alone — it adds **no** cellular detection rate term unless
                       you pass one — so leaving this empty is what matches
@@ -321,10 +370,22 @@ def find_markers(
 
     Returns
     -------
-    For 'wilcox' / 't' / 'LR' / 'negbinom': DataFrame with columns
-    p_val, avg_log2FC, pct.1, pct.2, p_val_adj (sorted by p_val).
+    For 'wilcox' / 't' / 'bimod' / 'LR' / 'negbinom' / 'poisson' / 'mast':
+    DataFrame with columns p_val, avg_log2FC, pct.1, pct.2, p_val_adj
+    (sorted by p_val).
     For 'roc': columns myAUC, avg_diff, power, avg_log2FC, pct.1, pct.2
     (sorted by power), with no p-value — matching Seurat.
+
+    Notes
+    -----
+    **Divergence, 'negbinom' and 'poisson'.** Seurat's ``GLMDETest`` *drops* a
+    gene from its output when the gene is detected in fewer than ``min.cells``
+    (3) cells in **both** groups, or has zero variance across them; it flags
+    those with a sentinel p-value of 2 and deletes the rows. Here they are
+    returned with ``p_val = 1.0`` instead — no evidence rather than no row —
+    which keeps the frame's gene set identical across every ``test_use`` and
+    keeps ``p_val`` a p-value. The ``min_pct`` pre-filter already removes most
+    such genes before either rule could fire.
     """
     assay_name = assay or seurat.active_assay
     assay_obj = seurat.assays[assay_name]
@@ -433,9 +494,10 @@ def find_markers(
     # copy of the layer, so dropping them here is worth the line.
     del sub1, sub2
 
-    # Per-cell covariates for the regression-based tests (LR / negbinom).
+    # Per-cell covariates for the regression-based tests. Mirrors Seurat's
+    # `DEmethods_latent()` — negbinom, poisson, MAST, LR.
     latent = None
-    if latent_vars and test_use in ("LR", "negbinom", "mast"):
+    if latent_vars and test_use in ("LR", "negbinom", "poisson", "mast"):
         lat1 = seurat.meta_data.loc[cells_1, latent_vars].to_numpy(dtype=float)
         lat2 = seurat.meta_data.loc[cells_2, latent_vars].to_numpy(dtype=float)
         latent = np.vstack([lat1, lat2])
@@ -524,9 +586,9 @@ def find_markers(
         for i in range(len(test_indices)):
             expr = np.concatenate([mat1[i, :], mat2[i, :]])
             p_vals[i] = _mast_pvalue(expr, group, latent)
-    elif test_use == "negbinom":
-        # Counts, not the data layer — and restricted to the tested genes for
-        # the same reason as above.
+    elif test_use in ("negbinom", "poisson"):
+        # Seurat's two GLMDETest families. Both read counts, not the data layer
+        # — and restricted to the tested genes for the same reason as above.
         counts_mat, _ = _get_expression_matrix(assay_obj, "counts")
         if sp.issparse(counts_mat) or is_lazy(counts_mat):
             c1 = _dense_rows(counts_mat[:, idx_1], test_indices)
@@ -536,13 +598,14 @@ def find_markers(
             c1 = dense_counts[np.ix_(test_indices, np.asarray(idx_1))]
             c2 = dense_counts[np.ix_(test_indices, np.asarray(idx_2))]
         group = np.concatenate([np.ones(n1), np.zeros(n2)])
+        glm_test = _negbinom_pvalue if test_use == "negbinom" else _poisson_pvalue
         for i in range(len(test_indices)):
             cnts = np.concatenate([c1[i, :], c2[i, :]])
-            p_vals[i] = _negbinom_pvalue(cnts, group, latent)
+            p_vals[i] = glm_test(cnts, group, latent)
     else:
         raise ValueError(
-            f"Unsupported test_use: {test_use!r}. "
-            "Use 'wilcox', 't', 'bimod', 'LR', 'negbinom', 'mast', 'deseq2', or 'roc'."
+            f"Unsupported test_use: {test_use!r}. Use 'wilcox', 't', 'bimod', "
+            "'LR', 'negbinom', 'poisson', 'mast', 'deseq2', or 'roc'."
         )
 
     # Bonferroni correction (Seurat default: multiply by total gene count)

@@ -18,6 +18,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`find_markers(test_use="poisson")`** — the ninth and last of Seurat's DE
+  tests, and the other half of its `GLMDETest`: a Poisson GLM Wald test on the
+  **counts** layer, honouring `latent_vars` (Seurat's `DEmethods_latent()` is
+  exactly `negbinom`, `poisson`, `MAST`, `LR`). Reaches `find_all_markers` and
+  `find_conserved_markers` unchanged, since both pass `test_use` through.
+
+  Verified against Seurat 5.5.1 on PBMC 3k clusters 0 vs 1: **50/50 on the top
+  50 genes**, `avg_log2FC` to **6.2e-15**, p-value Spearman **0.9999984** on
+  genes detected above 5 %, and **zero** disagreements on which genes clear
+  `p_val_adj < 0.05`.
+
+  Two things worth knowing before using it. **It is anti-conservative on
+  scRNA-seq by construction** — fixing the dispersion at 1 asserts
+  `Var = mean`, which UMI counts violate, so standard errors come out too small
+  and p-values too extreme; `negbinom` estimates the dispersion and is the
+  better-calibrated of the two. And **truecell returns genes Seurat drops**:
+  `GLMDETest` deletes any gene detected in fewer than `min.cells` (3) cells in
+  *both* groups, 2,248 of them on this contrast, where truecell returns
+  `p_val = 1` so the gene set stays the same across every `test_use`.
+
+### Fixed
+
+- **Documentation: `negbinom` was still described as a likelihood-ratio test**
+  in the DE skill's test table, which it has not been since the T-de tutorial
+  moved it onto Seurat's ML-dispersion Wald statistic. Corrected.
+
 ## [1.1.0] - 2026-08-08
 
 Ten weeks of plotting work, a domain-expert review, and the release-readiness

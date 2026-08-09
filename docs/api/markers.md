@@ -1,10 +1,10 @@
 # Differential expression
 
-`find_markers` implements all eight of Seurat's tests: `wilcox` (tie-corrected),
-`t`, `bimod`, `LR`, `negbinom`, `roc`, `mast` and `deseq2`. Seven of them are
-per-cell and reproduce Seurat's top 50 genes exactly on PBMC 3k; `deseq2` is
-pseudobulk and deliberately does not, because it is answering a different
-question — see [the DE vignette](../tutorials/de_vignette.md).
+`find_markers` implements all nine of Seurat's tests: `wilcox` (tie-corrected),
+`t`, `bimod`, `LR`, `negbinom`, `poisson`, `roc`, `mast` and `deseq2`. Eight of
+them are per-cell and reproduce Seurat's top 50 genes exactly on PBMC 3k;
+`deseq2` is pseudobulk and deliberately does not, because it is answering a
+different question — see [the DE vignette](../tutorials/de_vignette.md).
 
 Two numbers to know before reading a result table:
 

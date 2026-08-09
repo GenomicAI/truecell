@@ -37,7 +37,8 @@ FIG <- file.path(TUT, "figures_de")
 dir.create(FIG, showWarnings = FALSE)
 
 DATA <- path.expand("~/.truecell_data/pbmc3k")
-TESTS <- c("wilcox", "t", "bimod", "LR", "negbinom", "roc", "MAST", "DESeq2")
+TESTS <- c("wilcox", "t", "bimod", "LR", "negbinom", "poisson", "roc", "MAST",
+           "DESeq2")
 
 cat("Building pbmc3k...\n")
 raw <- Read10X(file.path(DATA, "filtered_gene_bc_matrices/hg19"))

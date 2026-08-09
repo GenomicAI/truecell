@@ -13,7 +13,7 @@ the same shape of coverage that let the CLR and SCTransform defects survive.
 |---|---|
 | `FindMarkers(obj, test.use = "wilcox")` | `find_markers(obj, test_use="wilcox")` |
 | `test.use = "t"` · `"bimod"` · `"LR"` | `test_use="t"` · `"bimod"` · `"LR"` |
-| `test.use = "negbinom"` · `"roc"` | `test_use="negbinom"` · `"roc"` |
+| `test.use = "negbinom"` · `"poisson"` · `"roc"` | `test_use="negbinom"` · `"poisson"` · `"roc"` |
 | `test.use = "MAST"` | `test_use="mast"` |
 | `test.use = "DESeq2"` | `test_use="deseq2"` |
 
@@ -37,12 +37,57 @@ would look exactly like a DE difference.
 | Metric | Result |
 |---|---|
 | **`avg_log2FC` vs Seurat**, all 13,712 shared genes | **max abs diff 6.44e-15** |
-| **Tests reproducing Seurat's top 50 genes** | **7 of 7** per-cell tests (`roc` scores AUC, not p) |
+| **Tests reproducing Seurat's top 50 genes** | **8 of 8** per-cell tests (`roc` scores AUC, not p) |
 | `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999980 · 0.999994 · 0.999975 |
 | `mast` — Spearman (all genes / detected >5%) | 0.9471 / **0.9979** |
 | `negbinom` — Spearman (all genes / detected >5%) | 0.6943 / **0.9165** |
+| `poisson` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999984** |
 | `roc` — max abs AUC difference | 5.0e-04, which is Seurat's own 3-dp rounding |
 | *Before the fix* — genes returned at `logfc_threshold=0.25` | truecell **2,298** vs Seurat **11,931** (Jaccard 0.193) |
+
+---
+
+## Added later: `poisson`
+
+The ninth test, added after the four waves closed. `poisson` is the other branch
+of Seurat's `GLMDETest` — `glm(family = "poisson")` on the counts layer, Wald
+p-value off the group coefficient — and it ports cleanly: **50/50** on the top
+50, `avg_log2FC` to **6.2e-15**, Spearman **0.9999984** on genes detected above
+5 %, and not one gene on which the two tools disagree about `p_val_adj < 0.05`.
+
+**The residual is Seurat's, which has now happened three times in this port.**
+truecell's p-values agree to about six significant figures rather than bit-for-bit,
+and the gap *grows* with significance — median |Δlog10 p| 2.0e-6 below
+`-log10 p = 2`, and 9.8e-5 above 150. That is tail amplification, not a
+different statistic: at z ≈ 37 a shift of 0.005 in z moves p by 20 %.
+
+Traced on GPX1, the worst gene:
+
+| | iterations | z | p |
+|---|---|---|---|
+| R, default `glm.control(epsilon = 1e-8)` | 5 | 37.002168 | 1.0568e-299 |
+| R, `epsilon = 1e-14` | 6 | 36.997126 | **1.27368e-299** |
+| truecell (statsmodels IRLS, already converged) | — | 36.997125 | **1.27372e-299** |
+
+truecell matches R's *converged* coefficient to 14 significant figures; R's
+default tolerance stops an iteration short. Re-running the top 200 genes at both
+tolerances closes 9/10 of the median gap (5.9e-5 → 6.6e-6) and 57/58 of the
+worst case (8.1e-2 → 1.4e-3). truecell is the more converged of the two, so
+nothing was "fixed" to chase it — the same call as the Visium tutorial's
+radius-in-a-diameter-slot.
+
+**One divergence on the gene set, verified exactly.** R returns 11,466 genes
+where truecell returns 13,714. All **2,248** of the difference fail
+`GLMDETest`'s `min.cells = 3`-in-*both*-groups gate, which R flags with a
+sentinel p-value of 2 and then deletes; 365 of them also have zero variance.
+truecell returns them with `p_val = 1` — no evidence rather than no row — so the
+gene set stays identical across every `test_use`. The two sets were compared
+gene-by-gene rather than assumed to line up.
+
+**Use `negbinom` instead unless you need the speed.** Holding the dispersion at
+1 asserts `Var = mean`, which UMI counts do not obey, so `poisson`'s standard
+errors are too small and its p-values too extreme. It is in truecell because it
+is in Seurat.
 
 ---
 
