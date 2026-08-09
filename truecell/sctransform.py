@@ -422,6 +422,55 @@ def _reg_model_pars(model_pars: np.ndarray, log10_gmean_step1: np.ndarray,
 # SCTransform
 # ---------------------------------------------------------------------------
 
+def _correct_counts(
+    counts_csr: sp.csr_matrix,
+    b0: np.ndarray,
+    b1: np.ndarray,
+    theta: np.ndarray,
+    log10_umi: np.ndarray,
+    target_log10_umi: float,
+    gene_chunk: int = 500,
+) -> sp.csc_matrix:
+    """sctransform's ``correct_counts``: re-express counts at a common depth.
+
+    Transcribed from ``sctransform::correct_counts``. Each cell's Pearson
+    residual is taken at *its own* sequencing depth, then read back out as a
+    count at ``target_log10_umi``::
+
+        mu       = exp(b0 + b1 * log10_umi)        # per cell, own depth
+        resid    = (y - mu) / sqrt(mu + mu^2/theta)
+        mu_t     = exp(b0 + b1 * target_log10_umi) # common depth
+        y_corr   = round(mu_t + resid * sqrt(mu_t + mu_t^2/theta)), floored at 0
+
+    The residual here is **unclipped and has no variance floor** — those belong
+    to `scale.data`, not to the corrected counts, and R keeps them apart the
+    same way.
+
+    Shared by `sctransform` (which passes the object's own median depth) and
+    `prep_sct_find_markers` (which passes the minimum median across models) so
+    the two cannot drift into being two implementations of one formula — the
+    failure T-lazy found between the sparse and lazy paths, where they agreed
+    to 1e-14 until a tie-break turned that into 147 reordered features.
+    """
+    G = counts_csr.shape[0]
+    blocks = []
+    for start in range(0, G, gene_chunk):
+        end = min(start + gene_chunk, G)
+        y = counts_csr[start:end].toarray().astype(float)
+        th = theta[start:end, None]
+        # The exponent clip is on the per-cell mean only, matching the fit path
+        # below; the target-depth mean is a single column and cannot overflow
+        # the way a per-cell one can.
+        mu = np.exp(np.clip(b0[start:end, None] + b1[start:end, None] * log10_umi[None, :],
+                            -30, 30))
+        resid = (y - mu) / np.sqrt(mu + mu * mu / th)
+        mu_t = np.exp(b0[start:end, None] + b1[start:end, None] * target_log10_umi)
+        var_t = mu_t + mu_t * mu_t / th
+        blocks.append(sp.csr_matrix(
+            np.clip(np.round(mu_t + resid * np.sqrt(var_t)), 0.0, None)))
+    return sp.vstack(blocks, format="csc")
+
+
 def sctransform(
     seurat,
     assay: Optional[str] = None,
@@ -467,7 +516,8 @@ def sctransform(
     if vst_flavor not in ("v1", "v2"):
         raise ValueError(f"vst_flavor must be 'v1' or 'v2', got {vst_flavor!r}")
 
-    src = seurat.assays[assay or seurat.active_assay]
+    umi_assay_name = assay or seurat.active_assay
+    src = seurat.assays[umi_assay_name]
     # A layer may be dense, sparse, or an on-disk LazyMatrix — `sp.csc_matrix`
     # is what accepts all three, so keep `issparse` as the discriminator below.
     counts: Any
@@ -597,7 +647,6 @@ def sctransform(
     median_log10_umi = float(np.median(log10_umi))
     res_var = np.zeros(G)
     res_mean = np.zeros(G)
-    corrected_blocks = []
 
     for start in range(0, G, gene_chunk):
         end = min(start + gene_chunk, G)
@@ -611,16 +660,14 @@ def sctransform(
         res_var[start:end] = z_clipped.var(axis=1, ddof=1)
         res_mean[start:end] = z_clipped.mean(axis=1)
 
-        # Corrected counts: the residual re-expressed at the median depth. R
-        # uses the unclipped residual and no variance floor here.
-        mu_med = np.exp(b0r[start:end, None] + b1r[start:end, None] * median_log10_umi)
-        var_med = mu_med + mu_med * mu_med / theta_r[start:end, None]
-        z_raw = (y - mu) / np.sqrt(mu + mu * mu / theta_r[start:end, None])
-        corr = np.clip(np.round(mu_med + z_raw * np.sqrt(var_med)), 0.0, None)
-        corrected_blocks.append(sp.csr_matrix(corr))
-
-    corrected = sp.vstack(corrected_blocks, format="csc")
-    del corrected_blocks
+    # Corrected counts: the residual re-expressed at this object's median depth.
+    # `median(log10(umi))` rather than `log10(median(umi))` because that is what
+    # sctransform's `correct` does when no `scale_factor` is passed — it takes
+    # the median of the latent variable itself. `prep_sct_find_markers` is the
+    # one caller that *does* pass a scale factor, and there R uses
+    # `log10(median(umi))`; the two differ whenever the cell count is even.
+    corrected = _correct_counts(counts_csr, b0r, b1r, theta_r, log10_umi,
+                                median_log10_umi, gene_chunk)
 
     # ---- variable features by residual variance ----
     n_feat = min(n_features, G)
@@ -663,6 +710,29 @@ def sctransform(
     sct.meta_data["(Intercept)"] = pd.Series(b0r, index=genes)
     sct.meta_data["log_umi"] = pd.Series(b1r, index=genes)
 
+    # The fitted model, recorded whole. `meta_data` above is per *assay*, so a
+    # merge of two SCTransformed objects collapses it to one table and the fact
+    # that the two halves were corrected at different sequencing depths is
+    # lost. This is Seurat's `SCTModel.list`: keyed by model, carrying the cells
+    # it was fitted on and the median UMI it corrected to, which is exactly what
+    # `prep_sct_find_markers` needs to put them back on a common scale.
+    sct.misc["SCTModel.list"] = {
+        "model1": {
+            "feature_attributes": pd.DataFrame(
+                {"theta": theta_r, "(Intercept)": b0r, "log_umi": b1r},
+                index=list(genes),
+            ),
+            "cell_attributes": pd.DataFrame(
+                {"umi": total_umi, "log_umi": log10_umi}, index=list(cell_names),
+            ),
+            # R's `median(cell.attributes[, "umi"])` — the median on the *count*
+            # scale, which is what `PrepSCTFindMarkers` minimises over. Not the
+            # same as `median_log10_umi` above for an even number of cells.
+            "median_umi": float(np.median(total_umi)),
+            "umi_assay": umi_assay_name,
+        }
+    }
+
     seurat.assays[new_assay_name] = sct
     if set_default:
         seurat.active_assay = new_assay_name
@@ -677,3 +747,163 @@ def _log1p_sparse(mat: sp.spmatrix) -> sp.csc_matrix:
     out = mat.tocsc(copy=True).astype(float)
     out.data = np.log1p(out.data)
     return out
+
+
+def prep_sct_find_markers(
+    seurat,
+    assay: str = "SCT",
+    umi_assay: Optional[str] = None,
+    verbose: bool = True,
+):
+    """Put a merged object's SCT counts on one scale, before differential expression.
+
+    Mirrors R's ``PrepSCTFindMarkers(object)``. Run it once on an object that
+    carries **more than one** SCT model — the state you get by SCTransforming
+    several objects separately and merging them — and before any
+    ``find_markers`` call on the SCT assay.
+
+    Why it is needed
+    ----------------
+    `sctransform` corrects each object's counts to *that object's* median
+    sequencing depth. Merge two such objects and the two halves of the SCT
+    ``counts`` layer are expressed at two different depths, so a fold change
+    across them partly measures how deeply each batch happened to be
+    sequenced. This re-corrects every cell to the **minimum** median UMI across
+    the models, which is the deepest common scale all of them can reach without
+    extrapolating.
+
+    What it does
+    ------------
+    For each model, the Pearson residual is taken at each cell's own depth from
+    the **raw** UMI counts (never from the already-corrected ones, so the
+    operation is idempotent) and read back out at ``log10(min_median_umi)``.
+    ``counts`` becomes the recorrected matrix and ``data`` its ``log1p``.
+
+    It returns early, unchanged, in the two cases R does: when only one model is
+    stored, and when every model's recorded ``median_umi`` already sits above
+    the minimum observed one.
+
+    Parameters
+    ----------
+    assay     : the SCT assay to re-correct (default ``"SCT"``).
+    umi_assay : assay holding the raw counts. Defaults to the one each model
+                recorded at fit time, and raises if the models disagree — as
+                R does, since a single corrected matrix cannot come from two
+                different count matrices.
+
+    Returns
+    -------
+    ``seurat``, with the SCT assay's ``counts`` and ``data`` layers replaced.
+
+    Notes
+    -----
+    **Scale factor.** The target depth is ``log10(median(umi))`` — the median on
+    the count scale — where an ordinary `sctransform` call uses
+    ``median(log10(umi))``. That asymmetry is R's, not a slip: ``correct_counts``
+    takes the median of the latent variable when no ``scale_factor`` is passed
+    and ``log10`` of the supplied one when there is. The two differ whenever a
+    model has an even number of cells.
+    """
+    sct = seurat.assays[assay]
+    models = dict(getattr(sct, "misc", {}).get("SCTModel.list") or {})
+
+    if len(models) <= 1:
+        if verbose:
+            print("Only one SCT model is stored - skipping recalculating "
+                  "corrected counts")
+        return seurat
+
+    # R keeps these apart on purpose. `observed` is recomputed from each model's
+    # cell attributes every call; `stored` is the depth the counts were last
+    # corrected *to*, which this function overwrites. They coincide until the
+    # first run.
+    observed = {n: float(np.median(m["cell_attributes"]["umi"]))
+                for n, m in models.items()}
+    min_median_umi = float(min(observed.values()))
+    if all(float(m["median_umi"]) > min_median_umi for m in models.values()):
+        if verbose:
+            print("Minimum UMI unchanged. Skipping re-correction.")
+        return seurat
+
+    if umi_assay is None:
+        named = {m.get("umi_assay") for m in models.values()}
+        named.discard(None)
+        if len(named) > 1:
+            raise ValueError(
+                "Multiple UMI assays are used for SCTransform: "
+                + ", ".join(sorted(str(n) for n in named))
+            )
+        umi_assay = named.pop() if named else "RNA"
+    if umi_assay not in seurat.assays:
+        raise KeyError(
+            f"assay {umi_assay!r} holds the raw counts these SCT models were "
+            f"fitted from, but the object has no such assay"
+        )
+
+    if verbose:
+        print(f"Found {len(models)} SCT models. Recorrecting SCT counts using "
+              f"minimum median counts: {min_median_umi}")
+
+    src = seurat.assays[umi_assay]
+    # `: Any` for the same reason the fit path above declares it — the layer may
+    # be dense, sparse or an on-disk LazyMatrix, and `issparse` is what picks.
+    raw: Any = src.layers.get("counts") if isinstance(src, Assay5) else src.counts
+    if raw is None:
+        raise ValueError(f"assay {umi_assay!r} has no counts layer.")
+    raw = raw.tocsc() if sp.issparse(raw) else sp.csc_matrix(raw)
+    raw_genes = (src._all_feature_names if isinstance(src, Assay5)
+                 else src._feature_names)
+    raw_gene_pos = {g: i for i, g in enumerate(raw_genes)}
+    raw_cell_pos = {c: i for i, c in enumerate(
+        src.cells() if isinstance(src, Assay5) else src._cell_names)}
+
+    all_genes = sct.features()
+    all_cells = sct.cells()
+    gene_pos = {g: i for i, g in enumerate(all_genes)}
+    cell_pos = {c: i for i, c in enumerate(all_cells)}
+
+    target = float(np.log10(min_median_umi))
+    rows: list[np.ndarray] = []
+    cols: list[np.ndarray] = []
+    vals: list[np.ndarray] = []
+
+    for model in models.values():
+        fa = model["feature_attributes"]
+        ca = model["cell_attributes"]
+        # R: theta not NA and both coefficients finite. A gene the regularization
+        # could not fit has no model to re-correct through.
+        ok = (fa["theta"].notna()
+              & np.isfinite(fa["(Intercept)"])
+              & np.isfinite(fa["log_umi"]))
+        genes = [g for g in fa.index[ok]
+                 if g in raw_gene_pos and g in gene_pos]
+        cells = [c for c in ca.index if c in raw_cell_pos and c in cell_pos]
+        if not genes or not cells:
+            continue
+
+        sub = raw[[raw_gene_pos[g] for g in genes], :][:, [raw_cell_pos[c] for c in cells]]
+        corrected = _correct_counts(
+            sub.tocsr(),
+            fa.loc[genes, "(Intercept)"].to_numpy(dtype=float),
+            fa.loc[genes, "log_umi"].to_numpy(dtype=float),
+            fa.loc[genes, "theta"].to_numpy(dtype=float),
+            ca.loc[cells, "log_umi"].to_numpy(dtype=float),
+            target,
+        )
+        coo = corrected.tocoo()
+        finite = np.isfinite(coo.data)
+        gidx = np.array([gene_pos[g] for g in genes])
+        cidx = np.array([cell_pos[c] for c in cells])
+        rows.append(gidx[coo.row[finite]])
+        cols.append(cidx[coo.col[finite]])
+        vals.append(coo.data[finite])
+        model["median_umi"] = min_median_umi
+
+    corrected_full = sp.csc_matrix(
+        (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
+        shape=(len(all_genes), len(all_cells)),
+    )
+    sct.set_layer_data("counts", corrected_full)
+    sct.set_layer_data("data", _log1p_sparse(corrected_full))
+    sct.misc["SCTModel.list"] = models
+    return seurat
