@@ -535,12 +535,17 @@ class StdAssay(KeyMixin, ABC):
                 new_layers[layer_name] = np.hstack(mats)
             new_layer_features[layer_name] = layer_features
 
+        new_misc = dict(self.misc)
+        sct_models = _merge_sct_models(all_assays, add_cell_ids)
+        if sct_models:
+            new_misc["SCTModel.list"] = sct_models
+
         merged = self.__class__(
             layers=new_layers,
             feature_names=shared_features,
             cell_names=new_cell_names,
             assay_orig=self.assay_orig,
-            misc=dict(self.misc),
+            misc=new_misc,
             key=self._key,
             layer_features=new_layer_features,
         )
@@ -616,6 +621,38 @@ class StdAssay(KeyMixin, ABC):
             f"  Layers: {layer_names}\n"
             f"  Default layer: {self.default_layer!r}"
         )
+
+
+def _merge_sct_models(all_assays, add_cell_ids):
+    """Union the ``SCTModel.list`` entries of the assays being merged.
+
+    Every other key in ``misc`` keeps the long-standing first-wins behaviour;
+    this one cannot, and the reason is the whole point of
+    `prep_sct_find_markers`. SCTransform corrects each object's counts to *its
+    own* median sequencing depth, so merging two SCTransformed objects
+    concatenates two count matrices that are not on a common scale. The
+    per-gene ``meta_data`` collapses to one table in the merge and the fact
+    that there were ever two models disappears with it — leaving a merged assay
+    that looks fine and is quietly biased for differential expression.
+
+    Model names are re-issued as ``model1..modelN`` in merge order, as Seurat
+    numbers them, so two objects that each called their model ``model1`` do not
+    collide. Cell names carry the same ``add_cell_ids`` prefix the layers get,
+    or the recorded cells would no longer address the merged assay.
+    """
+    models: dict = {}
+    for idx, assay in enumerate(all_assays):
+        found = assay.misc.get("SCTModel.list") or {}
+        prefix = add_cell_ids[idx] if add_cell_ids else None
+        for entry in found.values():
+            entry = dict(entry)
+            cell_attr = entry.get("cell_attributes")
+            if prefix is not None and cell_attr is not None:
+                cell_attr = cell_attr.copy()
+                cell_attr.index = [f"{prefix}_{c}" for c in cell_attr.index]
+                entry["cell_attributes"] = cell_attr
+            models[f"model{len(models) + 1}"] = entry
+    return models
 
 
 class Assay5(StdAssay):

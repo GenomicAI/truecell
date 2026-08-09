@@ -20,6 +20,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`prep_sct_find_markers`** — Seurat's `PrepSCTFindMarkers`. `sctransform`
+  corrects each object's counts to *that object's* median sequencing depth, so
+  merging two SCTransformed objects leaves the two halves of the SCT `counts`
+  layer on different scales and a fold change across the merge partly measures
+  how deeply each batch happened to be sequenced. This re-corrects every cell to
+  the minimum median UMI across the models. Run it once after the merge and
+  before any `find_markers` call on the SCT assay.
+
+  Verified against Seurat 5.5.1: given R's own fitted models, truecell
+  reproduces `PrepSCTFindMarkers` **exactly — 0 of 13,953,800 entries differ**
+  on a 9,967 x 1,400 matrix. R's parameters are injected rather than refitted
+  because truecell's SCTransform is deliberately not bit-identical to R's, so an
+  end-to-end run would measure the model fit instead of the re-correction.
+
+  Supporting change: `sctransform` now records the fitted model on the SCT assay
+  (`misc["SCTModel.list"]` — per-gene `theta`/`(Intercept)`/`log_umi`, per-cell
+  `umi`, the median UMI, and the source counts assay), mirroring Seurat's
+  `SCTModel.list`.
+
+### Fixed
+
+- **`Assay5.merge` dropped every SCT model but the first.** `misc` was carried
+  over from the first assay alone, so merging two SCTransformed objects produced
+  an assay that looked complete, held two batches corrected to two different
+  depths, and kept no record that there had ever been more than one model —
+  leaving nothing for `prep_sct_find_markers` to act on. Model lists are now
+  unioned and renumbered `model1..modelN` in merge order, with cell names
+  carrying the same `add_cell_ids` prefix the layers get. Other `misc` keys keep
+  the existing first-wins behaviour.
+
+
 - **`find_markers(test_use="poisson")`** — the ninth and last of Seurat's DE
   tests, and the other half of its `GLMDETest`: a Poisson GLM Wald test on the
   **counts** layer, honouring `latent_vars` (Seurat's `DEmethods_latent()` is

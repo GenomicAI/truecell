@@ -161,6 +161,10 @@ aggregate_expression(seurat, group_by="ident", assays=None, features=None,
 
 `test_use`: `wilcox` · `t` · `bimod` · `LR` · `negbinom` · `poisson` · `mast` · `deseq2` · `roc`.
 
+`PrepSCTFindMarkers` → `prep_sct_find_markers(obj, assay="SCT")`. Required before
+`find_markers` on an SCT assay carrying **more than one** model (several objects
+SCTransformed separately, then merged).
+
 ## Integration and mapping → `truecell-integration`
 
 ```python

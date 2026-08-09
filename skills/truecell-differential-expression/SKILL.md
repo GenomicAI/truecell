@@ -54,6 +54,22 @@ agreeing to 7.1e-15.
 Practical default: `wilcox` for discovery, `deseq2` for anything where a claim
 depends on replicate-level significance.
 
+## Before DE on a merged SCT assay
+
+If the object carries **more than one** SCT model — several objects
+SCTransformed separately, then merged — run `prep_sct_find_markers(obj)` first:
+
+```python
+merged = a.merge(b, add_cell_ids=["ctrl", "stim"])
+truecell.prep_sct_find_markers(merged)          # once, before any find_markers
+truecell.find_markers(merged, "0", "1", assay="SCT")
+```
+
+SCTransform corrects each object's counts to *its own* median sequencing depth,
+so without this a fold change across the merge partly measures how deeply each
+batch was sequenced. It is a no-op on a single-model object, so it is safe to
+call unconditionally.
+
 ## Output columns
 
 For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `poisson` / `mast`, sorted by `p_val`:

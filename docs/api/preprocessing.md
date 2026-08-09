@@ -25,3 +25,10 @@ regularized-NB route, per fitted gene in
 ## Regularized negative binomial
 
 ::: truecell.sctransform.sctransform
+
+Run `prep_sct_find_markers` before differential expression on an object
+that carries more than one SCT model — the state you get by SCTransforming
+several objects separately and merging them. Without it, a fold change
+across the merge partly measures how deeply each batch was sequenced.
+
+::: truecell.sctransform.prep_sct_find_markers
