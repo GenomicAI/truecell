@@ -1480,7 +1480,6 @@ def do_heatmap(
     plt.colorbar(im, ax=axes[1], shrink=0.4, pad=0.01, label="Scaled expression")
     axes[1].set_xlabel("Cells (sorted by cluster)")
     fig.suptitle("Expression Heatmap", fontsize=_fs("suptitle"), fontweight="bold", y=1.0)
-    fig.tight_layout()
     return fig
 
 

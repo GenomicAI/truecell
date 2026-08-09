@@ -16,9 +16,11 @@ bookkeeping, and the KO/NP/NT recovery are all checked. Network-free and
 deterministic (fixed RNG + seeds).
 """
 import sys
+import warnings
 from pathlib import Path
 
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -608,3 +610,16 @@ def test_do_heatmap_rejects_unknown_cells():
     obj, _, _ = _fitted()
     with pytest.raises(KeyError):
         do_heatmap(obj, features=["g0"], layer="data", cells=["nosuchcell"])
+
+
+def test_do_heatmap_does_not_warn():
+    """The colour-bar row uses gridspec_kw={"hspace": ...}, which makes a
+    trailing fig.tight_layout() call incompatible — matplotlib warns and
+    skips it. The call was a no-op (verified: identical axes geometry,
+    byte-identical PNG with or without it), so it was removed rather than
+    worked around."""
+    obj, _, _ = _fitted()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        fig = do_heatmap(obj, features=["g0", "g1"], layer="data")
+    plt.close(fig)
