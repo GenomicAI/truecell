@@ -14,6 +14,7 @@ contract 1 in the parent skill.
 | Seurat | truecell |
 |---|---|
 | `CreateSeuratObject` | `create_truecell_object` |
+| `DietSeurat` | `diet_truecell` |
 | `CreateAssayObject` | `create_assay_object` / `create_assay5_object` |
 | `Seurat`, `Assay`, `Assay5`, `DimReduc`, `Graph`, `Neighbor` | same class names |
 

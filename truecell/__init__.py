@@ -45,6 +45,7 @@ from .mixscape import calc_perturb_sig, run_mixscape, mixscape_lda
 from .markers import find_markers, find_all_markers, find_conserved_markers
 from .aggregate import aggregate_expression, average_expression
 from .sctransform import sctransform, prep_sct_find_markers
+from .diet import diet_truecell
 from .module_score import add_module_score, cell_cycle_scoring, CC_GENES
 from .spatial import (
     Centroids,
@@ -197,6 +198,7 @@ __all__ = [
     "score_jackstraw",
     "sctransform",
     "prep_sct_find_markers",
+    "diet_truecell",
     "add_module_score",
     "cell_cycle_scoring",
     "CC_GENES",

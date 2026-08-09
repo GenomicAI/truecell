@@ -27,6 +27,7 @@ the reason this reference exists rather than a signature dump.
 | `CreateSeuratObject`, `Seurat`, `Assay5` | `create_truecell_object`, `Truecell`, `Assay5` | [Objects](objects.md) |
 | `NormalizeData`, `FindVariableFeatures`, `ScaleData`, `SCTransform` | `normalize_data`, `find_variable_features`, `scale_data`, `sctransform` | [Preprocessing](preprocessing.md) |
 | `PrepSCTFindMarkers` | `prep_sct_find_markers` | [Preprocessing](preprocessing.md) |
+| `DietSeurat` | `diet_truecell` | [Objects](objects.md) |
 | `RunPCA`, `RunUMAP`, `RunTSNE`, `JackStraw` | `run_pca`, `run_umap`, `run_tsne`, `jack_straw` | [Dimensional reduction](dimreduc.md) |
 | `FindNeighbors`, `FindClusters`, `FindMultiModalNeighbors` | `find_neighbors`, `find_clusters`, `find_multi_modal_neighbors` | [Graphs and clustering](clustering.md) |
 | `FindMarkers`, `FindAllMarkers`, `AggregateExpression`, `AverageExpression` | `find_markers`, `find_all_markers`, `aggregate_expression`, `average_expression` | [Differential expression](markers.md) |

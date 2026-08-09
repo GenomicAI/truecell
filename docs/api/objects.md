@@ -20,6 +20,12 @@ tolerance.
 
 ::: truecell.truecell.create_truecell_object
 
+`diet_truecell` strips an object down before saving or sharing it. Note that
+`dimreducs` and `graphs` are *keep-lists*: calling it with no arguments removes
+every reduction and graph, which is Seurat's behaviour too.
+
+::: truecell.diet.diet_truecell
+
 ## Assays
 
 ::: truecell.assay5.Assay5

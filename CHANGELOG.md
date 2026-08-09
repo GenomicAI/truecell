@@ -20,6 +20,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`diet_truecell`** — Seurat's `DietSeurat`. Strips an object down to chosen
+  assays, layers, features, reductions and graphs, for saving, sharing, or
+  holding several at once. Returns a **new** object and leaves the input alone;
+  the layers that survive are *shared* rather than copied, so it frees memory
+  rather than briefly doubling it.
+
+  **`diet_truecell(obj)` with no arguments deletes every reduction and every
+  graph.** `dimreducs` and `graphs` are keep-lists, and an unset keep-list keeps
+  nothing. This is Seurat's behaviour, confirmed against 5.5.1 rather than
+  assumed — a pbmc3k object with `pca`, `umap` and two graphs comes back with
+  zero of each and all three layers untouched. Name what you want kept:
+  `diet_truecell(obj, layers="counts", dimreducs="pca")`.
+
+  Verified against Seurat 5.5.1 across eight configurations (default, per-layer,
+  per-reduction, per-graph, feature subset, and combinations) — layers,
+  reductions, graphs, feature count, cell count, assay list and the counts sum
+  match on every one. Both of R's aborts are ported: an unknown assay, and
+  removing the assay that is currently the default.
+
 - **`prep_sct_find_markers`** — Seurat's `PrepSCTFindMarkers`. `sctransform`
   corrects each object's counts to *that object's* median sequencing depth, so
   merging two SCTransformed objects leaves the two halves of the SCT `counts`
