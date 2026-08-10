@@ -164,8 +164,44 @@ class Truecell:
         self._active_ident = pd.Categorical(new_idents)
         return self
 
-    def reorder_ident(self, ident: str, order: list[str]) -> "Truecell":
-        self._active_ident = pd.Categorical(list(self._active_ident), categories=order)
+    def reorder_ident(
+        self,
+        var: str,
+        reverse: bool = False,
+        afxn=np.mean,
+    ) -> "Truecell":
+        """Reorder the identity levels by a per-ident summary of ``var``.
+
+        Mirrors R's ``ReorderIdent(object, var, reverse = FALSE, afxn = mean)``:
+        fetch ``var`` for every cell (a gene or a metadata column — anything
+        ``fetch_data`` accepts), summarise it within each identity with
+        ``afxn``, and sort the levels by that summary, ascending.
+
+        Divergence, deliberate: **R's ``reverse`` does nothing.** It applies
+        ``max(x) + 1 - x`` to the *values* of an already-sorted named vector and
+        then reads ``names()`` off the result — which leaves the element order
+        untouched, so the levels come back identical. Verified on Seurat 5.5.1:
+        the same ``D,B,A,C`` with and without it. Here ``reverse=True``
+        genuinely reverses, because the alternative is shipping another argument
+        that silently does nothing.
+
+        R's ``reorder.numeric`` is not ported. It renames every identity to a
+        rank, and on 5.5.1 it warns ``Cannot find cells provided`` and leaves the
+        levels unchanged, so there is no working behaviour to match.
+        """
+        values = self.fetch_data([var]).iloc[:, 0]
+        idents = pd.Series([str(i) for i in self._active_ident],
+                           index=self.cell_names())
+        summary = values.groupby(idents.reindex(values.index)).agg(afxn).sort_values()
+        levels = list(summary.index)
+        if reverse:
+            levels = levels[::-1]
+        # Levels the summary never saw (an identity with no cells in `values`)
+        # would be dropped by `categories=`, turning their cells into NaN.
+        levels += [lv for lv in pd.unique(idents) if lv not in levels]
+        self._active_ident = pd.Categorical(
+            list(self._active_ident), categories=levels, ordered=True
+        )
         return self
 
     # ------------------------------------------------------------------

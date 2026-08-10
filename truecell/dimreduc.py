@@ -39,6 +39,7 @@ class DimReduc(KeyMixin):
         "_key",
         "_cell_names",
         "_feature_names",
+        "_feature_names_projected",
     )
 
     def __init__(
@@ -48,6 +49,7 @@ class DimReduc(KeyMixin):
         feature_loadings: Optional[np.ndarray] = None,
         feature_names: Optional[list[str]] = None,
         feature_loadings_projected: Optional[np.ndarray] = None,
+        feature_names_projected: Optional[list[str]] = None,
         assay_used: str = "",
         global_: bool = False,
         stdev: Optional[np.ndarray] = None,
@@ -79,6 +81,14 @@ class DimReduc(KeyMixin):
         else:
             self.feature_loadings_projected = empty_dense(0, n_dims)
 
+        # Projected loadings are a *separate* feature axis, not the same one.
+        # `ProjectDim` scores every gene in the assay, where the unprojected
+        # loadings cover only the features the reduction was computed on, so the
+        # two lists legitimately differ in both length and order.
+        self._feature_names_projected = (
+            list(feature_names_projected) if feature_names_projected else []
+        )
+
         self.assay_used = assay_used
         self.global_ = global_
         self.stdev = np.asarray(stdev) if stdev is not None else np.array([])
@@ -95,16 +105,42 @@ class DimReduc(KeyMixin):
     def loadings(self, projected: bool = False) -> np.ndarray:
         return self.feature_loadings_projected if projected else self.feature_loadings
 
-    def set_loadings(self, value: np.ndarray, projected: bool = False) -> None:
+    def set_loadings(self, value: np.ndarray, projected: bool = False,
+                     feature_names: Optional[list[str]] = None) -> None:
+        """Set one loadings matrix, and optionally the features it is indexed by.
+
+        ``feature_names`` matters most on the projected side, which starts empty:
+        without it, setting projected loadings would leave `features(projected=True)`
+        with nothing to report them against.
+        """
         if projected:
             self.feature_loadings_projected = np.asarray(value)
+            if feature_names is not None:
+                self._feature_names_projected = list(feature_names)
         else:
             self.feature_loadings = np.asarray(value)
+            if feature_names is not None:
+                self._feature_names = list(feature_names)
 
     def cells(self) -> list[str]:
         return list(self._cell_names)
 
     def features(self, projected: bool = False) -> list[str]:
+        """Feature names for the requested loadings matrix.
+
+        Mirrors ``Features.DimReduc``, which returns
+        ``rownames(Loadings(object, projected = projected))`` and ``NULL`` when
+        that matrix is empty. So this reports the features of the matrix you
+        asked for, and ``[]`` when there is none — previously it returned the
+        unprojected names either way, which on a reduction with no projected
+        loadings claimed N features for a 0-row matrix.
+        """
+        if projected:
+            if self.feature_loadings_projected.shape[0] == 0:
+                return []
+            return list(self._feature_names_projected)
+        if self.feature_loadings.shape[0] == 0:
+            return []
         return list(self._feature_names)
 
     def default_assay(self) -> str:
@@ -129,6 +165,7 @@ class DimReduc(KeyMixin):
             feature_loadings=self.feature_loadings.copy(),
             feature_names=list(self._feature_names),
             feature_loadings_projected=self.feature_loadings_projected.copy(),
+            feature_names_projected=list(self._feature_names_projected),
             assay_used=self.assay_used,
             global_=self.global_,
             stdev=self.stdev.copy(),
@@ -167,6 +204,8 @@ class DimReduc(KeyMixin):
             cell_names=[self._cell_names[i] for i in cell_idx],
             feature_loadings=new_load,
             feature_names=list(self._feature_names),
+            feature_loadings_projected=self.feature_loadings_projected.copy(),
+            feature_names_projected=list(self._feature_names_projected),
             assay_used=self.assay_used,
             global_=self.global_,
             stdev=new_stdev,

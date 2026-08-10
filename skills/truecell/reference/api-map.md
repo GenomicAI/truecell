@@ -309,7 +309,7 @@ All 17 return a `matplotlib.figure.Figure`.
 `cast_assay` · `add_meta_data` · `rename_cells` · `match_cells` · `calc_n` ·
 `command` · `misc` / `set_misc` · `tool` / `set_tool` · `version` · `as_sparse` ·
 `as_graph` · `as_neighbor` · `as_seurat` · `check_matrix` · `is_matrix_empty` ·
-`simplify` · `stitch_matrix` · `distances` · `indices` ·
+`simplify` · `distances` · `indices` ·
 spatial: `boundaries` · `crop` · `overlay` · `radius` · `theta` · `get_image` ·
 `get_molecules` · `get_tissue_coordinates` · `default_boundary` · `default_fov` ·
 `is_global` · `as_centroids` · `as_segmentation` · `create_fov` · `create_centroids` ·

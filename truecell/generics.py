@@ -147,7 +147,6 @@ is_global = _generic("is_global")
 is_matrix_empty = _generic("is_matrix_empty")
 check_matrix = _generic("check_matrix")
 match_cells = _generic("match_cells")
-stitch_matrix = _generic("stitch_matrix")
 rename_cells = _generic("rename_cells")
 
 # ======================================================================

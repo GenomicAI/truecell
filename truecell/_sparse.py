@@ -53,15 +53,3 @@ def check_matrix(x, rows: list[str] | None = None, cols: list[str] | None = None
             f"Matrix has {x.shape[1]} columns but {len(cols)} col names were supplied."
         )
 
-
-def stitch_matrix(
-    matrices: list,
-    row_names: list[str],
-    col_names: list[str],
-) -> sp.csc_matrix:
-    """Combine a list of sub-matrices into one sparse matrix using given index mappings.
-
-    Mirrors R StitchMatrix — used when merging assays across samples.
-    """
-    blocks = [sp.csc_matrix(m) if not sp.issparse(m) else m for m in matrices]
-    return sp.hstack(blocks, format="csc")

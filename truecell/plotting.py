@@ -2210,7 +2210,22 @@ def plot_perturb_score(
     scores = _mixscape_scores(obj, target_gene_ident, assay)
     pvec = scores["pvec"].to_numpy(dtype=float)
     cells = list(scores.index)
-    guide = scores[scores.columns[1]].astype(str).to_numpy()
+    # R indexes this column *by name* — `prtb_score[, target.gene.class]`, whose
+    # default "gene" is `RunMixscape`'s default `labels`. Fall back to position
+    # when the name is absent, because `run_mixscape(labels=...)` names the
+    # column after whatever was passed and R would simply fail there; the frame
+    # is always `["pvec", <labels>]`, so column 1 is the guide either way.
+    if target_gene_class in scores.columns:
+        guide_col = target_gene_class
+    elif len(scores.columns) > 1:
+        guide_col = scores.columns[1]
+    else:
+        raise KeyError(
+            f"No guide-label column in the stored perturbation scores: wanted "
+            f"{target_gene_class!r}, found {list(scores.columns)}. Pass "
+            f"target_gene_class= the `labels` column run_mixscape was given."
+        )
+    guide = scores[guide_col].astype(str).to_numpy()
 
     nt_labels = sorted(set(guide) - {target_gene_ident})
     nt_name = nt_labels[0] if nt_labels else "NT"

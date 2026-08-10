@@ -250,8 +250,8 @@ def test_the_generics_exception_the_api_index_documents_is_real():
     also_top_level = {"create_truecell_object", "create_assay_object", "create_centroids",
                       "create_segmentation", "create_fov", "get_tissue_coordinates", "as_graph"}
     assert public & exported == also_top_level
-    assert len(public - exported) == 66, (
-        f"{len(public - exported)} generics are module-only; docs/api/index.md says 66"
+    assert len(public - exported) == 65, (
+        f"{len(public - exported)} generics are module-only; docs/api/index.md says 65"
     )
     # The specific call the paragraph warns about.
     assert not hasattr(truecell, "features")
