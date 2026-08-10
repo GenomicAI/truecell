@@ -18,12 +18,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-10
+
+Four of Seurat's functions that truecell did not have, and a sweep for arguments
+that only looked like they worked.
+
+The features close the last gaps in the ported API that were not blocked on
+something external: `find_markers` now offers **all nine** of Seurat's tests,
+`prep_sct_find_markers` makes differential expression valid across a merge of
+separately-SCTransformed objects, `diet_truecell` slims an object for saving,
+and `find_neighbors(return_neighbor=True)` finally produces the `Neighbor`
+objects the class was written for.
+
+The fixes come from one finding. `find_neighbors` had an `nn_name` argument that
+was accepted and never read — and Seurat has no such argument, so it was a name
+invented for a feature nobody had implemented. Rather than leave that to luck, an
+AST sweep of every module (`tools/find_dead_args.py`, committed) looked for the
+rest of the class: parameters never loaded anywhere in their own function body.
+34 hits, 22 legitimate, 3 deliberate and documented as such, **9 real**. Public
+dead arguments are now zero.
+
+**Two breaking changes**, both removals of things that never worked, so no
+call that currently *does* anything changes behaviour — see Removed and Changed.
+
+### Added
+
+- **`find_markers(test_use="poisson")`** — the ninth and last of Seurat's DE
+  tests, and the other half of its `GLMDETest`: a Poisson GLM Wald test on the
+  **counts** layer, honouring `latent_vars` (Seurat's `DEmethods_latent()` is
+  exactly `negbinom`, `poisson`, `MAST`, `LR`). Reaches `find_all_markers` and
+  `find_conserved_markers` unchanged, since both pass `test_use` through.
+
+  Verified against Seurat 5.5.1 on PBMC 3k clusters 0 vs 1: **50/50 on the top
+  50 genes**, `avg_log2FC` to **6.2e-15**, p-value Spearman **0.9999984** on
+  genes detected above 5 %, and **zero** disagreements on which genes clear
+  `p_val_adj < 0.05`.
+
+  Two things worth knowing before using it. **It is anti-conservative on
+  scRNA-seq by construction** — fixing the dispersion at 1 asserts
+  `Var = mean`, which UMI counts violate, so standard errors come out too small
+  and p-values too extreme; `negbinom` estimates the dispersion and is the
+  better-calibrated of the two. And **truecell returns genes Seurat drops**:
+  `GLMDETest` deletes any gene detected in fewer than `min.cells` (3) cells in
+  *both* groups, 2,248 of them on this contrast, where truecell returns
+  `p_val = 1` so the gene set stays the same across every `test_use`.
+
+- **`prep_sct_find_markers`** — Seurat's `PrepSCTFindMarkers`. `sctransform`
+  corrects each object's counts to *that object's* median sequencing depth, so
+  merging two SCTransformed objects leaves the two halves of the SCT `counts`
+  layer on different scales and a fold change across the merge partly measures
+  how deeply each batch happened to be sequenced. This re-corrects every cell to
+  the minimum median UMI across the models. Run it once after the merge and
+  before any `find_markers` call on the SCT assay.
+
+  Verified against Seurat 5.5.1: given R's own fitted models, truecell
+  reproduces `PrepSCTFindMarkers` **exactly — 0 of 13,953,800 entries differ**
+  on a 9,967 x 1,400 matrix. R's parameters are injected rather than refitted
+  because truecell's SCTransform is deliberately not bit-identical to R's, so an
+  end-to-end run would measure the model fit instead of the re-correction.
+
+  Supporting change: `sctransform` now records the fitted model on the SCT assay
+  (`misc["SCTModel.list"]` — per-gene `theta`/`(Intercept)`/`log_umi`, per-cell
+  `umi`, the median UMI, and the source counts assay), mirroring Seurat's
+  `SCTModel.list`.
+
+- **`diet_truecell`** — Seurat's `DietSeurat`. Strips an object down to chosen
+  assays, layers, features, reductions and graphs, for saving, sharing, or
+  holding several at once. Returns a **new** object and leaves the input alone;
+  the layers that survive are *shared* rather than copied, so it frees memory
+  rather than briefly doubling it.
+
+  **`diet_truecell(obj)` with no arguments deletes every reduction and every
+  graph.** `dimreducs` and `graphs` are keep-lists, and an unset keep-list keeps
+  nothing. This is Seurat's behaviour, confirmed against 5.5.1 rather than
+  assumed — a pbmc3k object with `pca`, `umap` and two graphs comes back with
+  zero of each and all three layers untouched. Name what you want kept:
+  `diet_truecell(obj, layers="counts", dimreducs="pca")`.
+
+  Verified against Seurat 5.5.1 across eight configurations (default, per-layer,
+  per-reduction, per-graph, feature subset, and combinations) — layers,
+  reductions, graphs, feature count, cell count, assay list and the counts sum
+  match on every one. Both of R's aborts are ported: an unknown assay, and
+  removing the assay that is currently the default.
+
+- **`find_neighbors(return_neighbor=True)`** — Seurat's `return.neighbor`.
+  Stores the raw KNN result, indices *and* distances, as a `Neighbor` in
+  `seurat.neighbors` instead of building graphs. The distances were already
+  being computed on every call and discarded. `compute_snn` is exposed
+  alongside it, defaulting to `not return_neighbor` as in R, which warns and
+  builds no SNN if you ask for both.
+
+  Verified against Seurat 5.5.1 (`nn.method = "rann"`, the exact search, since
+  the default `annoy` is approximate): on pbmc3k, fed R's own PCA embedding so
+  the comparison isolates the neighbour search, **all 54,000 neighbour indices
+  match** and the distances agree to **1.1e-13**.
+
+  Two details worth knowing. The `Neighbor` is stored under `"<assay>.nn"` — a
+  **dot**, where the graphs use an underscore (`RNA.nn` against `RNA_nn` /
+  `RNA_snn`); that is Seurat's naming. And the stored indices are **0-based**,
+  where R's `Indices()` are 1-based.
+
+- **A guided-tour notebook for Colab** — `tutorials/truecell_guided_tour.ipynb`,
+  generated by `tutorials/build_guided_tour.py` and executed end to end before
+  committing, so every output in it is real. The tutorials index points at it as
+  the entry point for someone meeting the package for the first time.
+
+- **`tools/find_dead_args.py`** — the AST sweep described above, kept so the
+  check is repeatable rather than a one-off. It reports parameters never loaded
+  in their own function body, nested scopes included; every hit still needs
+  triage, since dispatch adapters and protocol methods are legitimately unused.
+
+### Changed
+
+- **BREAKING: `Truecell.reorder_ident` now takes Seurat's arguments.** It was
+  `reorder_ident(ident, order)` with `ident` never read; it is now
+  `reorder_ident(var, reverse=False, afxn=np.mean)`, R's `ReorderIdent` —
+  summarise `var` within each identity and sort the levels by it. Verified
+  against Seurat 5.5.1 on a fixture whose per-ident means are A=3, B=2, C=4,
+  D=1: both give `D, B, A, C`.
+
+  One deliberate divergence: **R's `reverse` does nothing.** It transforms the
+  *values* of an already-sorted named vector and reads `names()` off the result,
+  which leaves the order untouched — 5.5.1 returns `D, B, A, C` either way.
+  Here it genuinely reverses, because shipping a third argument that silently
+  does nothing is the defect this release is about. R's `reorder.numeric` is
+  not ported: on 5.5.1 it warns `Cannot find cells provided` and leaves the
+  levels unchanged, so there is no working behaviour to match.
+
+### Removed
+
+- **BREAKING: `find_neighbors(nn_name=)` is gone.** It was accepted and never
+  read — no code path in truecell had ever populated `seurat.neighbors`, and
+  Seurat has no `nn.name` argument to be faithful to. It was not given
+  retroactive meaning because every plausible reading is a trap: making it
+  imply `return_neighbor=True` would have *silently stopped storing the graphs*
+  for anyone already passing it. A `TypeError` is the honest outcome.
+  Migration: `nn_name="X"` → `return_neighbor=True, graph_name="X"`.
+
+- **`stitch_matrix` is deleted.** It had no callers, no tests, and ignored both
+  of its `row_names`/`col_names` arguments — the body just `hstack`ed the
+  blocks, where a real `StitchMatrix` aligns *by* those names. It was registered
+  as a generic, so the module-only generic count in `docs/api/index.md` drops
+  from 66 to 65.
+
 ### Fixed
 
-An AST sweep of every module for parameters never read in their own function
-body — prompted by the `nn_name` defect above — turned up nine real cases after
-triage. The user-facing ones are fixed here; each had a docstring promising
-behaviour the code did not deliver.
+- **`Assay5.merge` dropped every SCT model but the first.** `misc` was carried
+  over from the first assay alone, so merging two SCTransformed objects produced
+  an assay that looked complete, held two batches corrected to two different
+  depths, and kept no record that there had ever been more than one model —
+  leaving nothing for `prep_sct_find_markers` to act on. Model lists are now
+  unioned and renumbered `model1..modelN` in merge order, with cell names
+  carrying the same `add_cell_ids` prefix the layers get. Other `misc` keys keep
+  the existing first-wins behaviour.
 
 - **`plot_perturb_score(target_gene_class=)` was ignored.** It is documented as
   the metadata column holding each cell's guide class, but the code took
@@ -47,131 +194,12 @@ behaviour the code did not deliver.
   `ProjectDim` scores every gene in the assay while the reduction itself covers
   only the features it was computed on — the two lists genuinely differ.
 
-### Changed
-
-- **BREAKING: `Truecell.reorder_ident` now takes Seurat's arguments.** It was
-  `reorder_ident(ident, order)` with `ident` never read; it is now
-  `reorder_ident(var, reverse=False, afxn=np.mean)`, R's `ReorderIdent` —
-  summarise `var` within each identity and sort the levels by it. Verified
-  against Seurat 5.5.1 on a fixture whose per-ident means are A=3, B=2, C=4,
-  D=1: both give `D, B, A, C`.
-
-  One deliberate divergence: **R's `reverse` does nothing.** It transforms the
-  *values* of an already-sorted named vector and reads `names()` off the result,
-  which leaves the order untouched — 5.5.1 returns `D, B, A, C` either way.
-  Here it genuinely reverses, because shipping a third argument that silently
-  does nothing is the defect this whole entry is about. R's `reorder.numeric` is
-  not ported: on 5.5.1 it warns `Cannot find cells provided` and leaves the
-  levels unchanged, so there is no working behaviour to match.
-
-### Removed
-
-- **`stitch_matrix` is deleted.** It had no callers, no tests, and ignored both
-  of its `row_names`/`col_names` arguments — the body just `hstack`ed the
-  blocks, where a real `StitchMatrix` aligns *by* those names. It was registered
-  as a generic, so the module-only generic count in `docs/api/index.md` drops
-  from 66 to 65.
-
-### Added
-
-- **`find_neighbors(return_neighbor=True)`** — Seurat's `return.neighbor`.
-  Stores the raw KNN result, indices *and* distances, as a `Neighbor` in
-  `seurat.neighbors` instead of building graphs. The distances were already
-  being computed on every call and discarded. `compute_snn` is exposed
-  alongside it, defaulting to `not return_neighbor` as in R, which warns and
-  builds no SNN if you ask for both.
-
-  Verified against Seurat 5.5.1 (`nn.method = "rann"`, the exact search, since
-  the default `annoy` is approximate): on pbmc3k, fed R's own PCA embedding so
-  the comparison isolates the neighbour search, **all 54,000 neighbour indices
-  match** and the distances agree to **1.1e-13**.
-
-  Two details worth knowing. The `Neighbor` is stored under `"<assay>.nn"` — a
-  **dot**, where the graphs use an underscore (`RNA.nn` against `RNA_nn` /
-  `RNA_snn`); that is Seurat's naming. And the stored indices are **0-based**,
-  where R's `Indices()` are 1-based.
-
-### Removed
-
-- **BREAKING: `find_neighbors(nn_name=)` is gone.** It was accepted and never
-  read — no code path in truecell had ever populated `seurat.neighbors`, and
-  Seurat has no `nn.name` argument to be faithful to. It was not given
-  retroactive meaning because every plausible reading is a trap: making it
-  imply `return_neighbor=True` would have *silently stopped storing the graphs*
-  for anyone already passing it. A `TypeError` is the honest outcome.
-  Migration: `nn_name="X"` → `return_neighbor=True, graph_name="X"`.
-
-- **`diet_truecell`** — Seurat's `DietSeurat`. Strips an object down to chosen
-  assays, layers, features, reductions and graphs, for saving, sharing, or
-  holding several at once. Returns a **new** object and leaves the input alone;
-  the layers that survive are *shared* rather than copied, so it frees memory
-  rather than briefly doubling it.
-
-  **`diet_truecell(obj)` with no arguments deletes every reduction and every
-  graph.** `dimreducs` and `graphs` are keep-lists, and an unset keep-list keeps
-  nothing. This is Seurat's behaviour, confirmed against 5.5.1 rather than
-  assumed — a pbmc3k object with `pca`, `umap` and two graphs comes back with
-  zero of each and all three layers untouched. Name what you want kept:
-  `diet_truecell(obj, layers="counts", dimreducs="pca")`.
-
-  Verified against Seurat 5.5.1 across eight configurations (default, per-layer,
-  per-reduction, per-graph, feature subset, and combinations) — layers,
-  reductions, graphs, feature count, cell count, assay list and the counts sum
-  match on every one. Both of R's aborts are ported: an unknown assay, and
-  removing the assay that is currently the default.
-
-- **`prep_sct_find_markers`** — Seurat's `PrepSCTFindMarkers`. `sctransform`
-  corrects each object's counts to *that object's* median sequencing depth, so
-  merging two SCTransformed objects leaves the two halves of the SCT `counts`
-  layer on different scales and a fold change across the merge partly measures
-  how deeply each batch happened to be sequenced. This re-corrects every cell to
-  the minimum median UMI across the models. Run it once after the merge and
-  before any `find_markers` call on the SCT assay.
-
-  Verified against Seurat 5.5.1: given R's own fitted models, truecell
-  reproduces `PrepSCTFindMarkers` **exactly — 0 of 13,953,800 entries differ**
-  on a 9,967 x 1,400 matrix. R's parameters are injected rather than refitted
-  because truecell's SCTransform is deliberately not bit-identical to R's, so an
-  end-to-end run would measure the model fit instead of the re-correction.
-
-  Supporting change: `sctransform` now records the fitted model on the SCT assay
-  (`misc["SCTModel.list"]` — per-gene `theta`/`(Intercept)`/`log_umi`, per-cell
-  `umi`, the median UMI, and the source counts assay), mirroring Seurat's
-  `SCTModel.list`.
-
-### Fixed
-
-- **`Assay5.merge` dropped every SCT model but the first.** `misc` was carried
-  over from the first assay alone, so merging two SCTransformed objects produced
-  an assay that looked complete, held two batches corrected to two different
-  depths, and kept no record that there had ever been more than one model —
-  leaving nothing for `prep_sct_find_markers` to act on. Model lists are now
-  unioned and renumbered `model1..modelN` in merge order, with cell names
-  carrying the same `add_cell_ids` prefix the layers get. Other `misc` keys keep
-  the existing first-wins behaviour.
-
-
-- **`find_markers(test_use="poisson")`** — the ninth and last of Seurat's DE
-  tests, and the other half of its `GLMDETest`: a Poisson GLM Wald test on the
-  **counts** layer, honouring `latent_vars` (Seurat's `DEmethods_latent()` is
-  exactly `negbinom`, `poisson`, `MAST`, `LR`). Reaches `find_all_markers` and
-  `find_conserved_markers` unchanged, since both pass `test_use` through.
-
-  Verified against Seurat 5.5.1 on PBMC 3k clusters 0 vs 1: **50/50 on the top
-  50 genes**, `avg_log2FC` to **6.2e-15**, p-value Spearman **0.9999984** on
-  genes detected above 5 %, and **zero** disagreements on which genes clear
-  `p_val_adj < 0.05`.
-
-  Two things worth knowing before using it. **It is anti-conservative on
-  scRNA-seq by construction** — fixing the dispersion at 1 asserts
-  `Var = mean`, which UMI counts violate, so standard errors come out too small
-  and p-values too extreme; `negbinom` estimates the dispersion and is the
-  better-calibrated of the two. And **truecell returns genes Seurat drops**:
-  `GLMDETest` deletes any gene detected in fewer than `min.cells` (3) cells in
-  *both* groups, 2,248 of them on this contrast, where truecell returns
-  `p_val = 1` so the gene set stays the same across every `test_use`.
-
-### Fixed
+- **`do_heatmap` emitted a `tight_layout` warning on every call.** The colour-bar
+  row uses `gridspec_kw={"hspace": ...}`, which matplotlib treats as
+  incompatible with `tight_layout()` — it warns and skips the adjustment
+  entirely. The call was a no-op (verified: identical axes geometry and a
+  byte-identical PNG with or without it), so it was removed rather than worked
+  around.
 
 - **Documentation: `negbinom` was still described as a likelihood-ratio test**
   in the DE skill's test table, which it has not been since the T-de tutorial
