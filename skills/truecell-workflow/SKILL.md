@@ -113,6 +113,20 @@ truecell.scale_data(obj, vars_to_regress=["percent.mt", "nCount_RNA"])   # LogNo
 truecell.sctransform(obj, vars_to_regress=["percent.mt"])                # SCT arm
 ```
 
+**Merging several SCTransformed samples? Run `prep_sct_find_markers` first.**
+SCTransform corrects each object's counts to *its own* median sequencing depth,
+so a merge leaves the halves on different scales and a fold change across it
+partly measures how deeply each batch was sequenced:
+
+```python
+merged = ctrl.merge(stim, add_cell_ids=["ctrl", "stim"])
+truecell.prep_sct_find_markers(merged)      # once, before ANY find_markers on SCT
+truecell.find_markers(merged, "0", "1", assay="SCT")
+```
+
+It is a no-op on a single-model object, so it is safe to call unconditionally.
+Bit-exact to Seurat's `PrepSCTFindMarkers`.
+
 For protein (ADT) or hashtag assays use CLR, not LogNormalize — see
 `truecell-multimodal` for the `margin` argument, which is the thing people get
 wrong.
@@ -155,6 +169,12 @@ Being generous with PCs costs little; being stingy loses rare populations.
 
 ```python
 truecell.find_neighbors(obj, dims=range(10), k_param=20)    # → graphs["RNA_nn"], ["RNA_snn"]
+
+# Need the raw KNN rather than the graphs? Seurat's `return.neighbor`:
+#   → neighbors["RNA.nn"], a `Neighbor` with .indices() and .distances().
+#   Note the dot: RNA.nn for the Neighbor, RNA_nn / RNA_snn for the graphs.
+#   Indices are 0-based; R's `Indices()` are 1-based. No graphs are built.
+truecell.find_neighbors(obj, dims=range(10), return_neighbor=True)
 truecell.find_clusters(obj, resolution=0.5, algorithm=1, random_seed=0)
 ```
 
@@ -207,7 +227,7 @@ obj.meta_data["cell_type"] = obj.idents
 `rename_idents` returns the object — rebind it. Stash the numeric labels first
 with `obj.stash_ident("seurat_clusters_orig")` if you may want them back.
 
-Full DE detail — all eight tests, pseudobulk, conserved markers — in
+Full DE detail — all nine tests, pseudobulk, conserved markers — in
 `truecell-differential-expression`.
 
 ## Common failures

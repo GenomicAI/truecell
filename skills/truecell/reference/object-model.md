@@ -165,3 +165,21 @@ sub = obj.subset(features=gene_list)              # by feature
 rebinding is the bug. QC filtering is normally expressed as a boolean mask over
 `obj.meta_data` turned into a barcode list, since there is no
 `subset(subset = expr)` string-expression form.
+
+## Slimming — `diet_truecell` (Seurat's `DietSeurat`)
+
+```python
+slim = truecell.diet_truecell(obj, layers="counts", dimreducs="pca")
+```
+
+Keeps chosen assays / layers / features / reductions / graphs and drops the
+rest. Returns a **new** object and leaves the input alone; the surviving layers
+are *shared*, not copied, so it frees memory rather than doubling it.
+
+**`dimreducs` and `graphs` are keep-LISTS.** `diet_truecell(obj)` with no
+arguments deletes **every** reduction and graph — that is Seurat's behaviour,
+not a porting slip. Name what you want kept or you lose your embedding.
+
+`layers` takes a name, a list, or a dict for per-assay control
+(`{"RNA": "counts", "ADT": ["counts", "data"]}`). Removing the current default
+assay raises rather than silently re-pointing it.

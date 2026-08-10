@@ -71,6 +71,8 @@ pbmc = pbmc.subset(cells=list(md.index[(md["nFeature_RNA"] > 200) & (md["percent
 | `WhichCells(obj, idents=)` | `obj.which_cells(ident=)` |
 | `RenameIdents(obj, ...)` | `obj.rename_idents({...})` — rebind |
 | `merge(a, b)` | `a.merge(b)` |
+| `DietSeurat(obj, layers=, dimreducs=)` | `diet_truecell(obj, layers=, dimreducs=)` — **keep-lists**: no args drops every reduction and graph, in both tools |
+| `ReorderIdent(obj, var)` | `obj.reorder_ident(var, reverse=False, afxn=np.mean)` — rebind. R's `reverse` is a no-op; truecell's actually reverses |
 | `DefaultAssay(obj) <- "ADT"` | pass `assay="ADT"` to the call |
 | `Read10X(dir)` | `truecell.io.read_10x(dir)` |
 | `Radius(img)` | `truecell.generics.radius(img)` |
@@ -87,12 +89,14 @@ pbmc = pbmc.subset(cells=list(md.index[(md["nFeature_RNA"] > 200) & (md["percent
 | SCTransform | `SCTransform(obj, vars.to.regress="percent.mt")` | `sctransform(obj, vars_to_regress=["percent.mt"])` |
 | HVGs | `FindVariableFeatures(obj, selection.method, nfeatures)` | `find_variable_features(obj, selection_method=, nfeatures=)` |
 | Scale | `ScaleData(obj, features)` | `scale_data(obj, features=)` |
+| SCT across a merge | `PrepSCTFindMarkers(obj)` | `prep_sct_find_markers(obj)` — run once after merging separately-SCTransformed objects |
 | PCA | `RunPCA(obj, npcs)` | `run_pca(obj, n_pcs=)` |
 | ICA / t-SNE | `RunICA` / `RunTSNE` | `run_ica` / `run_tsne` |
 | Supervised PCA | `RunSPCA(obj, graph="wsnn")` | `run_spca(obj, graph="wsnn")` |
 | GLM-PCA | `RunGLMPCA(obj, L=10)` | `glm_pca(obj, n_components=10, family="poisson"\|"nb")` |
 | JackStraw | `JackStraw` / `ScoreJackStraw` | `jack_straw` / `score_jackstraw` |
 | Neighbors | `FindNeighbors(obj, dims=1:10)` | `find_neighbors(obj, dims=range(10))` |
+| Raw KNN, not graphs | `FindNeighbors(..., return.neighbor=TRUE)` | `find_neighbors(..., return_neighbor=True)` → `obj.neighbors["RNA.nn"]` |
 | Cluster | `FindClusters(obj, resolution)` | `find_clusters(obj, resolution=, algorithm=)` |
 | UMAP | `RunUMAP(obj, dims=1:10)` | `run_umap(obj, dims=range(10))` |
 | WNN | `FindMultiModalNeighbors(reduction.list, dims.list)` | `find_multi_modal_neighbors(obj, reduction_list=, dims_list=)` |
@@ -169,7 +173,8 @@ gets blamed on the wrong function.
 
 **And these should match, so investigate if they don't:** `avg_log2FC` (7.1e-15),
 CLR (4.2e-15), Moran's I (1.6e-14), the object-model accessors (91 of 91 anchors
-exact), seven of the eight DE tests reproducing Seurat's top 50 exactly.
+exact), seven of the nine DE tests reproducing Seurat's top 50 exactly (`roc` is
+AUC-scored, `deseq2` deliberately differs).
 
 ## A worked port
 

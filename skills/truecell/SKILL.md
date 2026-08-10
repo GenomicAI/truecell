@@ -129,7 +129,7 @@ Where results land: `pbmc.meta_data` (per-cell columns), `pbmc.reductions`
 | Task | Skill |
 |---|---|
 | Standard scRNA-seq run, QC thresholds, how many PCs, resolution choice | `truecell-workflow` |
-| Marker genes, the eight DE tests, pseudobulk, conserved markers | `truecell-differential-expression` |
+| Marker genes, the nine DE tests, pseudobulk, conserved markers | `truecell-differential-expression` |
 | Batch correction (Harmony/CCA/RPCA), label transfer, reference mapping | `truecell-integration` |
 | CITE-seq / WNN, cell hashing demultiplexing, pooled CRISPR (Mixscape) | `truecell-multimodal` |
 | Xenium / Visium / CosMx / MERSCOPE, niches, spatially variable features | `truecell-spatial` |
