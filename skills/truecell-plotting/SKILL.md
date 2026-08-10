@@ -118,6 +118,28 @@ fig = truecell.mixscape_heatmap(obj, ident_1="IFNGR2 KO", ident_2="NT", max_gene
 
 ## Customising
 
+### Theme — set it once, not per call
+
+`set_theme` changes the defaults every plot draws with, so you do not repeat
+them on each call. It takes `base_size`, `palette`, `font`, `dpi` and `style` —
+those five keys and no others. `get_theme` returns them as a dict,
+`reset_theme` restores the shipped defaults, and `theme_context` scopes a
+change to a block.
+
+```python
+truecell.set_theme(base_size=14, dpi=150)
+truecell.get_theme()["base_size"]           # -> 14
+with truecell.theme_context(base_size=9):   # scoped; restored on exit
+    fig = truecell.dim_plot(obj, reduction="umap")
+truecell.reset_theme()
+```
+
+`hue_pal(n)` is Seurat's categorical palette (ggplot2's `scales::hue_pal`) —
+the same evenly-spaced hues `dim_plot` assigns to clusters, exposed so a
+hand-drawn figure can match one truecell produced.
+
+### Reaching into the figure
+
 The returned `Figure` is an ordinary matplotlib figure — reach into it.
 
 ```python

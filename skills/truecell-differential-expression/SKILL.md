@@ -140,6 +140,16 @@ pb_obj = truecell.aggregate_expression(obj, group_by="cell_type", return_object=
 Sums counts per group. `return_object=True` gives a Truecell object with one cell
 per group instead of a matrix.
 
+`average_expression` (Seurat's `AverageExpression`) is the **mean** counterpart —
+same grouping arguments, but the per-group *mean* of the `data` layer rather
+than the sum of `counts`. Use `aggregate_expression` for anything feeding a
+count-based test such as DESeq2, and `average_expression` for a per-group
+expression summary you intend to read or plot:
+
+```python
+avg = truecell.average_expression(obj, group_by="cell_type")     # genes x groups
+```
+
 **Test at the sample level** with DESeq2:
 
 ```python

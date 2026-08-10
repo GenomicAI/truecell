@@ -341,6 +341,64 @@ def test_the_reflow_never_drops_a_word_from_any_docstring(roles):
 
 
 # ---------------------------------------------------------------------------
+# The skills
+# ---------------------------------------------------------------------------
+
+SKILLS = ROOT / "skills"
+
+
+def _skills_corpus() -> str:
+    return "\n".join(p.read_text() for p in sorted(SKILLS.rglob("*.md")))
+
+
+def test_every_public_export_is_mentioned_in_a_skill():
+    """The skills are the agent-facing docs, and they fall behind silently.
+
+    Every 1.2.0 feature reached `reference/api-map.md` in its own PR and three of
+    the four never reached the skills a reader actually loads — the same shape as
+    a CHANGELOG entry going missing, on a surface no checklist covered. `docs/`
+    already has `test_every_public_export_is_on_an_api_page`; this is its
+    counterpart for `skills/`.
+
+    Deliberately **no allowlist.** When this was added every one of the 113
+    exports was already mentioned, so an exemption list would have been empty
+    scaffolding that later became a dumping ground. If a new export genuinely
+    does not belong in any skill, say so in the skill rather than here — one
+    sentence naming it is cheaper than an exemption, and more useful.
+
+    A plain substring search on purpose: it asks the cheap question ("does any
+    skill say this name at all"), which is exactly the failure seen. It cannot
+    tell you the mention is *good*, and is not meant to.
+    """
+    corpus = _skills_corpus()
+    missing = [n for n in truecell.__all__
+               if n != "__version__" and n not in corpus]
+    assert not missing, (
+        f"{len(missing)} public export(s) appear in no skill: {sorted(missing)}. "
+        f"Add each to the skill someone would load for that task — "
+        f"`skills/truecell/reference/api-map.md` alone is not enough, it is the "
+        f"lookup table rather than the thing that gets read."
+    )
+    # Anti-vacuity: an empty or unreadable corpus would pass the assertion above.
+    assert len(corpus) > 50_000, f"skills corpus is only {len(corpus)} chars"
+    assert "find_markers" in corpus
+
+
+def test_the_skills_do_not_advertise_removed_exports():
+    """The other direction: a skill naming something that no longer exists.
+
+    `nn_name` and `stitch_matrix` were both removed in 1.2.0, and a skill still
+    telling an agent to pass them would be worse than silence — it reads as
+    authoritative.
+    """
+    corpus = _skills_corpus()
+    for gone in ("nn_name", "stitch_matrix"):
+        assert gone not in corpus, (
+            f"a skill still mentions {gone!r}, which was removed from the API"
+        )
+
+
+# ---------------------------------------------------------------------------
 # The build itself
 # ---------------------------------------------------------------------------
 
