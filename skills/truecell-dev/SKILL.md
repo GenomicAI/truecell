@@ -36,7 +36,7 @@ tests in.
 | `tests/` | ~70 test modules. |
 | `tutorials/` | 18 vignettes + their Python and R scripts + `figures_*/`. Also the R-comparison apparatus. |
 | `docs/` | MkDocs site. `docs/tutorials` is a **symlink** to `../tutorials`. |
-| `tools/` | Build-time helpers: `griffe_sphinx_roles.py`, `mkdocs_html_relpaths.py`. |
+| `tools/` | Build-time helpers: `griffe_sphinx_roles.py`, `mkdocs_html_relpaths.py`. Plus `find_dead_args.py` — an AST sweep for parameters never read in their own function body; run it before trusting a signature. Every hit needs triage (dispatch adapters and protocol methods are legitimately unused). |
 | `.github/workflows/` | `ci.yml`, `docs.yml`. |
 
 ## The checks

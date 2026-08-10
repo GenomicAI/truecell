@@ -212,7 +212,8 @@ here.
 Two other design differences the R side names:
 
 - **`FindMarkers` on an IterableMatrix supports `wilcox` alone.** Everything
-  else raises. truecell runs all eight tests on a lazy layer.
+  else raises. truecell runs eight of its nine tests on a lazy layer (this
+  tutorial predates `poisson`; the point stands — Seurat allows one).
 - Seurat **warns** that column-major storage is the wrong orientation for DE and
   recommends `transpose_storage_order()`. truecell's `LazyMatrix` is CSC —
   cell-major — with no row-major option. Its own docstring already flagged this

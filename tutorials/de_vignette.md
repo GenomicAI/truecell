@@ -37,7 +37,7 @@ would look exactly like a DE difference.
 | Metric | Result |
 |---|---|
 | **`avg_log2FC` vs Seurat**, all 13,712 shared genes | **max abs diff 6.44e-15** |
-| **Tests reproducing Seurat's top 50 genes** | **8 of 8** per-cell tests (`roc` scores AUC, not p) |
+| **Tests reproducing Seurat's top 50 genes** | **7 of 7** per-cell p-value tests (`roc` scores AUC, not p; `deseq2` is pseudobulk) |
 | `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999980 · 0.999994 · 0.999975 |
 | `mast` — Spearman (all genes / detected >5%) | 0.9471 / **0.9979** |
 | `negbinom` — Spearman (all genes / detected >5%) | 0.6943 / **0.9165** |

@@ -186,4 +186,4 @@ condition/batch, not just on average across them.
 ## Reference
 
 [The DE test-suite vignette](https://genomicai.github.io/truecell/tutorials/de_vignette/)
-runs all eight tests against `FindMarkers` on one shared cluster assignment.
+runs all nine tests against `FindMarkers` on one shared cluster assignment.

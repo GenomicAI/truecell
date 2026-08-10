@@ -33,7 +33,7 @@ one of these.
 
 Others pin the cells and features and hand them to R explicitly, so a difference
 in an earlier stage cannot pose as a difference in the one under test. The DE
-suite is the clearest case: all eight tests run on **one shared cluster
+suite is the clearest case: all nine tests run on **one shared cluster
 assignment**, because otherwise a clustering difference would surface as a DE
 difference and be attributed to the wrong function.
 

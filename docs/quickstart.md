@@ -153,7 +153,7 @@ cluster   gene  avg_log2FC
       7 ITGA2B   12.070139
 ```
 
-`find_markers` runs all eight of Seurat's tests via `test_use=`. On a shared
+`find_markers` runs all nine of Seurat's tests via `test_use=`. On a shared
 cell assignment, seven of them reproduce Seurat's top 50 genes exactly and
 `avg_log2FC` agrees to 7.1e-15 — [the DE vignette](tutorials/de_vignette.md)
 has the full table.
