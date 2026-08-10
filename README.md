@@ -37,8 +37,10 @@ dimensionality reduction, clustering, and marker detection — entirely in Pytho
 
 - **Truecell object** — mirrors the R `Seurat` S4 class with `__slots__`-based Python classes
 - **Assay5** — sparse-matrix-backed multi-layer assay (counts, data, scale.data)
+- **Object slimming** — `diet_truecell` (Seurat's `DietSeurat`) strips an object to chosen assays, layers, features, reductions and graphs for saving or sharing. Returns a new object and leaves the input alone, sharing the surviving layers rather than copying them. **Note that `dimreducs` and `graphs` are keep-lists — calling it with no arguments removes every reduction and graph**, which is Seurat's behaviour too; name what you want kept
 - **Preprocessing** — `normalize_data`, `find_variable_features` (VST), `scale_data`, `percentage_feature_set`
 - **SCTransform** — `sctransform` (regularized negative-binomial Pearson residuals; `vst_flavor="v2"` by default, as Seurat 5, or `"v1"` for the 2019 model)
+- **Multi-sample SCT** — `prep_sct_find_markers` (Seurat's `PrepSCTFindMarkers`). SCTransform corrects each object's counts to *its own* median sequencing depth, so merging two SCTransformed objects leaves the halves on different scales and a fold change across the merge partly measures how deeply each batch was sequenced. Run it once after the merge, before any `find_markers` on the SCT assay; it re-corrects every cell to the minimum median UMI across the models and is a no-op on a single-model object. Verified against Seurat 5.5.1: given R's own fitted models, **0 of 13,953,800 entries differ**
 - **Signature scoring** — `add_module_score`, `cell_cycle_scoring` (S/G2M + Phase)
 - **Dimensionality reduction** — `run_pca`, `run_spca` (supervised, off a cell graph), `run_ica`, `run_tsne`, `glm_pca` (Poisson or negative binomial, straight on counts)
 - **Batch correction / integration** — `run_harmony` (via harmonypy), CCA/RPCA anchors (`find_integration_anchors` + `integrate_data`), and the `integrate_layers` dispatcher (`method="harmony"|"cca"|"rpca"`)
@@ -47,14 +49,12 @@ dimensionality reduction, clustering, and marker detection — entirely in Pytho
 - **Scale (lazy on-disk matrices)** — `LazyMatrix` keeps a matrix out-of-core as memory-mapped compressed-sparse-column arrays (BPCells-style); `write_lazy_matrix` / `open_lazy_matrix` persist and map it, a slice reads only the touched cells off disk, `col_blocks` streams a million cells at bounded RAM, and it drops straight into an `Assay5` layer — no new dependency
 - **Cell hashing (demultiplexing)** — `hto_demux` (Seurat's `HTODemux`) demultiplexes pooled samples from hashtag counts: CLR normalize → cluster into `k = n_hashtags + 1` groups (`kfunc="clara"`, Seurat's k-medoids, or `"kmeans"`) → per-hashtag negative-binomial background threshold → singlet / doublet / negative calls, written to `meta_data` (`HTO_maxID`, `HTO_classification`, …) plus a `hash.ID` identity. `multiseq_demux` (Seurat's `MULTIseqDemux`) is the MULTI-seq alternative — a Gaussian-KDE quantile threshold per barcode, with an `autothresh` sweep — writing `MULTI_ID` / `MULTI_classification`
 - **Pooled CRISPR screens (Mixscape)** — `calc_perturb_sig` (Seurat's `CalcPerturbSig`) subtracts each cell's nearest non-targeting controls to isolate its perturbation signature, then `run_mixscape` (Seurat's `RunMixscape`) separates true knockouts from non-perturbed escapers per guide — gene-vs-NT DE, then an iterative 2-component Gaussian mixture over the perturbation score — writing `mixscape_class` (`"<gene> KO"` / `NP` / `NT`, also the identity), `mixscape_class.global`, and `mixscape_class_p_ko`. `mixscape_lda` (Seurat's `MixscapeLDA`) adds the supervised map on which each guide population forms its own cloud — per-guide DE-gene PCA subspaces, every cell projected onto each, then one linear discriminant analysis over the concatenation → an `lda` reduction plus `lda_assignments` / `LDAP_<class>`. Two diagnostics complete the workflow: `plot_perturb_score` (Seurat's `PlotPerturbScore`) overlays the NT control density against one guide's own along the perturbation score — the axis mixscape actually splits on, bimodal when the guide has a real effect — and `mixscape_heatmap` (Seurat's `MixscapeHeatmap`) shows the DE genes underneath it with every cell ordered by its knockout probability
-- **Nearest-neighbour graph** — `find_neighbors` (KNN + SNN)
+- **Nearest-neighbour graph** — `find_neighbors` (KNN + SNN). `return_neighbor=True` (Seurat's `return.neighbor`) stores the raw KNN — indices *and* distances — as a `Neighbor` under `<assay>.nn` instead of building graphs, and `compute_snn` controls the SNN independently. Verified against Seurat 5.5.1 on pbmc3k: **all 54,000 neighbour indices match**, distances to 1.1e-13
 - **Multimodal WNN** — `find_multi_modal_neighbors` (full two-stage port: per-cell RNA/protein weights via exponential kernel + softmax, then a joint neighbour search building the `wknn`/`wsnn` graphs)
 - **Clustering** — `find_clusters` (Louvain via python-igraph, Leiden via leidenalg)
 - **UMAP** — `run_umap` (via umap-learn; embeds a reduction or a precomputed graph)
 - **PC significance** — `jack_straw`, `score_jackstraw` (JackStraw permutation test)
-- **Object slimming** — `diet_truecell` (`DietSeurat`), dropping layers, reductions and graphs before saving or sharing
-- **Multi-sample SCT** — `prep_sct_find_markers` (`PrepSCTFindMarkers`), re-correcting merged SCT counts to a common sequencing depth before DE
-- **Differential expression** — `find_markers`, `find_all_markers` (`wilcox` tie-corrected, `t`, `bimod`, `LR`, `negbinom`, `poisson`, `mast` hurdle, `deseq2` pseudobulk, `roc`), `find_conserved_markers` (cross-condition, Fisher-combined)
+- **Differential expression** — `find_markers`, `find_all_markers` and `find_conserved_markers` (cross-condition, Fisher-combined), with **all nine** of Seurat's tests: `wilcox` (tie-corrected, the default), `t`, `bimod`, `LR`, `negbinom`, `poisson`, `mast` hurdle, `deseq2` pseudobulk, and `roc`. All eight per-cell tests reproduce Seurat's top 50 genes exactly on PBMC 3k. `poisson` and `negbinom` are Seurat's two `GLMDETest` families and both run on the **counts** layer — prefer `negbinom`, since fixing the dispersion at 1 makes `poisson` anti-conservative on overdispersed UMI counts
 - **Pseudobulk** — `aggregate_expression` (sum counts per group → matrix or one-cell-per-group object), pseudobulk DESeq2 via `find_markers(test_use="deseq2", sample_col=...)`
 - **Plotting** — `dim_plot`, `feature_plot`, `vln_plot`, `dot_plot`, `elbow_plot`, `do_heatmap`, `dim_heatmap`, `feature_scatter`, `variable_feature_plot`, `ridge_plot`, `plot_perturb_score`, `mixscape_heatmap` (matplotlib/seaborn)
 - **AnnData interoperability** — `as_anndata`, `from_anndata`
@@ -269,6 +269,14 @@ run_pca(pbmc, n_pcs=50)
 find_neighbors(pbmc, dims=range(10), k_param=20)
 find_clusters(pbmc, resolution=0.5)
 run_umap(pbmc, dims=range(10))
+
+# Seurat's `return.neighbor`: keep the raw KNN — indices and distances — instead
+# of building graphs. Stored as a `Neighbor` under "RNA.nn" (a dot; the graphs
+# use an underscore). Indices are 0-based, where R's `Indices()` are 1-based.
+find_neighbors(pbmc, dims=range(10), return_neighbor=True)
+nn = pbmc.neighbors["RNA.nn"]
+nn.indices()      # (cells × k), the cell itself first
+nn.distances()    # (cells × k), 0.0 in column 0
 ```
 
 ### Differential expression
@@ -281,6 +289,12 @@ from truecell import (
 markers = find_markers(pbmc, ident_1=1)
 all_markers = find_all_markers(pbmc, only_pos=True, logfc_threshold=0.25)
 
+# Any of Seurat's nine tests. `negbinom` and `poisson` are its two GLM families
+# and read the counts layer; prefer `negbinom` — holding the dispersion at 1
+# makes `poisson` anti-conservative on overdispersed UMI counts.
+markers = find_markers(pbmc, ident_1=1, test_use="poisson")
+markers = find_markers(pbmc, ident_1=1, test_use="LR", latent_vars=["percent.mt"])
+
 # Markers up in cluster 1 across every condition (Fisher-combined p per gene).
 conserved = find_conserved_markers(pbmc, ident_1=1, grouping_var="condition")
 
@@ -291,6 +305,29 @@ pseudobulk = aggregate_expression(pbmc, group_by=["cell_type", "donor"])
 # `pip install truecell[deseq2]`). pbmc.idents must hold the two conditions.
 de = find_markers(pbmc, ident_1="stim", ident_2="ctrl",
                   test_use="deseq2", sample_col="donor")
+```
+
+### Multi-sample SCT, and slimming an object
+
+```python
+import truecell
+
+# Two samples SCTransformed separately, then merged. Each was corrected to its
+# OWN median sequencing depth, so the two halves of the SCT counts layer are on
+# different scales — a fold change across the merge would partly measure how
+# deeply each batch was sequenced.
+merged = ctrl.merge(stim, add_cell_ids=["ctrl", "stim"])
+truecell.prep_sct_find_markers(merged)          # once, before any find_markers
+de = truecell.find_markers(merged, "0", "1", assay="SCT")
+
+# Slim an object before saving or sharing it. `pbmc` here is the object from the
+# blocks above, which already has a `pca` and its two graphs.
+#
+# NOTE: `dimreducs` and `graphs` are keep-LISTS — with neither named, every
+# reduction and graph is dropped (this is Seurat's behaviour too). Name what you
+# want to keep, or you will lose your embedding.
+slim = truecell.diet_truecell(pbmc, layers="counts", dimreducs="pca")
+# -> keeps the counts layer and `pca`; drops data, scale.data and both graphs
 ```
 
 ### Plotting
