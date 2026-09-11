@@ -161,14 +161,14 @@ def digest(names) -> str:
 
 
 def r_safe_names(names) -> list[str]:
-    """Feature names as R's ``Read10X`` would spell them.
+    """Feature names as Seurat spells them.
 
-    ``Read10X`` rewrites ``_`` to ``-`` in gene symbols — pbmc3k carries
-    ``Y_RNA`` and a long tail of ``RP11-*_*`` — while truecell's loader leaves them
-    alone. That difference belongs to the two file readers, not to the object
-    model this tutorial audits, so feature-name anchors are compared in R's
-    spelling on both sides rather than being allowed to fail every field that
-    mentions a gene.
+    Seurat's assay constructors rewrite ``_`` to ``-`` in feature names — pbmc3k
+    carries ``Y_RNA`` and a long tail of ``RP11-*_*`` — and truecell's
+    ``create_*_object`` factories now apply the same rule, so on objects both
+    tools built this is a no-op. It stays for names that never passed through a
+    constructor, so feature-name anchors are always compared in one spelling
+    rather than failing every field that mentions a gene.
     """
     return [str(n).replace("_", "-") for n in names]
 

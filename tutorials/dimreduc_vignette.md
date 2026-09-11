@@ -94,9 +94,10 @@ JackStraw's null is built from the scaled matrix and the PCA basis, so if the tw
 tools disagree about which cells or genes are in play, nothing downstream is
 interpretable. The Python run writes the exact barcodes and HVGs it used to
 `figures_dimreduc/cells.txt` and `hvg_features.txt`; the R script reads them back
-and subsets to them. (`Read10X` rewrites underscores in gene symbols — pbmc3k's
-`Y_RNA` becomes `Y-RNA` — so both sides normalise through that rule before
-matching.)
+and subsets to them. (Seurat's assay constructors rewrite underscores in feature
+names — pbmc3k's `Y_RNA` becomes `Y-RNA` — and truecell's factories now apply the
+same rule; both sides still normalise through it before matching, so a handoff
+written before the change lines up too.)
 
 Step 0 of the comparison then checks the bases actually agree:
 

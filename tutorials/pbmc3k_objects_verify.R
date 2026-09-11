@@ -98,10 +98,10 @@ cat("object:", ncol(obj), "cells x", nrow(obj), "features\n")
 # Share the Python side's variable features so both objects rest on one basis.
 hvg_path <- file.path(FIGURES, "hvg_features.txt")
 stopifnot("run the Python tutorial first" = file.exists(hvg_path))
-# Read10X rewrites '_' to '-' in gene symbols (pbmc3k has Y_RNA, RP11-*_* and
-# friends); truecell's loader leaves them alone. Normalise to R's spelling before
-# matching — the difference belongs to the two loaders, not to the object model
-# this tutorial is auditing. The Python side hashes the same normalised names.
+# CreateSeuratObject rewrites '_' to '-' in feature names (pbmc3k has Y_RNA,
+# RP11-*_* and friends), and truecell's factories now do the same. Normalising
+# here is a no-op on a current handoff and keeps an older one matching; the
+# Python side hashes the same normalised names.
 hvg <- gsub("_", "-", readLines(hvg_path))
 
 obj <- NormalizeData(obj, normalization.method = "LogNormalize",

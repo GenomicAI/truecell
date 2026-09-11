@@ -308,10 +308,11 @@ def report():
     # tokens that pandas would otherwise read as missing.
     py = pd.read_csv(FIGURES / "py_sct_model.csv", keep_default_na=False, float_precision="round_trip")
     r = pd.read_csv(FIGURES / "r_sct_model.csv", keep_default_na=False, float_precision="round_trip")
-    # `Read10X` rewrites "_" to "-" in gene symbols and truecell's loader does
-    # not, so one gene (RP11-442N24__B.1) spells differently on the two sides.
-    # That belongs to the two file readers, not to SCTransform — normalise to
-    # R's spelling rather than silently dropping the gene from the comparison.
+    # Seurat's assay constructors rewrite "_" to "-" in feature names. truecell's
+    # factories used not to, so one gene here (RP11-442N24__B.1) was spelled
+    # differently on the two sides; they apply the same rule now, which makes this
+    # a no-op on current output. It keeps a table written before that comparable
+    # rather than silently dropping the gene from the comparison.
     py["gene"] = py["gene"].str.replace("_", "-", regex=False)
     py, r = py.set_index("gene"), r.set_index("gene")
     shared = py.index.intersection(r.index)

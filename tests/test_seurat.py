@@ -241,6 +241,31 @@ def test_underscores_in_supplied_feature_names_become_dashes():
     assert "Y-RNA" in obj.assays["RNA"].features()
 
 
+@pytest.mark.parametrize("use_v5", [True, False], ids=["Assay5", "Assay"])
+def test_pipes_in_supplied_feature_names_become_dashes_too(use_v5):
+    """`CheckFeaturesNames` rewrites `|` as well as `_`, underscores first.
+
+    R: both `CreateAssayObject` and `CreateAssay5Object` call it, and on these
+    names it warns "Feature names cannot have underscores ('_'), ..." then
+    "Feature names cannot have pipe characters ('|'), ...". Parametrized over the
+    two factories because each has its own call site.
+    """
+    counts = sp.csc_matrix(np.arange(1, 10, dtype=float).reshape(3, 3))
+    with pytest.warns(UserWarning) as caught:
+        obj = create_truecell_object(
+            counts=counts, feature_names=["ENSG1|GAPDH", "HLA_A|B", "ACTB"],
+            cell_names=["c1", "c2", "c3"], use_v5=use_v5,
+        )
+
+    assert obj.assays["RNA"].features() == ["ENSG1-GAPDH", "HLA-A-B", "ACTB"]
+    messages = [str(w.message) for w in caught
+                if str(w.message).startswith("Feature names cannot have")]
+    assert messages == [
+        "Feature names cannot have underscores ('_'), replacing with dashes ('-')",
+        "Feature names cannot have pipe characters ('|'), replacing with dashes ('-')",
+    ]
+
+
 def test_generated_feature_names_are_left_alone():
     """The `feature_{i}` fallback is internal and has no Seurat counterpart.
 

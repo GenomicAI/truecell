@@ -67,9 +67,10 @@ if (!all(file.exists(CELLS_TXT, HVG_TXT)))
 # ---- 1. Object on the SHARED cell + feature basis ----------------------------
 cells <- readLines(CELLS_TXT)
 hvg   <- readLines(HVG_TXT)
-# Read10X() rewrites underscores in feature names to dashes ("Y_RNA" -> "Y-RNA"),
-# so Python's symbols have to be mapped through the same rule before they can
-# index the R object. The Python side normalises the same way when it reads the
+# CreateSeuratObject() rewrites underscores in feature names to dashes
+# ("Y_RNA" -> "Y-RNA"), and truecell's factories now do too. Mapping Python's
+# symbols through the same rule keeps a handoff from an older truecell able to
+# index the R object; the Python side normalises the same way when it reads the
 # per-feature matrix back, so the two still line up by name.
 hvg <- gsub("_", "-", hvg)
 cat(sprintf("Shared basis from Python: %d cells, %d variable features\n",
