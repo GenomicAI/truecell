@@ -953,7 +953,7 @@ def _get_expression_matrix(assay_obj, layer: Optional[str]):
     return mat, feature_names
 
 
-def _get_expression_layer(assay_obj, layer: Optional[str]):
+def _get_expression_layer(assay_obj, layer: str | None):
     """:func:`_get_expression_matrix`, plus the layer's own cell names.
 
     For callers that find columns by cell. An object's ``cell_names()`` name its
