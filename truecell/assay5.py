@@ -417,18 +417,26 @@ class StdAssay(KeyMixin, ABC):
     ) -> Self:
         all_feat = self._all_feature_names
         all_cells = self._all_cell_names
-        feat_set = set(all_feat)
-        cell_set = set(all_cells)
 
-        # New global axes (preserve assay order, keep only requested members).
-        new_features = (
-            [f for f in features if f in feat_set] if features is not None else list(all_feat)
-        )
-        new_cells = (
-            [c for c in cells if c in cell_set] if cells is not None else list(all_cells)
-        )
+        # Both axes keep the assay's own order, whatever order the request is in,
+        # as Seurat's `subset.StdAssay` does through `MatchCells(ordered = TRUE)`.
+        # The layers below always kept theirs. The axes used to follow the request
+        # instead, and from the first name out of place every column of every
+        # layer was labelled with another cell.
+        if features is not None:
+            wanted_features = set(features)
+            new_features = [f for f in all_feat if f in wanted_features]
+        else:
+            new_features = list(all_feat)
+        if cells is not None:
+            wanted_cells = set(cells)
+            new_cells = [c for c in all_cells if c in wanted_cells]
+        else:
+            new_cells = list(all_cells)
 
-        # Subset each layer against its *own* feature / cell span.
+        # Subset each layer against its *own* feature / cell span. Positions come
+        # from one pass over each span; a `list.index` per name was quadratic in
+        # the number of cells.
         new_layers: dict = {}
         new_layer_features: dict = {}
         new_layer_cells: dict = {}
@@ -437,13 +445,11 @@ class StdAssay(KeyMixin, ABC):
         for name, mat in self.layers.items():
             lf = self._layer_features.get(name, all_feat)
             lc = self._layer_cells.get(name, all_cells)
-            fsel = [f for f in lf if f in keep_feat]
-            csel = [c for c in lc if c in keep_cell]
-            ridx = [lf.index(f) for f in fsel]
-            cidx = [lc.index(c) for c in csel]
+            ridx = [i for i, f in enumerate(lf) if f in keep_feat]
+            cidx = [j for j, c in enumerate(lc) if c in keep_cell]
             new_layers[name] = mat[np.ix_(ridx, cidx)]
-            new_layer_features[name] = fsel
-            new_layer_cells[name] = csel
+            new_layer_features[name] = [lf[i] for i in ridx]
+            new_layer_cells[name] = [lc[j] for j in cidx]
 
         new_meta = self.meta_data.reindex(new_features).copy()
 

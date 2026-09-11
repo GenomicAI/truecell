@@ -92,7 +92,11 @@ class Graph:
         return list(self._cell_names)
 
     def subset(self, cells: list[str]) -> "Graph":
-        """Return a new Graph restricted to ``cells`` (cell×cell submatrix)."""
+        """Return a new Graph restricted to ``cells`` (cell×cell submatrix).
+
+        Rows and columns follow ``cells`` in the order given, skipping names the
+        graph does not have. :meth:`Truecell.subset` passes them in object order.
+        """
         idx_map = {c: i for i, c in enumerate(self._cell_names)}
         keep = [c for c in cells if c in idx_map]
         idx = [idx_map[c] for c in keep]

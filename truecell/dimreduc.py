@@ -184,11 +184,24 @@ class DimReduc(KeyMixin):
         cells: Optional[list[str]] = None,
         dims: Optional[list[int]] = None,
     ) -> "DimReduc":
-        cell_idx = (
-            [self._cell_names.index(c) for c in cells]
-            if cells is not None
-            else list(range(len(self._cell_names)))
-        )
+        """Restrict the embedding to ``cells`` (in the order given) and ``dims``.
+
+        Rows follow ``cells`` exactly, which ``integrate_layers`` relies on to put
+        a corrected embedding back into object order. Seurat's ``subset.DimReduc``
+        keeps the reduction's own order instead; :meth:`Truecell.subset` passes
+        cells in object order already, so the two agree through the object.
+        """
+        if cells is not None:
+            position = {c: i for i, c in enumerate(self._cell_names)}
+            missing = [c for c in cells if c not in position]
+            if missing:
+                raise ValueError(
+                    f"{len(missing)} cell(s) not in this reduction: {missing[:5]}"
+                )
+            # One lookup per cell; `list.index` per cell was quadratic.
+            cell_idx = [position[c] for c in cells]
+        else:
+            cell_idx = list(range(len(self._cell_names)))
         dim_idx = dims if dims is not None else list(range(self.cell_embeddings.shape[1]))
 
         new_emb = self.cell_embeddings[np.ix_(cell_idx, dim_idx)]

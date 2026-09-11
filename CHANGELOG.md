@@ -18,6 +18,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`subset(cells=...)` left the object misaligned whenever the cells were not
+  given in the object's own order.** The metadata, the assay's cell axis, the
+  reductions and the graphs took the order of the request, while every layer, the
+  identities and the image coordinates kept the object's. Each slot stayed right
+  under its own labels, so nothing looked wrong, but anything that pairs two slots
+  by position paired one cell with another: `nCount` sat beside a different cell's
+  counts, and Moran's I on a 2,000-cell subset of the Xenium breast section,
+  requested in R's sorted barcode order, was off by up to **0.193** against
+  Seurat. The object now keeps its own cell order whatever order `cells` arrives
+  in, as Seurat's `intersect(colnames(x), cells)` does, and that same subset agrees
+  with Seurat to **2.2e-14** over all 313 genes. `Assay5.subset` keeps the assay's
+  order on both axes (`subset.StdAssay`'s `MatchCells(ordered = TRUE)`), and
+  `find_spatially_variable_features` finds expression columns by the layer's own
+  cell names rather than by position in `cell_names()`. A subset requested in
+  object order was never affected. Found by the Frontiers revision re-running the
+  paper against the 1.2.0 wheel.
+- **Identity levels keep their order through `subset`.** They were rebuilt from
+  the values, which sorted them: levels `10, 2, 1` came back `1, 10, 2`, changing
+  plot order and the order `find_all_markers` visits clusters in. Levels no
+  retained cell carries are now dropped, as `Idents(x, drop = TRUE)` drops them.
+- **`Assay5.subset` and `DimReduc.subset` no longer slow quadratically with the
+  number of cells.** Both located every cell with a `list.index` call.
+
 ## [1.2.0] - 2026-08-10
 
 Four of Seurat's functions that truecell did not have, and a sweep for arguments
