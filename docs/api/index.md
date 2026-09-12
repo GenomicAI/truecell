@@ -31,7 +31,7 @@ the reason this reference exists rather than a signature dump.
 | `RunPCA`, `RunUMAP`, `RunTSNE`, `JackStraw` | `run_pca`, `run_umap`, `run_tsne`, `jack_straw` | [Dimensional reduction](dimreduc.md) |
 | `FindNeighbors`, `FindClusters`, `FindMultiModalNeighbors` | `find_neighbors`, `find_clusters`, `find_multi_modal_neighbors` | [Graphs and clustering](clustering.md) |
 | `FindMarkers`, `FindAllMarkers`, `AggregateExpression`, `AverageExpression` | `find_markers`, `find_all_markers`, `aggregate_expression`, `average_expression` | [Differential expression](markers.md) |
-| `IntegrateLayers`, `FindIntegrationAnchors`, `MapQuery` | `integrate_layers`, `find_integration_anchors`, `map_query` | [Integration and mapping](integration.md) |
+| `IntegrateLayers`, `FindIntegrationAnchors`, `SelectIntegrationFeatures`, `MapQuery` | `integrate_layers`, `find_integration_anchors`, `select_integration_features`, `map_query` | [Integration and mapping](integration.md) |
 | `AddModuleScore`, `CellCycleScoring` | `add_module_score`, `cell_cycle_scoring` | [Signature scoring](scoring.md) |
 | `HTODemux`, `MULTIseqDemux`, `RunMixscape` | `hto_demux`, `multiseq_demux`, `run_mixscape` | [Demultiplexing and screens](demux.md) |
 | `LoadXenium`, `BuildNicheAssay`, `FindSpatiallyVariableFeatures` | `load_xenium`, `build_niche_assay`, `find_spatially_variable_features` | [Spatial](spatial.md) |

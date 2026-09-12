@@ -183,9 +183,11 @@ run_harmony(seurat, group_by, reduction="pca", dims=None, reduction_name="harmon
             nclust=None, max_iter_harmony=10, assay=None, seed=0) -> None
 integrate_layers(seurat, method="harmony", orig_reduction="pca", new_reduction=None,
                  group_by=None, assay=None, **kwargs) -> None
-find_integration_anchors(objects, anchor_features=None, reduction="cca", dims=30,
+find_integration_anchors(objects, anchor_features=2000, reduction="cca", dims=30,
                          k_anchor=5, k_filter=200, k_score=30, reference=0,
                          layer="scale.data", seed=42) -> IntegrationAnchors
+select_integration_features(objects, nfeatures=2000, assay=None,
+                            fvf_nfeatures=2000) -> list[str]
 integrate_data(anchors, new_assay="integrated", k_weight=100, sd_weight=1.0,
                add_cell_ids=None, seed=42)            # returns a NEW object
 integrate_embeddings(anchors, reduction, new_reduction="integrated_dr",

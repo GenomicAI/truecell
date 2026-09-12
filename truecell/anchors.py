@@ -440,24 +440,94 @@ def _data_matrix(obj, features: list[str]) -> np.ndarray:
     return np.asarray(mat).astype(float)
 
 
-def _integration_features(
-    objects, anchor_features: Optional[list[str]], layer: str = "scale.data"
+def select_integration_features(
+    objects: list,
+    nfeatures: int = 2000,
+    assay: list[str] | None = None,
+    fvf_nfeatures: int = 2000,
 ) -> list[str]:
-    """The features anchors run on: the caller's, else shared variable features."""
-    from .reduction import _default_features
+    """Rank genes by how many datasets call them variable (Seurat's ``SelectIntegrationFeatures``).
 
-    if anchor_features is not None:
-        common = anchor_features
+    Mirrors ``SelectIntegrationFeatures(object.list, nfeatures = 2000)``. Every
+    object's variable features are pooled and counted, genes missing from any
+    object are dropped, and the ``nfeatures`` counted most often are kept. Genes
+    tied on that count, including the ones the cut falls among, go in order of the
+    median of their rank across the lists that hold them. A tie on both goes by
+    name. R orders names by the session's collation and this orders them by code
+    point, which is what R does under ``LC_COLLATE=C``, the locale ``Rscript``
+    runs in.
+
+    An object with no variable features gets them from
+    ``find_variable_features(nfeatures=fvf_nfeatures)`` run on a copy, as in
+    Seurat, so the objects passed in are left as they are.
+
+    Parameters
+    ----------
+    objects       : the Truecell objects to be integrated.
+    nfeatures     : how many features to return.
+    assay         : one assay name per object (default: each object's active assay).
+    fvf_nfeatures : variable features to compute for an object that has none.
+
+    Returns
+    -------
+    list[str]
+        Feature names, those called variable by the most datasets first.
+    """
+    import copy
+
+    from .preprocessing import find_variable_features
+
+    if assay is not None and len(assay) != len(objects):
+        raise ValueError("Give one assay per object, or none.")
+    lists, present = [], []
+    for i, obj in enumerate(objects):
+        assay_name = assay[i] if assay is not None else obj.active_assay
+        variable = list(obj.assays[assay_name].variable_features)
+        if not variable:
+            work = copy.deepcopy(obj)
+            find_variable_features(work, assay=assay_name, nfeatures=fvf_nfeatures)
+            variable = list(work.assays[assay_name].variable_features)
+        lists.append(variable)
+        present.append(set(obj.assays[assay_name].features()))
+
+    counts: dict[str, int] = {}
+    for variable in lists:
+        for feature in variable:
+            counts[feature] = counts.get(feature, 0) + 1
+    # sort(table(var.features), decreasing = TRUE). table() puts names in collation
+    # order, and R's sort by count is stable, so a count keeps that order.
+    ranked = sorted(sorted(counts), key=lambda f: -counts[f])
+    ranked = [f for f in ranked if all(f in names for names in present)]
+    if not ranked:
+        return []
+    tie_val = counts[ranked[min(nfeatures, len(ranked)) - 1]]
+
+    positions = []
+    for variable in lists:
+        position: dict[str, int] = {}
+        for rank, feature in enumerate(variable, start=1):
+            position.setdefault(feature, rank)
+        positions.append(position)
+
+    def median_rank(feature: str) -> float:
+        return float(np.median([p[feature] for p in positions if feature in p]))
+
+    above = sorted((f for f in ranked if counts[f] > tie_val), key=median_rank)
+    tied = sorted((f for f in ranked if counts[f] == tie_val), key=median_rank)
+    return above + tied[: nfeatures - len(above)]
+
+
+def _integration_features(
+    objects, anchor_features: int | list[str] | None, layer: str = "scale.data"
+) -> list[str]:
+    """The features anchors run on: the caller's list, or Seurat's pick of that many."""
+    if anchor_features is None:
+        anchor_features = 2000
+    if isinstance(anchor_features, (int, np.integer)):
+        # FindIntegrationAnchors: a number runs SelectIntegrationFeatures.
+        common = select_integration_features(objects, nfeatures=int(anchor_features))
     else:
-        per_object = [set(_default_features(obj.get_assay(), None)) for obj in objects]
-        shared = set.intersection(*per_object) if per_object else set()
-        # Preserve the first object's ordering for determinism.
-        first = _default_features(objects[0].get_assay(), None)
-        common = [f for f in first if f in shared]
-        if not common:  # fall back to the shared raw feature set
-            feat_sets = [set(obj.get_assay().features()) for obj in objects]
-            shared_all = set.intersection(*feat_sets)
-            common = [f for f in objects[0].get_assay().features() if f in shared_all]
+        common = list(anchor_features)
     # Keep only features every object carries *in the layer the anchors are
     # built from*. Checking `features()` instead — the assay's full list, which
     # is what stood here despite the comment — lets a feature through that one
@@ -484,7 +554,7 @@ def _integration_features(
 
 def find_integration_anchors(
     objects: list,
-    anchor_features: Optional[list[str]] = None,
+    anchor_features: int | list[str] | None = 2000,
     reduction: str = "cca",
     dims: int = 30,
     k_anchor: int = 5,
@@ -506,8 +576,9 @@ def find_integration_anchors(
     objects         : list of Truecell objects (each normalized + with variable
                       features / scaled data). ``objects[reference]`` is treated
                       as the reference every other dataset is anchored to.
-    anchor_features : features to integrate on (default: variable features
-                      shared across all objects).
+    anchor_features : the features to integrate on, or how many to choose with
+                      :func:`select_integration_features`. 2000 by default, as
+                      Seurat's ``anchor.features``; ``None`` means the default.
     reduction       : ``"cca"`` or ``"rpca"``.
     dims            : number of shared dimensions to use.
     k_anchor        : neighbours for the mutual-nearest-neighbour search.

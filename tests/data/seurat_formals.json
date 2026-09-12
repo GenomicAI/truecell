@@ -1120,6 +1120,14 @@
       "fine.mode.labels": "\"guide_ID\"",
       "prtb.type": "\"KO\""
     },
+    "Seurat::SelectIntegrationFeatures": {
+      "object.list": null,
+      "nfeatures": "2000",
+      "assay": "NULL",
+      "verbose": "TRUE",
+      "fvf.nfeatures": "2000",
+      "...": null
+    },
     "Seurat::SketchData": {
       "object": null,
       "assay": "NULL",

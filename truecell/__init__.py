@@ -30,6 +30,7 @@ from .anchors import (
     integrate_data,
     integrate_embeddings,
     IntegrationAnchors,
+    select_integration_features,
 )
 from .transfer import (
     find_transfer_anchors,
@@ -172,6 +173,7 @@ __all__ = [
     "integrate_data",
     "integrate_embeddings",
     "IntegrationAnchors",
+    "select_integration_features",
     "find_transfer_anchors",
     "transfer_data",
     "TransferAnchors",
