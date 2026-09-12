@@ -346,8 +346,9 @@ len(obj.subset(idents="Mono").cell_names())  # 788
 
 > Identities come from marker-gene thresholds (`CD3E` → T, `MS4A1` → B, `LYZ` →
 > Mono, first gate wins) rather than from clustering, and for the same reason
-> the batch split is deterministic: Louvain drifts by a cluster between the two
-> tools, which would put noise into comparisons that are otherwise exact.
+> the batch split is deterministic: a clustering moves wherever the two tools'
+> neighbour graphs differ, which would put noise into comparisons that are
+> otherwise exact.
 
 ---
 

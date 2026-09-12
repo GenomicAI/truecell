@@ -230,10 +230,9 @@ vln_plot(pbmc, ["CD8A","GZMK","CCL5","S100A4","ANXA1","CCR7","ISG15","CD3D"],
 > `VlnPlot` default for an SCT assay — with cells jittered over each violin. The
 > distributions track gene-for-gene: `CD8A`/`GZMK` spike on the cytotoxic CD8
 > cluster, `CCL5` across the CD8/NK end, `CD3D` over all T clusters, `CCR7` low
-> and naive-restricted. The **x-axes differ by one column** — Truecell resolves
-> **13 clusters (0–12)** here versus the vignette's **12 (0–11)** — and cluster
-> numbering is not shared across the two plots anyway, so compare the per-gene
-> shapes, not column positions. (See the accuracy note below.)
+> and naive-restricted. Both resolve **12 clusters (0–11)**, numbered by size, but
+> the two runs build slightly different graphs, so compare the per-gene shapes
+> rather than column positions. (See the accuracy note below.)
 
 ---
 

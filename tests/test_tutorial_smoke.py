@@ -354,11 +354,13 @@ def test_cell_type_map_covers_exactly_the_clusters_produced():
 
     ``rename_idents`` is positional, so a map of the wrong *length* is worse than
     one with a wrong name in it — every label from the mismatch onward slides to
-    a different cluster. The map carried Seurat's nine entries while this
-    pipeline resolves eight (DC merges into CD14+ Mono at resolution 0.5), which
-    captioned the 14-cell platelet cluster "DC" in the annotated UMAP and left
-    "Platelet" unused. It shipped in 1.0.0, and `pbmc3k_tutorial.md` printed the
-    corrected eight-entry map beside the figure drawn from the stale one.
+    a different cluster. The map carried Seurat's nine entries while the pipeline
+    resolved eight (igraph's single Louvain pass merged DC into CD14+ Mono at
+    resolution 0.5), which captioned the 14-cell platelet cluster "DC" in the
+    annotated UMAP and left "Platelet" unused. It shipped in 1.0.0, and
+    `pbmc3k_tutorial.md` printed the corrected eight-entry map beside the figure
+    drawn from the stale one. Seurat's own optimiser resolves Seurat's nine again,
+    so the map is back to Seurat's.
 
     Checked separately from the marker test below because it localises the fault:
     this one says the map is the wrong shape, that one says a name is on the
@@ -391,10 +393,11 @@ def test_cell_type_map_matches_the_markers():
 
     This asserts the labels against the data instead of trusting the map.
 
-    Iterates the *map* rather than the marker panel. The panel carries DC, which
-    no cluster currently earns, and asking where FCER1A peaks is then a question
-    about the clustering rather than about the labelling — it was the previous
-    version's only failure, and it reported a naming fault for a merge.
+    Iterates the *map* rather than the marker panel. A panel label that no
+    cluster earns — DC, while igraph's single pass merged it into CD14+ Mono — is
+    a question about the clustering rather than about the labelling. Asking where
+    FCER1A peaks then was an earlier version's only failure, and it reported a
+    naming fault for a merge.
     """
     if not (DATA_ROOT / "pbmc3k").is_dir():
         pytest.skip("dataset 'pbmc3k' not cached")

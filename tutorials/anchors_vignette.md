@@ -225,19 +225,21 @@ deterministic, and six times faster than a dense SVD on data this shape.
 | RPCA batch mixing (full ifnb) | 0.867 | **0.991** (Seurat: 0.917) |
 | RPCA cell-type recovery (full ifnb) | 0.677 | **0.922** (Seurat: 0.736) |
 
+Both clustering rows were measured while `find_clusters` ran igraph's single
+Louvain pass. With Seurat's own optimiser they read 0.9165 and 0.7300, beside
+Seurat's 0.9171 and 0.7364.
+
 Reference-half cells — the ones `IntegrateEmbeddings` copies through
 untouched — now match Seurat at **exactly** zero difference, not just close;
 that is the sharpest single check available, since any route that recomputes
 rather than copies will show noise there.
 
-**What is left is not integration, it's clustering.** RPCA's partition
-agreement with R (`ARI(py,R)`) is still only 0.774 even with the embedding
-matching to 30/30 dims. Clustering **Seurat's own** RPCA embedding through
-truecell's `find_neighbors` + `find_clusters` gives batch-mix 0.990 and
-ARI→type 0.920 — essentially truecell's own numbers, not Seurat's 0.917 / 0.736
-on that identical input. That divergence was chased separately and turned out
-**not** to be a defect: see
-[the clustering section of the integration vignette](integration_vignette.md#the-clustering-divergence-is-not-a-defect).
+**What was left was not integration, it was clustering.** RPCA's partition
+agreement with R (`ARI(py,R)`) stayed at 0.774 with the embedding matching to
+30/30 dims, and clustering **Seurat's own** RPCA embedding through truecell gave
+truecell's numbers, not Seurat's. `find_clusters` now runs Seurat's optimiser,
+and `ARI(py,R)` is 0.942: see
+[the clustering section of the integration vignette](integration_vignette.md#the-clustering-divergence-and-why-it-was-closed).
 
 ---
 
@@ -281,12 +283,10 @@ Not addressed here:
 - **The guide tree.** truecell integrates reference-to-query; Seurat builds a
   `BuildSampleTree` merge order for three or more datasets. Two-dataset
   integration is unaffected.
-- **Matching Seurat's modularity search.** The clustering divergence *was*
-  investigated (see
-  [the integration vignette](integration_vignette.md#the-clustering-divergence-is-not-a-defect)):
-  the graphs agree, and the remaining difference is that Seurat runs 10
-  restarts of its own modularity optimiser where truecell runs one igraph pass.
-  truecell's shallower optimum is the better one on ifnb, so the search was
-  deliberately left alone and no `n.start` equivalent was added. A
-  faithful port of `RunModularityClusteringCpp` would close `ARI(py,R)`
-  at the cost of that result.
+
+Seurat's modularity search was on this list until the Frontiers revision. The
+graphs agreed, and the difference was that Seurat runs 10 restarts of its own
+optimiser where truecell ran one igraph pass. truecell's shallower optimum
+scored better against ifnb's annotations, so the search was left alone. It has
+since been ported, which closed `ARI(py,R)`: see
+[the integration vignette](integration_vignette.md#the-clustering-divergence-and-why-it-was-closed).

@@ -150,8 +150,10 @@ Where results land: `pbmc.meta_data` (per-cell columns), `pbmc.reductions`
 
 Not bugs; do not "fix" them, and do not report them as regressions.
 
-- **Louvain cluster counts drift by one.** Same algorithm, same resolution,
-  different local optimum. PBMC 3k: 8 clusters to Seurat's 9 at ARI 0.938.
+- **Seurat's own clustering depends on the processor when edge weights tie exactly.**
+  `find_clusters` is Seurat's optimiser and gives its labels on the same graph, but
+  Seurat built for arm64 fuses a multiply-add that flips near-tied moves; truecell
+  follows the x86_64 build. PBMC 3k's SNN graph is unaffected.
 - **Variable-feature selection jitters at the boundary.** 1,998 of 2,000 genes
   shared on PBMC 3k; the two that swap sit at ranks ~1916–2016 where
   standardized variances agree to three decimals.

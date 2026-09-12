@@ -28,9 +28,9 @@ python tutorials/cbmc_citeseq_tutorial.py --report   # the side-by-side, per pro
 > *"R Seurat – …"*) and the **right** image is **Truecell**
 > (`generate_multimodal_plots.py`). Both run the identical RNA workflow, the same
 > CLR transform, and the same protein-gated annotation — with the same
-> thresholds — on the same data. Clustering is still stochastic and the two
-> Louvain implementations are not the same code, so compare the *structure*, not
-> exact positions or cluster numbers.
+> thresholds — on the same data, and both cluster with Seurat's modularity
+> optimiser. The neighbour graphs they build still differ slightly, so compare the
+> *structure*, not exact positions or cluster numbers.
 
 ---
 
@@ -408,20 +408,21 @@ same data are alongside:
 |-----------|--------------------|----------|---------------|
 | NK | 0.65 | 0.65 | CD16 + CD56 |
 | CD4 T | 0.64 | 0.64 | CD4 — and CD4/CD8 is a protein call, not an RNA one |
-| B | 0.55 | 0.54 | CD19 |
-| CD14+ Mono | 0.49 | 0.49 | CD14 |
-| Erythroid | 0.38 | 0.40 | ✗ |
+| B | 0.54 | 0.54 | CD19 |
+| CD14+ Mono | 0.48 | 0.49 | CD14 |
+| Erythroid | 0.40 | 0.40 | ✗ |
 | CD8 T | 0.37 | 0.38 | CD8 |
-| Progenitor | 0.35 | 0.29 | CD34 only |
 | Platelet | 0.29 | 0.30 | ✗ |
-| DC / Mono | 0.21 | 0.21 | ✗ — no clean DC probe |
+| Progenitor | 0.28 | 0.29 | CD34 only |
+| DC / Mono | — | 0.21 | ✗ — no clean DC probe |
 
 The panel's targets sit at the top and the populations it cannot see sit at the
 bottom, which is the result you would hope for. `DC / Mono` is the case worth
 dwelling on: protein tells WNN almost nothing about those cells, so nearly all
 the weight goes to RNA. A weighting pinned near 0.5 could never express that.
-Erythroid and platelet carry no antibody either, and both duly fall back toward
-RNA.
+truecell's RNA clusters fold those 69 cells into CD14+ Mono, so the label gets no
+row of its own here, but truecell weights the same cells 0.21 as well. Erythroid
+and platelet carry no antibody either, and both duly fall back toward RNA.
 
 **Progenitor is the one row that does not line up** — 0.35 here against R's 0.29,
 where every other type agrees to 0.02. It is a 146-cell population, and the two
@@ -485,32 +486,36 @@ against a live Seurat 5.5.1 run:
 | **ADT CLR** — per-protein mean · sd · min · max | max abs diff **4.2e-15** (no RNG anywhere in it) |
 | **WNN modality weight**, per cell on 8,617 shared barcodes | Pearson **0.9847** · Spearman 0.9816 · median abs diff **0.0152** |
 | Mean ADT weight, whole panel | 0.5539 against 0.5556 — relative 3.0e-03 |
-| Cell-type label, per cell | **99.29%** concordant (8,556 / 8,617) |
-| RNA clusters · WNN clusters · cells · genes · proteins | 16 · 21 · 8,617 · 20,379 · 13 — all identical |
+| Cell-type label, per cell | **99.07%** concordant (8,537 / 8,617) |
+| WNN clusters · cells · genes · proteins | 21 · 8,617 · 20,379 · 13 — all identical |
+| RNA clusters | 15 against Seurat's 16: truecell's graph folds Seurat's 69-cell DC/Mono cluster into CD14+ Mono |
 
 **The progenitor gap was never a WNN difference.** This section used to record
 progenitor at 0.06 away from Seurat while every other type agreed to 0.02, and
-attributed it to cluster boundaries. The per-cell dump settles it: re-group
-*truecell's own weights* by *R's* labels and progenitor reads **0.283** against
-R's 0.285. The weights agree; the two tools put different cells in the bucket.
+attributed it to cluster boundaries. The per-cell dump settled it: re-grouping
+*truecell's own weights* by *R's* labels read **0.283** against R's 0.285. The
+weights agreed; the two tools put different cells in the bucket.
 
 | cell type | truecell | R | truecell's weights, R's labels | n (py / R) |
 |---|---|---|---|---|
 | Progenitor | 0.352 | 0.285 | **0.283** | 146 / 184 |
 | Erythroid | 0.378 | 0.397 | **0.400** | 606 / 566 |
-| every other type | — | — | moves by ≤0.003 | — |
+| every other type | — | — | moved by ≤0.003 | — |
 
-Those two rows are the same disagreement seen from both ends: 61 cells sit on
-the progenitor/erythroid boundary and land differently, which barely moves
-erythroid's 600-cell mean and visibly moves progenitor's 150-cell one. That is
+Those two rows were the same disagreement seen from both ends: 61 cells on the
+progenitor/erythroid boundary landed differently, which barely moved
+erythroid's 600-cell mean and visibly moved progenitor's 150-cell one. That is
 a small-population effect on an annotation threshold, not a modality-weighting
 difference — and it is the kind of thing a per-cell-type summary table can never
-distinguish, which is why the handoff is keyed by barcode.
+distinguish, which is why the handoff is keyed by barcode. With Seurat's
+optimiser on both sides that boundary now lands alike: 184 progenitor cells each
+and 568 and 566 erythroid, and truecell's own progenitor label reads 0.283.
 
-The residual causes are the usual two: the neighbour search is exact here and
-approximate (annoy) in R, and the two Louvain implementations are different
-code. Both sides run the same CLR and the same `annotate_cells` thresholds,
-shared verbatim between the two scripts.
+The residual cause is the graph each tool builds. Seurat's exact (`rann`)
+neighbours give the same 16 RNA clusters as its default annoy search, so the
+difference sits upstream of the neighbour search, in the embedding. Both sides
+run the same CLR and the same `annotate_cells` thresholds, shared verbatim
+between the two scripts.
 
 > **This table used to look much worse, and the cause was not in the WNN code.**
 > Truecell's CLR had its `margin` flag inverted relative to Seurat: `margin=2`

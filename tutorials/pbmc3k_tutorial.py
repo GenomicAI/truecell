@@ -96,13 +96,17 @@ RESOLUTION_SWEEP = [0.4, 0.8, 1.2, 0.5]
 #: at the time (25 -> 22). The guided tutorial had no band, so its headline
 #: number went stale in six documents instead.
 #:
-#: Bounds are wide enough to absorb a Louvain local-optimum shift and narrow
-#: enough that a real regression fails. Re-measure before widening.
+#: Re-measured when `find_clusters` became Seurat's own modularity optimiser,
+#: which raised agreement at every resolution: 0.896 -> 0.919 at 0.4,
+#: 0.899 -> 0.928 at 0.5, 0.826 -> 0.943 at 0.8 and 0.800 -> 0.925 at 1.2. What
+#: remains is the graph, not the optimiser: 328 of the ~194,000 SNN edges differ,
+#: downstream of the two variable features that differ. Bounds sit about 0.05
+#: either side, so a real regression fails. Re-measure before widening.
 CLUSTER_BANDS = {
-    "ARI at 0.4": (0.85, 0.95),
-    "ARI at 0.5": (0.85, 0.95),
-    "ARI at 0.8": (0.78, 0.90),
-    "ARI at 1.2": (0.75, 0.88),
+    "ARI at 0.4": (0.87, 0.97),
+    "ARI at 0.5": (0.88, 0.98),
+    "ARI at 0.8": (0.89, 0.99),
+    "ARI at 1.2": (0.87, 0.97),
 }
 
 

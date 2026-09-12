@@ -57,7 +57,8 @@ makes the cross-tool comparison fair, exactly as in the Mixscape tutorial: **bot
 tools use the same variable features.** The Python run writes the 2,000 HVGs it
 selected to `figures_integration/hvg_features.txt`, and the R script reads them
 back — so the only divergences left are the genuinely method-level ones (PCA
-numerics, the integration algorithms, Louvain ties).
+numerics, the integration algorithms, and R's approximate annoy neighbour
+search).
 
 <table>
 <tr><th>R (Seurat)</th><th>Python (Truecell)</th></tr>
@@ -152,16 +153,17 @@ scoreboard:
 
 | method | sil_batch ↓ | sil_celltype ↑ | n_clusters | ARI→celltype ↑ | batch-mix ↑ |
 |--------|---:|---:|---:|---:|---:|
-| uncorrected (PCA) | 0.107 | 0.141 | 16 | 0.519 | 0.161 |
-| **Harmony** | **0.008** | 0.194 | 12 | **0.911** | **0.991** |
-| **CCA** | **0.004** | 0.231 | 14 | **0.918** | **0.991** |
-| **RPCA** | **0.005** | 0.220 | 14 | **0.922** | **0.991** |
+| uncorrected (PCA) | 0.1070 | 0.1413 | 16 | 0.5263 | 0.2314 |
+| **Harmony** | **0.0077** | 0.1942 | 12 | **0.9217** | **0.9912** |
+| **CCA** | **0.0039** | 0.2311 | 14 | **0.9280** | **0.9916** |
+| **RPCA** | **0.0052** | 0.2195 | 15 | 0.7300 | 0.9165 |
 
-Uncorrected, the cells separate by condition (batch-mix 0.161 — clusters are
-nearly single-condition). All three methods collapse that while *raising*
-cell-type recovery, and now land within a point of each other (batch-mix
-0.991 across the board). Getting RPCA here took real work — see the
-concordance section.
+Uncorrected, the cells separate by condition (batch-mix 0.23 — clusters are
+mostly single-condition). All three methods remove that separation from the
+embedding (sil_batch 0.004–0.008). Harmony and CCA go on to mix the clusters
+fully and raise cell-type recovery to 0.92–0.93. RPCA's clusters mix less and
+recover cell types less, and so do Seurat's own on its RPCA embedding; the
+concordance section below shows why.
 
 <table>
 <tr><th>R — uncorrected, by condition</th><th>Truecell — uncorrected, by condition</th></tr>
@@ -203,15 +205,15 @@ batch mixing (`mix`, 1 = fully mixed). All are computed from the cluster labels
 
 | method | ARI(py,R) | py ARI→type | R ARI→type | py mix | R mix |
 |--------|---:|---:|---:|---:|---:|
-| PCA (baseline) | 0.970 | 0.519 | 0.518 | 0.161 | 0.163 |
-| **Harmony** | 0.935 | 0.911 | 0.931 | **0.991** | **0.991** |
-| **CCA** | 0.972 | 0.918 | 0.927 | **0.991** | **0.991** |
-| **RPCA** | 0.774 | **0.922** | 0.736 | **0.991** | 0.917 |
+| PCA (baseline) | 0.9523 | 0.5263 | 0.5178 | 0.2314 | 0.1633 |
+| **Harmony** | 0.9642 | 0.9217 | 0.9306 | **0.9912** | **0.9908** |
+| **CCA** | 0.9828 | 0.9280 | 0.9273 | **0.9916** | **0.9909** |
+| **RPCA** | 0.9424 | 0.7300 | 0.7364 | 0.9165 | 0.9171 |
 
-**Harmony and CCA match Seurat closely on every axis**, partition agreement
-included. This is the confirmation the initiative was built to get: truecell's
-two most-used integration paths reproduce Seurat's result on the standard
-benchmark, cluster-for-cluster.
+**All three integrations match Seurat closely on every axis**, partition
+agreement included: truecell's integration paths reproduce Seurat's result on the
+standard benchmark, cluster for cluster. The uncorrected baseline, which neither
+tool is meant to get right, agrees at ARI 0.952.
 
 **RPCA took four bugs to get here, in two rounds.** The first two were caught
 by an earlier pass of this tutorial and are described in
@@ -248,74 +250,69 @@ claim to verify rather than a place to stop:
 Fixing both took embedding agreement from 1/30 to **30/30 PCs above \|r\| = 0.99**
 on the full 13,999-cell, unequal-batch dataset (STIM 7,451 is the reference,
 Seurat's own `PairwiseIntegrateReference` rule), reference-half cells copied
-through at **exactly** zero difference. RPCA's batch mixing rose to **0.991**
-— now *higher* than Seurat's own 0.917 — and cell-type recovery to **0.922**,
-above Seurat's 0.736.
+through at **exactly** zero difference.
 
-**What that leaves is not an integration gap — it's a clustering one.**
-`ARI(py,R)` for RPCA is still only 0.774, which looks like a leftover
-disagreement, but it isn't upstream of `find_clusters`: clustering **Seurat's
-own** RPCA embedding with truecell's `find_neighbors` + `find_clusters` gives
-batch-mix 0.990 and ARI→type 0.920 — almost identical to truecell's own
-end-to-end numbers, and nothing like Seurat's 0.917 / 0.736 on that same
-embedding. The embeddings agree; the two tools' Louvain implementations, given
-an identical input, do not.
+**That left a clustering gap, now closed.** With the embeddings in agreement,
+`ARI(py,R)` for RPCA still stood at 0.774: truecell's clusters scored cell-type
+recovery 0.922 and batch mixing 0.991, Seurat's 0.736 and 0.917. Clustering
+**Seurat's own** RPCA embedding with truecell gave truecell's numbers, not
+Seurat's, so the gap sat in `find_clusters` itself. Since `find_clusters` became
+Seurat's own modularity optimiser, RPCA agrees at **ARI 0.942**, and both tools'
+clusters score about 0.73 for cell types and 0.92 for batch mixing.
 
 ---
 
-## The clustering divergence is not a defect
+## The clustering divergence, and why it was closed
 
-That last gap was chased down, and for once the answer was that truecell is
-right. The investigation ran Seurat's own RPCA embedding through both tools in
-three stages — neighbours, graph, community detection — with
-`nn.method = "rann"` on the R side so the neighbour search is exact on both.
+The investigation ran Seurat's own RPCA embedding through both tools in three
+stages — neighbours, graph, community detection — with `nn.method = "rann"` on
+the R side so the neighbour search is exact on both.
 
 **Stages one and two agree.** The k-nearest-neighbour indices are *identical*,
 cell for cell. Fed the same neighbour table, the two SNN graphs agree
-off-diagonal to 2.8e-08 — pure float32 rounding, since fixed. Whatever is
-happening, it is not the graph.
+off-diagonal to 2.8e-08 — pure float32 rounding, since fixed. Whatever was
+happening, it was not the graph.
 
-**Stage three is where they part**, and only in how hard each searches.
-Seurat's `FindClusters` runs its own modularity optimiser with `n.start = 10`
-restarts and keeps the best; truecell runs a single pass of igraph's multilevel
-Louvain. On this graph Seurat's partition scores **0.899903** and truecell's
-**0.898336** under igraph's own modularity at γ = 0.5 — Seurat wins by 0.17%,
-and 20 different truecell seeds never reach it. So truecell genuinely finds a
-shallower optimum. It searched less hard and it shows.
+**Stage three is where they parted**, in how hard each searched. Seurat's
+`FindClusters` runs its own modularity optimiser with `n.start = 10` restarts and
+keeps the best; truecell ran a single pass of igraph's multilevel Louvain. On
+Seurat's graph, Seurat's partition scores **0.899903** and the single pass's
+**0.898336** under igraph's own modularity at γ = 0.5, and none of 20 seeds of
+the single pass reaches Seurat's.
 
-**But the deeper optimum is the worse answer.** truecell's partition is a
-strict *coarsening* of Seurat's: no Seurat cluster is split, and exactly one
-truecell cluster absorbs two of Seurat's. Those two are both **CD14 Mono** —
-2,587 and 1,729 cells of it — and they are split along the batch axis:
+**The deeper optimum does not look like the better answer.** Seurat's 16
+clusters split **CD14 Mono** in two, along the batch axis:
 
-| Seurat cluster | cells | CTRL | STIM |
-|---|---|---|---|
-| 0 | 2,607 | **73.8%** | 26.2% |
-| 1 | 1,740 | 16.7% | **83.3%** |
-| *dataset* | 13,999 | 46.8% | 53.2% |
+| Seurat cluster | cells | CD14 Mono | CTRL | STIM |
+|---|---|---|---|---|
+| 1 | 2,607 | 99.2% | **73.8%** | 26.2% |
+| 2 | 1,740 | 99.4% | 16.7% | **83.3%** |
+| *dataset* | 13,999 | | 46.8% | 53.2% |
 
-The extra 0.17% of modularity is bought by re-discovering the batch effect
-that integration just removed. Against the dataset's own `seurat_annotations`,
-truecell scores **ARI 0.9195** to Seurat's **0.7368**, and batch mixing
-**0.8937** to **0.8328**.
+The extra 0.17% of modularity is bought by re-discovering the batch effect that
+integration just removed. Against the dataset's `seurat_annotations`, the single
+pass's 15 clusters score **ARI 0.9195** to Seurat's **0.7368**, and batch mixing
+**0.990** to **0.916**, and 85% of 20 seeds of the single pass beat Seurat's
+cell-type ARI.
 
-This is not a lucky seed. Across 20 seeds truecell gives 15 clusters 17 times,
-**85% of seeds beat Seurat's cell-type ARI**, and **none** reaches its
-modularity. The pattern is consistent in both directions: truecell optimises
-less thoroughly, and on this dataset that is an advantage.
+In July that was the reason to leave truecell's search alone. The Frontiers
+revision reversed the decision: a port is judged by whether it returns what
+Seurat returns, and a user comparing the two tools should see the same clusters,
+batch split included. `find_clusters` now runs a translation of Seurat's
+optimiser, and on Seurat's own RPCA graph it returns Seurat's partition exactly,
+all 13,999 cells. The single igraph pass remains available as
+`optimizer="igraph"`.
 
-So the Louvain search was left exactly as it is, and no `n.start` equivalent
-was added — the knob's main effect here would be to converge harder onto the
-batch split. The honest caveat is that truecell's single pass is more
-seed-sensitive than Seurat's best-of-10: cell-type ARI ranged 0.72–0.93 over
-those 20 seeds. If you need stability more than you need this particular
-result, cluster at a few seeds and compare.
+Neither search is stable across seeds on this graph. Over 10 seeds, Seurat's
+optimiser scores cell-type ARI 0.735–0.930; over 20, the single pass scores
+0.72–0.93. If the answer matters more than the reproduction, cluster at a few
+seeds and compare.
 
 ### Four graph defects found on the way
 
 Establishing that the graphs agree meant comparing them to Seurat's element by
 element, which turned up four things that were simply wrong. None changed
-`find_clusters` output — `_sparse_to_igraph` takes the strict upper triangle,
+`find_clusters` output — it reads one triangle of the graph,
 which silently discarded the very entries that were missing — but the graphs
 are stored objects users read directly.
 

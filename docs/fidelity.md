@@ -76,13 +76,14 @@ flatters the port, that is a reason to look harder, not to keep it.
 
 Real, understood, and not going away:
 
-**Louvain cluster counts drift by one.** Both tools run the same algorithm at the
-same resolution and land on different local optima. On PBMC 3k, truecell finds 8
-clusters to Seurat's 9 at ARI 0.899 — and the count matches exactly at
-resolutions 0.4, 0.8 and 1.2, so the 8-vs-9 split is specific to 0.5. On ifnb RPCA, Seurat's deeper modularity
-search buys 0.17 % modularity by splitting CD14 Mono along the batch — and
-truecell's coarser partition then scores **ARI 0.92 against the annotations to
-Seurat's 0.74**. The coarser answer is the better one there.
+**Clusters differ only where the graphs do.** `find_clusters` runs Seurat's own
+modularity optimiser, so the same graph gives the same partition: every one of 12
+runs on PBMC 3k's SNN graph, and Seurat's 16 clusters on ifnb's RPCA graph, cell
+for cell. End to end each tool builds its own graph, and on PBMC 3k the two
+partitions agree at ARI 0.928, nine clusters on both sides. Where edge weights tie
+exactly, Seurat's own partition depends on the processor: built for arm64, its C++
+fuses a multiply-add that flips near-tied moves. truecell follows the x86_64 build,
+as it does for `clara`.
 
 **Variable-feature selection jitters at the boundary.** 1,998 of 2,000 genes
 shared on PBMC 3k. The genes that swap sit at ranks 1916–2016, where

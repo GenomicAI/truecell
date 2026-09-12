@@ -179,8 +179,8 @@ truecell.find_clusters(obj, resolution=0.5, algorithm=1, random_seed=0)
 ```
 
 - `dims=range(10)` is R's `1:10`.
-- `algorithm`: **1** Louvain (default) · **2** Louvain multilevel · **4** Leiden.
-  **3 (SLM) is not implemented** — asking for it is an error, not a silent fallback.
+- `algorithm`: **1** Louvain (default) · **2** Louvain with multilevel refinement ·
+  **3** smart local moving · **4** Leiden.
 - `resolution` up → more clusters. Sweep it rather than defending one value:
 
 ```python
@@ -192,11 +192,11 @@ for r in (0.2, 0.4, 0.6, 0.8, 1.0):
 Results land in `meta_data["seurat_clusters"]` **and** the active identity —
 each `find_clusters` call overwrites both, which is why the sweep stashes a copy.
 
-Expect a cluster count within one of Seurat's. Both tools optimise the same
-modularity and land in different local optima; Seurat runs 10 restarts, truecell a
-single multilevel pass. On ifnb RPCA the coarser truecell partition scored
-**ARI 0.92 against the annotations to Seurat's 0.74** — a different count is not
-a worse answer.
+On the same SNN graph the partition is Seurat's, label for label: `find_clusters`
+is Seurat's own optimiser, with its 10 restarts and its random stream. A cluster
+difference against R therefore comes from the graph, so build R's with
+`nn.method = "rann"` before comparing. `optimizer="igraph"` runs the single igraph
+pass truecell used up to 1.2.
 
 ## Step 7 — UMAP
 
@@ -239,7 +239,7 @@ Full DE detail — all nine tests, pseudobulk, conserved markers — in
 | `KeyError: 'RNA_snn'` in `find_clusters` | `find_neighbors` not run, or run on a different assay; pass `graph_name=`. |
 | `run_pca` fails or gives noise | `scale.data` missing (no `scale_data` call), or scaled on too few features. |
 | Off-by-one vs R | `dims=range(1, 11)` instead of `range(10)`. |
-| `find_clusters(algorithm=3)` | SLM is not implemented; use 1, 2 or 4. |
+| Clusters differ from R's | Different graphs, not a clustering difference: R's default `annoy` search is approximate. Pass `nn.method = "rann"` in R. |
 | Clusters change every run | `random_seed` / `seed` left at different values between runs. |
 | Only ~2,000 genes in `scale.data` | Expected — `scale_data` defaults to variable features. Pass `features=truecell.generics.features(obj)` for all genes. |
 

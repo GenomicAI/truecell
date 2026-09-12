@@ -119,12 +119,12 @@ variances agree to three decimals; see [Fidelity](fidelity.md#what-actually-diff
     negative of 182 SNN edges.
 
 ```
-clusters: [692, 515, 458, 344, 301, 159, 155, 14]
+clusters: [703, 480, 457, 344, 303, 162, 143, 32, 14]
 ```
 
-Eight clusters, against Seurat's nine on the same data, at **ARI 0.899** — the
-extra one is a 32-cell dendritic-cell population Seurat's deeper modularity
-search separates.
+Nine clusters, as Seurat finds on the same data, at **ARI 0.928**. `find_clusters`
+runs Seurat's own modularity optimiser, so the 32-cell dendritic-cell population
+separates here too.
 
 ## Markers
 

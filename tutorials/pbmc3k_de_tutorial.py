@@ -13,25 +13,26 @@ left is the test.
 
 What it found
 -------------
-Two defects, both fixed here.
+Two defects, both fixed here. The numbers below are on the clusters the tutorial
+tests now, 703 and 480 cells, except where a passage says otherwise.
 
 1. **``avg_log2FC`` put the pseudocount in the wrong place.** Seurat 5's
    ``log1pdata.mean.fxn`` is ``log2((sum(expm1(x)) + 1) / n)`` — one pseudocount
    added to the group's *total*, worth ``1/n`` on the mean scale. truecell computed
    ``log2(mean(expm1(x)) + 1)``, adding a whole count to the *mean*. That floors
    every fold change near zero: a gene detected in 0 % of one cluster and 24 % of
-   the other read **-1.26** where Seurat reads **-9.92**.
+   the other read **-1.26** where Seurat reads **-9.93**.
 
    This is the most-read column in any DE table, and it is worse than a display
    problem: ``logfc_threshold`` **filters on it**, so the error changed which
-   genes came back at all. At Seurat's own default of 0.1, truecell returned 4,903
-   genes where Seurat returned 13,009 (Jaccard 0.377); at 0.25, 2,298 against
-   11,931 (Jaccard **0.193**). Fewer than one gene in five agreed.
+   genes came back at all. At Seurat's own default of 0.1, truecell returned 4,897
+   genes where Seurat returned 12,990 (Jaccard 0.377); at 0.25, 2,299 against
+   11,907 (Jaccard **0.193**). Fewer than one gene in five agreed.
 
    Telling: where both groups actually express the gene the two formulas nearly
    agree (Spearman 0.990) — the error is concentrated in sparse, marker-like
    genes, which is precisely what differential expression is looking for. After
-   the fix, **7.1e-15 across all 13,712 genes**.
+   the fix, **6.2e-15 across all 13,714 genes**.
 
 2. **``negbinom`` was a different test.** Seurat's ``GLMDETest`` fits
    ``MASS::glm.nb`` — dispersion estimated by **maximum likelihood** — and reads
@@ -42,7 +43,7 @@ Two defects, both fixed here.
    BFGS fit failed on some genes, and on different ones in different statsmodels
    versions: 49/50 on the top 50 under 0.15.0. truecell now fits glm.nb's
    estimator itself (``truecell/_glm_nb.py``). Above 5 % detection the p-values
-   agree to a median 2e-10 decades, and no gene lands on the other side of
+   agree to a median below 1e-9 decades, and no gene lands on the other side of
    ``p_val_adj`` = 0.05; the same bits come out under statsmodels 0.14.6 and 0.15.0.
 
 Added later: ``poisson``
@@ -50,30 +51,31 @@ Added later: ``poisson``
 The ninth test, and the other half of Seurat's ``GLMDETest`` — ``glm(family =
 "poisson")`` on the counts layer, Wald p-value off the group coefficient. It
 lands at **50/50 on the top 50**, ``avg_log2FC`` exact to 6.2e-15, p-value
-Spearman **0.9999984** on genes detected above 5 %, and **zero** disagreements
+Spearman **0.9999989** on genes detected above 5 %, and **zero** disagreements
 on which genes clear ``p_val_adj < 0.05``.
 
 **The residual is R's, and this is the third time that has been true here.**
 truecell's p-values sit within ~6 significant figures of Seurat's rather than
 being bit-identical, and the gap grows with significance (median |Δlog10 p|
-2.0e-6 below ``-log10 p = 2``, rising to 9.8e-5 above 150) — the signature of
+1.7e-6 below ``-log10 p = 2``, rising to 9.8e-5 above 150) — the signature of
 tail amplification, not of a wrong statistic. At z ≈ 37 a shift of 0.005 in z
-moves p by 20 %. Chasing it down: on GPX1, R's default ``glm.control(epsilon =
-1e-8)`` stops at **iteration 5** with z = 37.002168 and p = 1.0568e-299, while
-``epsilon = 1e-14`` takes **6** and gives z = 36.997126, p = 1.27368e-299 —
-which is truecell's answer, matching R's own converged coefficient to **14
-significant figures**. Re-running the top 200 genes at both tolerances closes
-9/10 of the median gap (5.9e-5 → 6.6e-6) and 57/58 of the worst case (8.1e-2 →
-1.4e-3). truecell is the more converged of the two, so no "fix" was applied;
-see the Visium tutorial for the first instance of a difference being Seurat's.
+moves p by 20 %. Chasing it down on the earlier partition of 692 and 515 cells:
+on GPX1, R's default ``glm.control(epsilon = 1e-8)`` stops at **iteration 5**
+with z = 37.002168 and p = 1.0568e-299, while ``epsilon = 1e-14`` takes **6** and
+gives z = 36.997126, p = 1.27368e-299 — which is truecell's answer, matching R's
+own converged coefficient to **14 significant figures**. Re-running the top 200
+genes at both tolerances closed 9/10 of the median gap (5.9e-5 → 6.6e-6) and
+57/58 of the worst case (8.1e-2 → 1.4e-3). truecell is the more converged of the
+two, so no "fix" was applied; see the Visium tutorial for the first instance of a
+difference being Seurat's.
 
-**Divergence on the gene set, and it is exact.** R returns 11,466 genes to
-truecell's 13,714. All **2,248** of the difference fail Seurat's
+**Divergence on the gene set, and it is exact.** R returns 11,387 genes to
+truecell's 13,714. All **2,327** of the difference fail Seurat's
 ``GLMDETest`` ``min.cells = 3``-in-*both*-groups gate, which flags them with a
-sentinel p-value of 2 and deletes the rows; 365 of those also have zero
-variance. truecell returns them with ``p_val = 1`` instead — no evidence rather
-than no row — which keeps the frame's gene set the same across every
-``test_use``. Verified gene-by-gene, not assumed: the two sets coincide exactly.
+sentinel p-value of 2 and deletes the rows; 437 of those are not expressed at
+all. truecell returns them with ``p_val = 1`` instead — no evidence rather than
+no row — which keeps the frame's gene set the same across every ``test_use``.
+Verified gene-by-gene, not assumed: the two sets coincide exactly.
 
 Changed later: ``deseq2``
 -------------------------
@@ -85,21 +87,22 @@ needed four of DESeq2's choices: the local dispersion trend, gene-wise
 dispersions kept out of the trend fit where the likelihood is flat, no Cook's
 refit, and the 0.5 floor on fitted means in the Wald standard error
 (``truecell/_deseq2.py``). Per cell here: **50/50** on the top 50,
-p-value Spearman **0.9999995** on genes detected above 5 %, and the same **726**
+p-value Spearman **0.9999991** on genes detected above 5 %, and the same **712**
 genes at ``p_val_adj < 0.05``.
 
 Differences left standing, and why
 ----------------------------------
 * **``mast`` is a hand-rolled hurdle model**, not a call to the MAST package —
-  which is not installable as a Python dependency. Spearman 0.947 on p-values and
+  which is not installable as a Python dependency. Spearman 0.946 on p-values and
   the same top 50 genes.
 * **Seurat rounds ``myAUC`` to three decimals** inside ``DifferentialAUC``, so
   the ROC comparison is exact only to 5e-4. That is R's rounding, not a
   divergence — worth stating, because it looks like one.
-* **R's ``wilcox`` returns ``NaN``** for genes with no expression in either
-  group; truecell returns ``p = 1``. A test that cannot be run has no evidence
-  against the null, so 1 is the more useful answer, and R's NaN set is a subset
-  of truecell's p=1 set.
+* **Genes expressed in neither group get ``p = 1`` from truecell.** Seurat does
+  the same when it runs ``wilcox`` through presto, as it does for these
+  references; base R's ``wilcox.test``, which it falls back to without presto,
+  returns ``NaN`` for them. A test that cannot be run has no evidence against the
+  null, so 1 is the more useful answer.
 
 Usage
 -----
@@ -166,31 +169,34 @@ RANKED_TESTS = ("wilcox", "t", "bimod", "LR", "negbinom", "poisson", "mast", "de
 _PARITY_TOP50 = (
     "The same statistic on the same cells: the 50 most significant genes must "
     "be the same 50. A single dropped gene here is a regression, not scatter. "
-    "The first seven have read 50/50 on two cluster assignments; at deseq2's "
-    "cut the 50th and 51st genes sit 0.97 decades apart in both tools.")
+    "The first seven have read 50/50 on three cluster assignments; at deseq2's "
+    "cut the 50th and 51st genes sit 4.99 decades apart in truecell and 4.92 in "
+    "Seurat.")
 
 BANDS: dict[str, Band] = {
     **{f"{t} top50": Band(TOP_N, TOP_N, _PARITY_TOP50, fmt=".0f")
        for t in RANKED_TESTS},
     **{f"{t} rho>5%": Band(low, 1.0, why) for t, low, why in (
         ("wilcox", 0.9999,
-         "Identical rank-sum statistic; measured exactly 1.0."),
+         "Identical rank-sum statistic; measured 1.0 to nine decimal places."),
         ("t", 0.9999, "Identical Welch t; measured exactly 1.0."),
-        ("bimod", 0.9999, "Identical likelihood-ratio test; measured exactly 1.0."),
-        ("LR", 0.9999, "Identical logistic-regression LRT; measured exactly 1.0."),
+        ("bimod", 0.9999,
+         "Identical likelihood-ratio test; measured 1.0 to nine decimal places."),
+        ("LR", 0.9999,
+         "Identical logistic-regression LRT; measured 1.0 to nine decimal places."),
         ("negbinom", 0.9999,
          "truecell fits glm.nb's own estimator, theta and coefficients by "
-         "maximum likelihood: 0.9999991. It read 0.9217, against a floor of "
+         "maximum likelihood: 0.9999994. It read 0.9217, against a floor of "
          "0.88, while it ran statsmodels' BFGS fit."),
         ("poisson", 0.9999,
-         "Identical Poisson GLM Wald test; measured 0.9999984. The residual is "
+         "Identical Poisson GLM Wald test; measured 0.9999989. The residual is "
          "R's glm.control(epsilon = 1e-8) stopping an iteration early, not a "
          "difference in the statistic — see the convergence note in the module "
          "docstring."),
         ("mast", 0.99,
          "truecell's hurdle model is hand-rolled rather than a call to the MAST "
-         "package, so this is the closest a reimplementation gets: 0.9980."),
-        ("deseq2", 0.9999, "DESeq2's Wald test as DESeq2DETest runs it: 0.9999995."),
+         "package, so this is the closest a reimplementation gets: 0.9993."),
+        ("deseq2", 0.9999, "DESeq2's Wald test as DESeq2DETest runs it: 0.9999991."),
     )},
     "max |dlog2FC| (parity tests)": Band(
         0, LOG2FC_TOLERANCE,
@@ -358,8 +364,13 @@ def compare(py: pd.DataFrame, r: pd.DataFrame, test: str,
 
     if test == "roc":
         d = np.abs(py.loc[shared, "myAUC"] - r.loc[shared, "myAUC"])
-        res["auc_max_abs_diff"] = float(d.max())
-        res["auc_within_seurat_rounding"] = bool(d.max() <= AUC_TOLERANCE)
+        # Half a unit in the third decimal is the most Seurat's rounding can move
+        # an AUC, but the subtraction lands a few ULPs either side of it:
+        # 0.488 - 0.4875 is 0.0005000000000000004. Rounding at 1e-12 keeps the
+        # bound exactly Seurat's rather than widening it.
+        worst = round(float(d.max()), 12)
+        res["auc_max_abs_diff"] = worst
+        res["auc_within_seurat_rounding"] = bool(worst <= AUC_TOLERANCE)
         return res
 
     pp, pr = py.loc[shared, "p_val"], r.loc[shared, "p_val"]

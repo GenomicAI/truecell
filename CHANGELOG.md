@@ -142,6 +142,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   726 genes, with the same top 50 and p-value Spearman 0.9999995 on genes detected
   above 5 %. The `deseq2` extra needs pydeseq2 0.5.4 or a later 0.5 release, the
   version this was checked against.
+- **BREAKING: `find_clusters` runs Seurat's own modularity optimiser, so a graph
+  gives Seurat's partition.** Algorithms 1, 2 and 3 now run a translation of the
+  C++ behind `FindClusters` (`RunModularityClusteringCpp`, Waltman and van Eck's
+  ModularityOptimizer): `n_start=10` random starts drawn from one
+  `java.util.Random` stream, up to `n_iter=10` iterations each, and the partition
+  with the highest modularity kept, its clusters numbered by size. truecell ran
+  one pass of igraph's multilevel Louvain, which settles in a shallower optimum
+  and a different partition; `optimizer="igraph"` keeps that pass. On the same
+  graph the labels are now Seurat 5.5.1's, cell for cell: in all 12 runs on PBMC
+  3k's shared-nearest-neighbour graph (algorithms 1–3 at resolutions 0.4, 0.5, 0.8
+  and 1.2, singletons included) and on every graph in the tests' reference. It holds
+  at scale, at about 1.2 times Seurat's time: on SNN graphs exported from Seurat,
+  every one of 100,000 cells in 10.3 s against 8.9 s, and of 941,000 in 280 s
+  against 234 s. The
+  default `resolution` is Seurat's 0.8 rather than 0.5, `modularity_fxn`,
+  `n_start` and `n_iter` are Seurat's arguments, and `algorithm=3`, smart local
+  moving, now works. Leiden takes `n_iter` too, 10 by default where leidenalg ran
+  until stable, and turns a seed of 0 into 1 with a warning, as `RunLeiden` does;
+  `n_iterations` is accepted for one more release, with a `FutureWarning`. Every
+  default partition changes, and every tutorial's clusters with it. Where edge
+  weights tie exactly, Seurat's own partition depends on the processor: built for
+  arm64, its C++ fuses a multiply-add that flips near-tied moves. truecell follows
+  the x86_64 build, as it does for `clara`; PBMC 3k's graph is not such a case.
+  The DE tutorial now tests clusters of 703 and 480 cells rather than 692 and
+  515, so its numbers were re-measured; the `deseq2` and `negbinom` entries above
+  quote the earlier clusters.
 
 ### Fixed
 
@@ -185,6 +211,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `glm.nb` within 2e-5.
 
   It is slower: 49 s against 36 s on the DE tutorial's 13,714 genes.
+- **`find_clusters` absorbs singletons as Seurat's `GroupSingletons` does, in two
+  more details.** A singleton that joins a cluster now counts towards that
+  cluster for the singletons after it, because Seurat looks each cluster's cells
+  up again, and a tie goes where Seurat's `set.seed(1); sample()` sends it rather
+  than to the lowest label. A cell with no edges ties across every cluster, so it
+  used to land in cluster 0 and now lands where Seurat puts it.
+- **A `find_clusters` call that fails part way writes nothing**, as
+  `FindClusters` does: every resolution's column is built before any is stored.
+  A failure at a later resolution used to leave the earlier columns on the object.
+- **The DE tutorial's `roc` band no longer fails a run that meets Seurat's
+  rounding exactly.** Seurat rounds `myAUC` to three decimals, so the two AUCs can
+  differ by at most 5e-4, but `0.488 - 0.4875` is 0.0005000000000000004, and six of
+  PBMC 3k's genes sat a few ULPs past the bound. The difference is now rounded at
+  1e-12 before it is compared.
 
 ## [1.2.0] - 2026-08-10
 

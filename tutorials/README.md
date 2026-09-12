@@ -140,8 +140,7 @@ python tutorials/generate_plots.py     # writes tutorials/figures/
 - Normalize counts (`LogNormalize`), select highly variable genes (VST), and scale data
 - Run PCA, build the KNN/SNN neighbor graph, and cluster with Louvain
 - Embed with UMAP and visualize clusters
-- Find cluster markers with Wilcoxon rank-sum and annotate 8 cell types
-  (Seurat's nine minus DC, which merges into CD14+ Mono at this resolution)
+- Find cluster markers with Wilcoxon rank-sum and annotate Seurat's nine cell types
 
 **Key output figures** (in `tutorials/figures/`):
 
@@ -165,10 +164,9 @@ pipeline from the same 10x bytes; nothing is pinned across them.
 | The 2,000 variable features | **1,998 shared**; the two swaps are genes 0.03 apart in a LOESS fit, at ranks 1,982–2,000 |
 | PCA, the 10 dims clustering uses | matched \|r\| mean **0.9988**, min 0.9946, no reordering |
 | kNN graph | **52,760 = 2,638 × 20 on both** |
-| Clusters at resolution 0.5 | truecell **8**, Seurat **9** — ARI **0.899**, 2,519/2,638 cells agree |
-| Clusters across the sweep | 0.4 → 9 vs 9 (ARI 0.896) · 0.8 → 11 vs 11 (0.826) · 1.2 → 12 vs 12 (0.800). The cluster **count** matches at every resolution except 0.5 |
-| The one cluster Seurat has and truecell does not | its 32 DC cells land, **all 32**, in truecell's CD14+ Mono cluster |
-| Markers on the two clusters whose cells match exactly | **identical gene sets** (151/151 and 242/242), `avg_log2FC` to 4.9e-15 and 4.6e-14 respectively |
+| Clusters at resolution 0.5 | truecell **9**, Seurat **9**, numbered alike — ARI **0.928**, 2,562/2,638 cells agree |
+| Clusters across the sweep | 0.4 → 9 vs 9 (ARI 0.919) · 0.8 → 11 vs 11 (0.943) · 1.2 → 11 vs 12 (0.925). The cluster **count** matches at every resolution except 1.2 |
+| Markers on the three clusters whose cells match exactly | **identical gene sets** (151/151, 927/927 and 242/242), `avg_log2FC` to 4.9e-15, 5.3e-15 and 4.6e-14 respectively |
 
 The DC split is the honest caveat: at resolution 0.5 a 32-cell dendritic-cell
 population sits on the boundary, and the two runs land on opposite sides of it.
@@ -217,11 +215,11 @@ tutorials/pbmc8k_subclustering_verify.R` then
 | Step | truecell vs Seurat |
 |------|------------------|
 | Cells surviving QC | **the same 7,475 barcodes**, metrics exact to 5.3e-15 |
-| Stage 1 — global clusters | truecell **13**, Seurat **12**; ARI **0.977**, 7,341/7,475 cells agree |
-| Broad lineage label, per cell | **0.9858** |
-| **The compartment handed to stage 2** | **Jaccard 0.9991** — 4,631 of 4,635 T/NK cells are the same barcodes |
-| Stage 2 — T/NK subclusters | truecell **12**, Seurat **11**; ARI **0.916** on the shared cells |
-| T/NK subset label, per cell | **0.9821**; subset sizes agree within 25 cells of 4,631 |
+| Stage 1 — global clusters | truecell **12**, Seurat **12**; ARI **0.983**, 7,413/7,475 cells agree |
+| Broad lineage label, per cell | **0.9964** |
+| **The compartment handed to stage 2** | **Jaccard 0.9998** — 4,634 of 4,635 T/NK cells are the same barcodes |
+| Stage 2 — T/NK subclusters | truecell **11**, Seurat **11**; ARI **0.934** on the shared cells |
+| T/NK subset label, per cell | **0.9629**; subset sizes agree except CD4 memory and CD8 T, 149 cells apart |
 | kNN graph | **149,500 = 7,475 × 20 on both** |
 
 The compartment Jaccard is the load-bearing number. Everything in stage 2 is
@@ -516,12 +514,15 @@ python  tutorials/generate_integration_plots.py   # Truecell figures → figures
 
 | method | py mix | R mix | py ARI→celltype | R ARI→celltype |
 |--------|---:|---:|---:|---:|
-| Harmony | **0.991** | **0.991** | 0.917 | 0.930 |
-| CCA | **0.990** | **0.991** | 0.884 | 0.873 |
-| RPCA | **0.867** | 0.914 | **0.677** | 0.735 |
+| Harmony | **0.9912** | **0.9908** | 0.9217 | 0.9306 |
+| CCA | **0.9916** | **0.9909** | 0.9280 | 0.9273 |
+| RPCA | 0.9165 | 0.9171 | 0.7300 | 0.7364 |
 
-Harmony and CCA reproduce Seurat's integration to three decimals — the first
-real-data confirmation of `run_harmony` / `integrate_layers`. RPCA is where the
+All three reproduce Seurat's integration closely, down to how their clusters mix
+the batches and recover the cell types — the real-data confirmation of
+`run_harmony` / `integrate_layers`. RPCA's clusters mix less and recover cell
+types less on both sides, because Seurat's clustering splits CD14 monocytes by
+condition there; the vignette's clustering section shows it. RPCA is also where the
 tutorial earned its keep: it surfaced **two defects** — a crash on unequal batch
 sizes (fixed in #41) and a deeper under-integration bug (fixed here: per-object
 scaling + Seurat's reciprocal-embedding normalization lift batch mixing from
@@ -870,7 +871,7 @@ left standing on purpose, and the reasoning is in the vignette.
 
 All **eight** `find_markers` tests against `FindMarkers`, on a shared cell
 assignment so no clustering difference can pose as a DE difference. Runs on
-two clusters (692 and 515 cells) from PBMC 3k.
+two clusters (703 and 480 cells) from PBMC 3k.
 
 ```bash
 python  tutorials/pbmc3k_de_tutorial.py     # writes groups.csv and py_<test>.csv
@@ -900,12 +901,12 @@ python  tutorials/generate_de_plots.py
 
 | Comparison | Agreement |
 |---|---:|
-| `avg_log2FC` vs Seurat, all genes | max abs diff **6.44e-15** |
+| `avg_log2FC` vs Seurat, all genes | max abs diff **6.22e-15** |
 | Tests reproducing Seurat's top 50 genes | **8 of 8** p-value tests (`roc` is AUC-scored) |
-| `wilcox` / `t` / `bimod` / `LR` — p-value Spearman | 1.000000 / 0.999980 / 0.999994 / 0.999975 |
-| `mast` — Spearman, detected >5 % | **0.9980** |
-| `negbinom` — Spearman, detected >5 % | **0.9999991** |
-| `deseq2` — Spearman, detected >5 % | **0.9999995**; the same 726 genes at `p_val_adj` < 0.05 |
+| `wilcox` / `t` / `bimod` / `LR` — p-value Spearman | 1.000000 / 0.999977 / 0.999996 / 0.999981 |
+| `mast` — Spearman, detected >5 % | **0.9993** |
+| `negbinom` — Spearman, detected >5 % | **0.9999994** |
+| `deseq2` — Spearman, detected >5 % | **0.9999991**; the same 712 genes at `p_val_adj` < 0.05 |
 
 **Found and fixed two defects** — `avg_log2FC` put Seurat's pseudocount on
 the group *mean* rather than the group *sum* (Seurat 4's formula, not

@@ -51,7 +51,7 @@ dimensionality reduction, clustering, and marker detection — entirely in Pytho
 - **Pooled CRISPR screens (Mixscape)** — `calc_perturb_sig` (Seurat's `CalcPerturbSig`) subtracts each cell's nearest non-targeting controls to isolate its perturbation signature, then `run_mixscape` (Seurat's `RunMixscape`) separates true knockouts from non-perturbed escapers per guide — gene-vs-NT DE, then an iterative 2-component Gaussian mixture over the perturbation score — writing `mixscape_class` (`"<gene> KO"` / `NP` / `NT`, also the identity), `mixscape_class.global`, and `mixscape_class_p_ko`. `mixscape_lda` (Seurat's `MixscapeLDA`) adds the supervised map on which each guide population forms its own cloud — per-guide DE-gene PCA subspaces, every cell projected onto each, then one linear discriminant analysis over the concatenation → an `lda` reduction plus `lda_assignments` / `LDAP_<class>`. Two diagnostics complete the workflow: `plot_perturb_score` (Seurat's `PlotPerturbScore`) overlays the NT control density against one guide's own along the perturbation score — the axis mixscape actually splits on, bimodal when the guide has a real effect — and `mixscape_heatmap` (Seurat's `MixscapeHeatmap`) shows the DE genes underneath it with every cell ordered by its knockout probability
 - **Nearest-neighbour graph** — `find_neighbors` (KNN + SNN). `return_neighbor=True` (Seurat's `return.neighbor`) stores the raw KNN — indices *and* distances — as a `Neighbor` under `<assay>.nn` instead of building graphs, and `compute_snn` controls the SNN independently. Verified against Seurat 5.5.1 on pbmc3k: **all 54,000 neighbour indices match**, distances to 1.1e-13
 - **Multimodal WNN** — `find_multi_modal_neighbors` (full two-stage port: per-cell RNA/protein weights via exponential kernel + softmax, then a joint neighbour search building the `wknn`/`wsnn` graphs)
-- **Clustering** — `find_clusters` (Louvain via python-igraph, Leiden via leidenalg)
+- **Clustering** — `find_clusters` runs Seurat's own modularity optimiser (Louvain, Louvain with multilevel refinement, smart local moving), translated from its C++ with the same restarts and random stream, so the same graph gives Seurat's partition label for label; Leiden via leidenalg
 - **UMAP** — `run_umap` (via umap-learn; embeds a reduction or a precomputed graph)
 - **PC significance** — `jack_straw`, `score_jackstraw` (JackStraw permutation test)
 - **Differential expression** — `find_markers`, `find_all_markers` and `find_conserved_markers` (cross-condition, Fisher-combined), with **all nine** of Seurat's tests: `wilcox` (tie-corrected, the default), `t`, `bimod`, `LR`, `negbinom`, `poisson`, `mast` hurdle, `deseq2`, and `roc`. Eight of them — every p-value test — reproduce Seurat's top 50 genes exactly on PBMC 3k, and `roc` agrees within Seurat's own 3-dp AUC rounding. `deseq2` is Seurat's `DESeq2DETest`, every cell a replicate, and `sample_col` makes it a pseudobulk test. `poisson` and `negbinom` are Seurat's two `GLMDETest` families and both run on the **counts** layer — prefer `negbinom`, since fixing the dispersion at 1 makes `poisson` anti-conservative on overdispersed UMI counts
@@ -445,7 +445,8 @@ tutorials on its own.
 | statsmodels | LOESS smoothing for VST |
 | scikit-learn | PCA |
 | umap-learn | UMAP embedding |
-| python-igraph | Louvain clustering |
+| numba | Seurat's modularity optimiser (`find_clusters`) |
+| python-igraph | Leiden clustering; `find_clusters(optimizer="igraph")` |
 | leidenalg | Leiden clustering |
 | packaging | Version handling |
 
