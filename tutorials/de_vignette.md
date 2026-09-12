@@ -37,11 +37,12 @@ would look exactly like a DE difference.
 | Metric | Result |
 |---|---|
 | **`avg_log2FC` vs Seurat**, all 13,714 shared genes | **max abs diff 6.44e-15** |
-| **Tests reproducing Seurat's top 50 genes** | **7 of 7** per-cell p-value tests (`roc` scores AUC, not p; `deseq2` is pseudobulk) |
+| **Tests reproducing Seurat's top 50 genes** | **8 of 8** p-value tests (`roc` scores AUC, not p) |
 | `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999980 · 0.999994 · 0.999975 |
 | `mast` — Spearman (all genes / detected >5%) | 0.9469 / **0.9980** |
 | `negbinom` — Spearman (all genes / detected >5%) | 0.6943 / **0.9217** |
 | `poisson` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999984** |
+| `deseq2` — Spearman (all genes / detected >5%) | 0.9983 / **0.9999995**, and the same 726 genes at `p_val_adj < 0.05` |
 | `roc` — max abs AUC difference | 5.0e-04, which is Seurat's own 3-dp rounding |
 | *Before the fix* — genes returned at `logfc_threshold=0.25` | truecell **2,298** vs Seurat **11,931** (Jaccard 0.193) |
 
@@ -88,6 +89,71 @@ gene-by-gene rather than assumed to line up.
 1 asserts `Var = mean`, which UMI counts do not obey, so `poisson`'s standard
 errors are too small and its p-values too extreme. It is in truecell because it
 is in Seurat.
+
+---
+
+## Changed later: `deseq2` runs Seurat's test
+
+`deseq2` used to sum counts per sample, and it required `sample_col`. Seurat's
+`DESeq2DETest` gives DESeq2 one column per cell, so the two answered different
+questions, and this page carried `deseq2` as a divergence: 22 of the top 50,
+Spearman 0.195 on detected genes. It now runs Seurat's test, every cell a
+replicate. `sample_col` stays for a sample-level test: it sums each sample's
+cells first, and those profiles go through the same test.
+
+pydeseq2 fits DESeq2's model, but four of its choices change the answer, and each
+now follows DESeq2:
+
+| | DESeq2, as `DESeq2DETest` calls it | pydeseq2's default |
+|---|---|---|
+| Dispersion trend | `fitType = "local"`, a local regression | parametric or mean |
+| Gene-wise dispersion, flat likelihood | below 1e-6, so out of the trend fit | L-BFGS-B stops near 1e-5, inside it |
+| Cook's outliers | p-value set to NA, no refit | counts replaced, genes refitted |
+| Wald standard error | fitted means floored at 0.5 | no floor |
+
+The local trend is written from the published method, not from locfit's GPL
+source: a tricube-weighted local quadratic over the nearest 70 % of genes, each
+weighted by its mean. It matches locfit evaluated at each gene to 8e-9 on the
+test fixture; DESeq2 itself reads the trend off locfit's interpolation, up to
+6e-3 away. The floor is what closed the gap per cell: without it truecell called
+667 genes, every one of them among Seurat's 726. Seurat's `FindMarkers` wiring
+came across too — no `logfc_threshold` pre-filter for DESeq2, Bonferroni over
+every feature, and the fold change from the data layer, as for every other test.
+
+| Per cell, on clusters 0 and 1 | |
+|---|---|
+| Top 50 | **50/50** |
+| p-value Spearman, all genes / detected >5 % | 0.998317 / **0.9999995** |
+| Genes at `p_val_adj < 0.05` | **726** in both, the same genes; none differ at 0.01 either |
+| Seurat's NA p-values (Cook's outliers and empty genes) | 521, each p = 1 in truecell |
+| `avg_log2FC` | 6.2e-15 |
+
+The largest single-gene gap is CFD, 3.9 decades at p ≈ 1e-212. Its Wald z
+differs by 0.9 %, and that far into the tail a small shift in z moves p by
+decades, as in the `poisson` note above.
+
+**On Seurat's own pseudobulk vignette.** The Frontiers revision compared the tools
+on ifnb: 8 donors, 11 cell types, STIM against CTRL, both sides given the same
+13,383 cells and identical aggregated counts. With `find_markers` called the way
+the vignette calls `FindMarkers`, without `sample_col`:
+
+| | truecell 1.2.0 | now |
+|---|---|---|
+| Genes tested | 8,170 for CD14 monocytes against Seurat's 13,188 | identical in all 11 cell types |
+| DEG Jaccard at `p_val_adj < 0.05` | 0.41–0.66 | **0.947–1.000**, median 0.993 |
+| `avg_log2FC` | DESeq2's `log2FoldChange` | Seurat's, to 6.2e-15 |
+
+This is where the flat-likelihood row of the table above was found. R's own DESeq2,
+with the trend evaluated at each gene as truecell evaluates it, agrees with
+Seurat at 0.981–1.000 (median 0.998).
+
+Two consequences come from DESeq2 rather than truecell. Cells are not independent
+replicates, so per-cell p-values are anti-conservative
+([Squair et al. 2021](https://doi.org/10.1038/s41467-021-25960-2)): use this to
+reproduce a Seurat analysis, and `sample_col` for a claim about conditions. And
+DESeq2's size factors need a gene with no zero in any column. When there is none,
+`estimateSizeFactors` stops, and `find_markers` raises too rather than switching
+estimators. These two clusters have 7 such genes among 13,714.
 
 ---
 
@@ -263,14 +329,6 @@ actually have tested, it is 0.92.
 
 ### Differences left standing, and why
 
-**`deseq2` is not Seurat's DESeq2.** `DESeq2DETest` builds a `DESeqDataSet` with
-**one column per cell** and tests cells as replicates. truecell sums counts per
-sample and tests at the sample level. Treating cells as replicates is the
-practice [Squair et al. (2021)](https://doi.org/10.1038/s41467-021-25960-2)
-showed inflates false positives, so pseudobulk is the better statistics — and
-because it **requires `sample_col`**, it cannot be silently mistaken for the
-per-cell test: it raises. Reported rather than changed in either direction.
-
 **`mast` is a hand-rolled hurdle model**, not a call to the MAST package, which
 has no Python equivalent to depend on. Spearman 0.947 across all genes, **0.9980
 on genes detected above 5 %**, and the same top 50. Worth knowing: Seurat's
@@ -309,15 +367,15 @@ previous version of this note called them.
 | `negbinom` | 11,466 | 6.2e-15 | 0.694340 | **0.9217** | 50/50 |
 | `roc` | 13,714 | 6.2e-15 | *AUC 5.0e-04* | — | — |
 | `mast` | 13,714 | 6.2e-15 | 0.946873 | **0.9980** | 50/50 |
-| `deseq2` | 13,714 | *3.47* | 0.476989 | 0.1951 | 22/50 |
+| `deseq2` | 13,714 | 6.2e-15 | 0.998317 | **1.0000** | 50/50 |
 
 > 13,714 rather than the 13,712 an earlier version of this table showed: two
 > genes, `Y-RNA` and `RP11-442N24--B.1`, used to be spelled with underscores on
 > the truecell side, until its factories adopted Seurat's `_` → `-` rule. Only
 > the `mast` and `deseq2` all-gene Spearman moved with them.
 
-> The detected >5 % column moved for `negbinom` (0.9165 → 0.9217), `mast`
-> (0.9979 → 0.9980) and `deseq2` (0.1959 → 0.1951) when truecell began rounding
+> The detected >5 % column moved for `negbinom` (0.9165 → 0.9217) and `mast`
+> (0.9979 → 0.9980) when truecell began rounding
 > `pct.1` and `pct.2` to three decimals, as Seurat's `FoldChange` does. That
 > column's genes are picked from the Python table's detection rates, and 69 genes
 > detected in exactly 26 of cluster 1's 515 cells (5.05 %, which Seurat reports
@@ -329,9 +387,8 @@ previous version of this note called them.
 > through a misparsing float reader. The change is at the ULP level and no band
 > moved, but the table is the measured one, not the previous one.
 
-`deseq2`'s row is the pseudobulk-vs-per-cell divergence described above, not a
-defect; its fold change differs too because a pseudobulk fold change is computed
-on summed counts.
+`deseq2`'s row moved when it began running Seurat's per-cell test; see
+*Changed later* near the top.
 
 ### The two columns a person actually reads
 
@@ -349,13 +406,13 @@ out that the max-difference bound and a set overlap answer neither question.
 | `negbinom` | **1.000000** | **1.000000** | 50/50 | 0.8547 | 0.9958 | 48 |
 | `roc` | **1.000000** | **1.000000** | 50/50 | — | — | — |
 | `mast` | **1.000000** | **1.000000** | 50/50 | 0.7985 | 0.9895 | 144 |
-| `deseq2` | 0.966512 | 0.847817 | 34/50 | 0.4314 | 0.8938 | 1,401 |
+| `deseq2` | **1.000000** | **1.000000** | 50/50 | 0.9400 | **1.0000** | 0 |
 
 Rank correlation is reported *alongside* the max-difference bound rather than
 instead of it, because the two fail differently. A uniform scale error leaves
 every rank perfect and blows up the max; a handful of swapped mid-table genes
 leaves the max tiny and moves the ranks. Here both are clean: fold-change order
-is preserved exactly for all seven cell-level tests.
+is preserved exactly for all eight tests.
 
 **Do identical adjusted p-values occur?** Mostly not, and the reason is worth
 stating rather than the rate. The *correction* is identical — both tools compute
@@ -363,7 +420,7 @@ stating rather than the rate. The *correction* is identical — both tools compu
 p-values feeding it differ by up to **0.54 % relative** on `wilcox`, a real
 difference between SciPy's Wilcoxon and Seurat's, so the product rarely lands on
 the same double. What survives that is what matters: the ordering is exact, and
-**every gene** falls on the same side of 0.05 for `wilcox`, `t` and `LR`.
+**every gene** falls on the same side of 0.05 for `wilcox`, `t`, `LR` and `deseq2`.
 
 Two traps in measuring this, both of which had to be fixed before the numbers
 above meant anything:
@@ -395,13 +452,12 @@ if one falls outside:
 
 | band | range | why |
 |---|---|---|
-| top 50, the seven cell-level tests | **= 50** | Same statistic, same cells. One dropped gene is a regression. |
-| top 50, `deseq2` | **15 – 32** | A divergence measurement. 20–26 over 20 resampled replicate splits; 25 on the previous clustering. Bounded well below 50 — reaching parity would mean `sample_col` had stopped being honoured. |
+| top 50, the eight p-value tests | **= 50** | Same statistic, same cells. One dropped gene is a regression. At `deseq2`'s cut the 50th and 51st genes sit 0.97 decades apart in both tools, and no gene within three ranks of it differs by more than 0.12. |
 | p Spearman >5 %, `wilcox`/`t`/`bimod`/`LR` | **≥ 0.9999** | Measured at exactly 1.0. |
 | p Spearman >5 %, `negbinom` | **≥ 0.88** | Same model, different optimiser: 0.9217. |
 | p Spearman >5 %, `mast` | **≥ 0.99** | A hand-rolled hurdle model, not the MAST package: 0.9980. |
-| p Spearman >5 %, `deseq2` | **0.12 – 0.30** | Pseudobulk against per-cell; a *high* value here would be the surprise. |
-| max \|Δlog2FC\|, cell-level tests | **≤ 1e-12** | Arithmetic on the shared matrix. `deseq2` is excluded by name, not by threshold — its 3.47 is correct and would otherwise set everyone else's tolerance. |
+| p Spearman >5 %, `deseq2` | **≥ 0.9999** | DESeq2's Wald test on the same cells: 0.9999995. |
+| max \|Δlog2FC\|, every test | **≤ 1e-12** | Arithmetic on the shared matrix, and every test, `deseq2` included, reports Seurat's fold change. |
 | max \|ΔAUC\|, `roc` | **≤ 5e-4** | Half a unit in Seurat's third decimal. Measured 4.9986e-4, i.e. on the boundary. |
 
 ### The reference has to be the one the handoff asked for
@@ -419,7 +475,8 @@ Seurat's three-decimal rounding and no worse. They differed for **12,491 of
 13,712 genes**.
 
 Runtime, for scale: Seurat's slowest test here is `negbinom` at 91.8 s
-(`MAST` 60.5 s, `DESeq2` 60.3 s); truecell's are 36.0 s, 28.5 s and 3.4 s.
+(`MAST` 60.5 s, `DESeq2` 60.3 s); truecell's are 35.7 s, 28.1 s and 7.4 s, the
+last now per cell as Seurat's is.
 
 ---
 

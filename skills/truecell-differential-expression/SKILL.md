@@ -35,9 +35,9 @@ obj = obj.rename_idents(...)                            # or set from a metadata
 
 ## Choosing `test_use`
 
-Eight tests, all of them Seurat's. Seven were verified to reproduce Seurat's
-**top 50 genes exactly** on a shared cluster assignment, with `avg_log2FC`
-agreeing to 7.1e-15.
+Nine tests, all of them Seurat's. The eight that return a p-value were verified
+to reproduce Seurat's **top 50 genes exactly** on a shared cluster assignment,
+with `avg_log2FC` agreeing to 7.1e-15.
 
 | `test_use` | What it is | Reach for it when |
 |---|---|---|
@@ -48,11 +48,11 @@ agreeing to 7.1e-15.
 | `"negbinom"` | Negative-binomial GLM Wald test **on counts** | UMI counts directly, no normalization assumption. Slow. |
 | `"poisson"` | Poisson GLM Wald test **on counts** | Counts, when speed matters more than calibration. Anti-conservative on overdispersed UMIs — prefer `negbinom`. |
 | `"mast"` | MAST two-part hurdle LRT | The hurdle model — detection and magnitude tested jointly. Supports `latent_vars`. |
-| `"deseq2"` | Pseudobulk DESeq2 | Sample-level inference. **Requires `sample_col`.** Needs `pip install truecell[deseq2]`. |
+| `"deseq2"` | DESeq2 as Seurat runs it, on counts | Reproducing a Seurat DESeq2 result (every cell a replicate), or sample-level inference with `sample_col=`. Needs `pip install truecell[deseq2]`. |
 | `"roc"` | AUC classifier power | Ranking markers by how well they separate, with no p-value at all. |
 
-Practical default: `wilcox` for discovery, `deseq2` for anything where a claim
-depends on replicate-level significance.
+Practical default: `wilcox` for discovery, `deseq2` with `sample_col` for
+anything where a claim depends on replicate-level significance.
 
 ## Before DE on a merged SCT assay
 
@@ -72,7 +72,7 @@ call unconditionally.
 
 ## Output columns
 
-For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `poisson` / `mast`, sorted by `p_val`:
+For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `poisson` / `mast` / `deseq2`, sorted by `p_val`:
 
 | Column | Meaning |
 |---|---|
@@ -163,16 +163,23 @@ de = truecell.find_markers(obj, ident_1="stim", ident_2="ctrl",
 ```
 
 `sample_col` names the metadata column identifying the biological replicates.
-Counts are summed per sample, then tested sample-level. It is required for
-`deseq2` and ignored by every other test.
+Counts are summed per (group, sample), and those profiles go through the same
+DESeq2 test. Every other test ignores it.
 
-**Do not expect `deseq2` to match a per-cell test.** Its overlap with Seurat's
-`FindMarkers` top 50 is a *divergence measurement*, declared as a band of 15–32
-genes (measured 20–26 over 20 replicate splits, median 22). The **upper** bound
-is the load-bearing one: reaching 50 would mean `sample_col` had stopped being
-honoured and no pseudobulk aggregation was happening. Its `max |Δlog2FC|` of 3.47
-against per-cell tests is correct — a fold change on summed counts is a different
-quantity.
+**Without `sample_col`, `deseq2` is Seurat's per-cell test.** `DESeq2DETest` gives
+DESeq2 one column per cell, and so does truecell. On PBMC 3k it calls the same
+726 genes as Seurat at `p_val_adj < 0.05`, with the same top 50. Two things
+follow from DESeq2 itself:
+
+- Cells are not independent replicates, so per-cell p-values are
+  anti-conservative. Use it to reproduce a Seurat analysis, and `sample_col` for
+  a claim about conditions.
+- DESeq2's size factors need at least one gene with no zero in any cell. When no
+  gene qualifies, `find_markers` raises, as `estimateSizeFactors` stops in R.
+  Aggregate with `sample_col`, or compare fewer cells.
+
+`avg_log2FC` is Seurat's fold change on the data layer for every test, `deseq2`
+included, not DESeq2's own `log2FoldChange`.
 
 ## Conserved markers
 

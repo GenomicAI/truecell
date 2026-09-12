@@ -115,7 +115,7 @@ pbmc = pbmc.subset(cells=list(md.index[(md["nFeature_RNA"] > 200) & (md["percent
 | All markers | `FindAllMarkers(obj, only.pos, logfc.threshold)` | `find_all_markers(obj, only_pos=, logfc_threshold=)` |
 | Conserved markers | `FindConservedMarkers(obj, ident.1, grouping.var)` | `find_conserved_markers(obj, ident_1=, grouping_var=)` |
 | Pseudobulk | `AggregateExpression(obj, group.by)` | `aggregate_expression(obj, group_by=)` |
-| DESeq2 / MAST / bimod | `FindMarkers(test.use="DESeq2"\|"MAST"\|"bimod")` | `find_markers(test_use="deseq2"\|"mast"\|"bimod")` — `deseq2` also needs `sample_col=` |
+| DESeq2 / MAST / bimod | `FindMarkers(test.use="DESeq2"\|"MAST"\|"bimod")` | `find_markers(test_use="deseq2"\|"mast"\|"bimod")` — `deseq2`'s optional `sample_col=` sums each sample's cells first |
 | Module / cell cycle | `AddModuleScore` / `CellCycleScoring` | `add_module_score` / `cell_cycle_scoring` |
 | Spatial loaders | `LoadXenium` / `Load10X_Spatial` / `LoadNanostring` / `LoadVizgen` | `load_xenium` / `load_visium` / `load_cosmx` / `load_merscope` |
 | Niches / SVF | `BuildNicheAssay` / `FindSpatiallyVariableFeatures` | `build_niche_assay` / `find_spatially_variable_features` |
@@ -167,14 +167,13 @@ gets blamed on the wrong function.
 | Variable features | ~2 of 2,000 | Boundary jitter — the swapped genes agree on standardized variance to three decimals. |
 | `add_module_score`, `jack_straw` | RNG-sized | Random control genes / permutations. 95.9 % phase concordance (two NumPy seeds agree 95.8 %), Pearson ≥ 0.997. Prove differences distribution-against-distribution over matched seeds, never from a single pair. |
 | JackStraw PC cutoff | \|Δ\| ≤ 2 | R seeds each replicate from its loop index and is deterministic at 13; truecell seeds from `seed` and has mode 13 over 60 seeds. |
-| `deseq2` top-50 overlap | 15–32 genes | A divergence measurement, not a parity target. Reaching 50 would mean `sample_col` had stopped being honoured. |
 | Visium spot radius | truecell = half of Seurat's | `spot_diameter_fullres` is a diameter; Seurat stores it in a `radius` slot. Here Seurat is the one that is wrong. |
 | R's `clara` | arm64 vs x86_64 | R's own function is architecture-dependent. truecell targets IEEE/x86_64 semantics on purpose. |
 
 **And these should match, so investigate if they don't:** `avg_log2FC` (7.1e-15),
 CLR (4.2e-15), Moran's I (1.6e-14), the object-model accessors (91 of 91 anchors
-exact), seven of the nine DE tests reproducing Seurat's top 50 exactly (`roc` is
-AUC-scored, `deseq2` deliberately differs).
+exact), eight of the nine DE tests reproducing Seurat's top 50 exactly (`roc` is
+AUC-scored).
 
 ## A worked port
 

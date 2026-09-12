@@ -132,8 +132,8 @@ and exits non-zero outside one.
 
 Two rules, both load-bearing:
 
-- **Every band came from a sweep, not one run.** The JackStraw band is 60 seeds;
-  the DESeq2 band is 20 resampled replicate splits.
+- **A band on a number that moves came from a sweep, not one run.** The JackStraw
+  band is 60 seeds.
 - **A missing measurement fails.** `Band.holds(nan)` is `False` — a measurement
   that quietly vanished is exactly how a stale reference goes unnoticed.
 

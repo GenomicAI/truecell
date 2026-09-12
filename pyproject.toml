@@ -51,7 +51,7 @@ analysis = [
 ]
 anndata = ["anndata>=0.10"]
 integration = ["harmonypy>=0.0.9"]
-deseq2 = ["pydeseq2>=0.4"]
+deseq2 = ["pydeseq2>=0.5.4,<0.6"]
 dev = [
     "pytest>=7",
     "pytest-cov",

@@ -56,7 +56,7 @@ p-value hands you ribosomal genes.
 | 12 | [Leverage-Score Sketching](sketch_vignette.md) | 13,999 cells · CTRL/STIM · ifnb (Kang 2018) | Scaling to atlas size (`LeverageScore` ↔ `leverage_score` · `SketchData` ↔ `sketch_data` · `ProjectData` ↔ `project_data`) · both of Seurat's regimes · uniform-sampling control · on-disk `LazyMatrix` — exact-regime Spearman **1.000000**; leverage tracks rarity at **−0.929** in both tools; **caught two bugs, both fixed** (full-rank leverage + anchor-based label transfer) | Advanced |
 | 13 | [The Object Model Itself](objects_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | The **container**, not an algorithm: `Cells`/`Features` · the v5 layered assay (`Layers`/`LayerData`/`split`/`JoinLayers`) · `Key` · `Embeddings`/`Loadings`/`Stdev` · `Graphs` · `FetchData` · `Idents`/`WhichCells`/`RenameIdents`/`subset` · `Command` — **91 of 91 anchors match exactly**, no tolerance (the two neighbour-graph anchors closed by PR #55); **caught eleven bugs, all fixed** (a split/join round trip that silently misordered columns, `FetchData` returning sparse objects instead of numbers, an inert command log) | Advanced |
 | 14 | [Spatial Statistics & the Spatial Container](svf_vignette.md) | 36,602 cells · 248 genes · 10x Xenium mouse brain | The spatial **container** and the one spatial **statistic** never checked against R: `LoadXenium` ↔ `load_xenium` · `CreateFOV`/`CreateCentroids`/`CreateSegmentation` ↔ `create_fov`/`create_centroids`/`create_segmentation` · `GetTissueCoordinates` · `Radius` · `FindSpatiallyVariableFeatures` ↔ `find_spatially_variable_features` — **38 of 39 anchors match exactly**; Moran's I to **1.6e-14** and 10/10 of Seurat's top genes, on a slide R cannot hold in memory; **caught three bugs, all fixed** (Moran's I on a kNN graph instead of R's inverse-square weights, centroids with no radius, unclosed polygons) | Advanced |
-| 15 | [The Differential-Expression Test Suite](de_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | All **nine** `find_markers` tests against `FindMarkers` — `wilcox` · `t` · `bimod` · `LR` · `negbinom` · `poisson` · `roc` · `MAST` · `DESeq2` — on a shared cell assignment so no clustering difference can pose as a DE difference. **All seven per-cell p-value tests reproduce Seurat's top 50 exactly**; `avg_log2FC` to **7.1e-15**; **caught two bugs, both fixed** (Seurat's pseudocount on the group mean instead of the sum, which also changed which genes `logfc_threshold` returned; and a moment-dispersion LRT where Seurat runs an ML-dispersion Wald test) | Advanced |
+| 15 | [The Differential-Expression Test Suite](de_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | All **nine** `find_markers` tests against `FindMarkers` — `wilcox` · `t` · `bimod` · `LR` · `negbinom` · `poisson` · `roc` · `MAST` · `DESeq2` — on a shared cell assignment so no clustering difference can pose as a DE difference. **All eight p-value tests reproduce Seurat's top 50 exactly**, `DESeq2` included now that it runs Seurat's per-cell test; `avg_log2FC` to **7.1e-15**; **caught two bugs, both fixed** (Seurat's pseudocount on the group mean instead of the sum, which also changed which genes `logfc_threshold` returned; and a moment-dispersion LRT where Seurat runs an ML-dispersion Wald test) | Advanced |
 | 16 | [Out of Core — `LazyMatrix` vs BPCells](lazy_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | truecell's on-disk layer against **BPCells**, Seurat's: `write_lazy_matrix`/`open_lazy_matrix` ↔ `write_matrix_dir`/`open_matrix_dir` · streaming `LogNormalize`/`VST`/`ScaleData` ↔ Seurat's `IterableMatrix` methods · `.CalcN` · storage formats. **14 of 14 anchors match**, 1998/2000 variable features shared with Seurat. The finding is each tool against *itself*: truecell's on-disk and in-memory paths are **bit-identical**, Seurat's differ by 1.0e-06 and pick a different variable feature. **Caught seven bugs, all fixed** (five functions that densified the whole store — so going on disk *raised* peak memory 4.6× — a constructor that ended laziness before analysis began, and a LOESS whose fit moved 28.8 % under a 1e-15 nudge) | Advanced |
 | 17 | [Visium — the Spatial Container](visium_vignette.md) | 2,695 spots · 10x V1_Mouse_Brain_Sagittal_Anterior | The Visium loader and container: `Load10X_Spatial`/`Read10X_Image` ↔ `load_visium` · `VisiumV2` · `ScaleFactors` · `Radius` · `GetTissueCoordinates` · `SpatialDimPlot` ↔ `spatial_dim_plot` — **24 of 24 anchors match**, 17 exactly, coordinates to `max\|dx\| = 0`. **The first tutorial where Seurat is the one that's wrong**: it stores `spot_diameter_fullres` in the FOV's `radius`, which the slide's fixed 100 µm pitch shows is a diameter, and `Radius()` on its own `VisiumV2` returns `NULL`. **Caught one truecell bug** (the tissue image came back 255× apart depending on whether matplotlib or Pillow was installed) and **aligned three defaults** to Seurat | Spatial |
 | 18 | [Anchor Internals — CCA & RPCA](anchors_vignette.md) | 2,400 cells · CTRL/STIM · ifnb (Kang 2018) | Both anchor paths at the level of the anchors and embeddings themselves, not the clustering they produce: v4 `FindIntegrationAnchors` ↔ `find_integration_anchors` · `IntegrateData` ↔ `integrate_data` · `RunCCA` · `ReciprocalProject` · `ScoreAnchors` · `FilterAnchors` · `FindWeights`; v5 `IntegrateLayers` ↔ `integrate_layers` · `IntegrateEmbeddings` — **RPCA agrees on 100 % of Seurat's v4 anchors** (649/649) and **30/30 PCs** on the v5 embedding, up from 1/30; CCA v4 anchors **99.9 %**, up from 70.0 %. **Caught eighteen bugs, all fixed** — CCA standardizing vs L2-normalizing, sklearn's randomized SVD drifting reciprocal-PCA's trailing PCs, `integrate_layers` silently running v4's `IntegrateData` behind the v5 `IntegrateEmbeddings` name, and a symmetrized KNN graph plus a missing SNN diagonal | Advanced |
@@ -885,8 +885,8 @@ python  tutorials/generate_de_plots.py
 - Why `avg_log2FC`'s pseudocount placement matters beyond the number it
   reports — it feeds `logfc_threshold`, so a formula error changes **which
   genes come back**, not just how they're described
-- Why `mast` and `deseq2` are deliberate reimplementations rather than calls
-  to the R packages, and where each is expected to diverge from them
+- Why `mast` is a deliberate reimplementation rather than a call to the R
+  package, and what it took for `deseq2`, on pydeseq2, to give DESeq2's answer
 
 **Key output figures** (in `tutorials/figures_de/`):
 
@@ -901,10 +901,11 @@ python  tutorials/generate_de_plots.py
 | Comparison | Agreement |
 |---|---:|
 | `avg_log2FC` vs Seurat, all genes | max abs diff **6.44e-15** |
-| Tests reproducing Seurat's top 50 genes | **7 of 7** per-cell p-value tests (`roc` is AUC-scored) |
+| Tests reproducing Seurat's top 50 genes | **8 of 8** p-value tests (`roc` is AUC-scored) |
 | `wilcox` / `t` / `bimod` / `LR` — p-value Spearman | 1.000000 / 0.999980 / 0.999994 / 0.999975 |
 | `mast` — Spearman, detected >5 % | **0.9980** |
 | `negbinom` — Spearman, detected >5 % | **0.9217** |
+| `deseq2` — Spearman, detected >5 % | **0.9999995**; the same 726 genes at `p_val_adj` < 0.05 |
 
 **Found and fixed two defects** — `avg_log2FC` put Seurat's pseudocount on
 the group *mean* rather than the group *sum* (Seurat 4's formula, not
@@ -1115,7 +1116,7 @@ embedding dimensions, up from 1 of 30.
 | All markers | `FindAllMarkers(pbmc, only.pos, logfc.threshold)` | `find_all_markers(pbmc, only_pos, logfc_threshold)` |
 | Conserved markers | `FindConservedMarkers(pbmc, ident.1, grouping.var)` | `find_conserved_markers(pbmc, ident_1, grouping_var)` |
 | Pseudobulk | `AggregateExpression(pbmc, group.by)` | `aggregate_expression(pbmc, group_by)` |
-| Pseudobulk DESeq2 | `FindMarkers(pbmc, test.use="DESeq2")` | `find_markers(pbmc, ident_1, test_use="deseq2", sample_col=...)` |
+| DESeq2 DE | `FindMarkers(pbmc, test.use="DESeq2")` | `find_markers(pbmc, ident_1, test_use="deseq2")`; `sample_col=` sums each sample's cells first |
 | MAST hurdle DE | `FindMarkers(pbmc, test.use="MAST")` | `find_markers(pbmc, ident_1, test_use="mast")` |
 | Bimodal LRT DE | `FindMarkers(pbmc, test.use="bimod")` | `find_markers(pbmc, ident_1, test_use="bimod")` |
 | Rename idents | `RenameIdents(pbmc, new.ids)` | `pbmc.rename_idents(mapping_dict)` |
@@ -1632,16 +1633,18 @@ cons = find_conserved_markers(obj, ident_1="B", grouping_var="condition",
 cons.head()   # per-condition stats + max_pval + combined_p_val, sorted by combined_p_val
 ```
 
-Pseudobulk DESeq2 (`find_markers(test_use="deseq2")`) tests **between conditions**
-rather than between clusters: set `obj.idents` to the two conditions, aggregate to
-one profile per replicate (`sample_col`), and run DESeq2 on those samples. Needs
+`find_markers(test_use="deseq2")` is Seurat's `DESeq2DETest`: every cell is a
+replicate, as `FindMarkers(test.use = "DESeq2")` treats them. To test **between
+conditions** at the sample level instead, set `obj.idents` to the two conditions
+and name the replicate column with `sample_col`. The counts are summed per
+(condition, sample), and those profiles go through the same test. Needs
 `pip install truecell[deseq2]`:
 
 ```python
 obj.idents = obj.meta_data["condition"]              # e.g. "stim" vs "ctrl"
 de = find_markers(obj, ident_1="stim", ident_2="ctrl",
                   test_use="deseq2", sample_col="donor")
-de.head()   # p_val / avg_log2FC (DESeq2 log2FoldChange, +ve = up in stim) / pct.1 / pct.2 / p_val_adj
+de.head()   # p_val (DESeq2's Wald test) / avg_log2FC / pct.1 / pct.2 / p_val_adj, as FindMarkers reports them
 ```
 
 ### Plotting

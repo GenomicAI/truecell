@@ -162,17 +162,16 @@ def test_concordance(table):
     ax.set_xlim(0, 1.05)
     ax.axvline(1.0, color=_R, lw=1.0, ls="--")
     ax.set_xlabel("Spearman correlation of p-values with Seurat 5.5.1")
-    ax.set_title("Seven of eight tests reproduce Seurat's ranking\n"
+    ax.set_title("All eight tests reproduce Seurat's ranking\n"
                  "(`roc` omitted — it returns an AUC, not a p-value)",
                  fontsize=11)
     # Below the axes: at "lower left" it sat on top of the wilcox bars.
     ax.legend(fontsize=8, frameon=False, loc="upper center", ncol=2,
               bbox_to_anchor=(0.5, -0.16))
     ax.spines[["top", "right"]].set_visible(False)
-    # The two that are not near 1 are not the same kind of miss.
+    # negbinom's all-gene bar is far from 1 because of genes nobody tests.
     for i, t in enumerate(tests):
-        note = {"negbinom": "near-empty genes only",
-                "deseq2": "pseudobulk ≠ per-cell"}.get(t)
+        note = {"negbinom": "near-empty genes only"}.get(t)
         if note:
             ax.text(1.03, i, note, va="center", fontsize=7.5, color=_R)
     return fig
