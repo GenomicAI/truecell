@@ -57,11 +57,11 @@ obj[key]      # assay by name
 `obj.default_assay` is a property too.
 
 `fetch_data` accepts metadata columns, feature names, and reduction columns
-(`"PC_1"`, `"UMAP_2"`) in one call, and returns plain numbers — not sparse
+(`"PC_1"`, `"umap_2"`) in one call, and returns plain numbers — not sparse
 objects. Mixing them is the point:
 
 ```python
-df = obj.fetch_data(["UMAP_1", "UMAP_2", "seurat_clusters", "MS4A1"])
+df = obj.fetch_data(["umap_1", "umap_2", "seurat_clusters", "MS4A1"])
 ```
 
 ## Assay5 (the v5 layered assay)
@@ -100,7 +100,7 @@ truecell.generics.embeddings(dr)              # cells × components
 truecell.generics.loadings(dr, projected=False)   # features × components
 truecell.generics.stdev(dr)                   # per-component standard deviation
 truecell.generics.features(dr, projected=False)   # the features it was computed on
-truecell.generics.key(dr)                     # "PC_", "UMAP_", …
+truecell.generics.key(dr)                     # "PC_", "umap_", …
 ```
 
 A reduction records the features it **actually used**, not the ones requested —

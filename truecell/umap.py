@@ -10,6 +10,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from .dimreduc import DimReduc
+from .mixins.key_mixin import update_key
 
 
 def run_umap(
@@ -20,9 +21,9 @@ def run_umap(
     n_components: int = 2,
     n_neighbors: int = 30,
     min_dist: float = 0.3,
-    metric: str = "euclidean",
+    metric: str = "cosine",
     reduction_name: str = "umap",
-    reduction_key: str = "UMAP_",
+    reduction_key: str | None = None,
     seed: int = 42,
     assay: Optional[str] = None,
 ) -> None:
@@ -49,20 +50,27 @@ def run_umap(
     n_components   : output dimensions (2 for visualization)
     n_neighbors    : UMAP n_neighbors (Seurat default 30)
     min_dist       : UMAP min_dist (Seurat default 0.3)
-    metric         : distance metric (reduction mode only)
+    metric         : distance for the neighbour search, reduction mode only.
+                     ``"cosine"``, Seurat's default.
     reduction_name : storage key in seurat.reductions
+    reduction_key  : prefix for the dimension names. ``None`` makes it from
+                     ``reduction_name`` the way Seurat's ``Key()`` does, so
+                     ``"umap"`` gives ``umap_1`` and ``umap_2``, and
+                     ``"wnn_umap"`` gives ``wnnumap_1``.
     seed           : random seed
     """
     assay_name = assay or seurat.active_assay
     cells = seurat.cell_names()
-    dim_names = [f"{reduction_key}{i + 1}" for i in range(n_components)]
+    # RunUMAP.Seurat: `reduction.key %||% Key(object = reduction.name, quiet = TRUE)`.
+    key = reduction_key if reduction_key is not None else update_key(reduction_name)
+    dim_names = [f"{key}{i + 1}" for i in range(n_components)]
 
     if graph is not None:
         coords = _umap_from_graph(seurat, graph, n_components, min_dist, seed)
         seurat.reductions[reduction_name] = DimReduc(
             cell_embeddings=coords,
             assay_used=assay_name,
-            key=reduction_key,
+            key=key,
             cell_names=cells,
             feature_names=dim_names,
             misc={"umap_graph": graph},
@@ -92,7 +100,7 @@ def run_umap(
     seurat.reductions[reduction_name] = DimReduc(
         cell_embeddings=umap_coords,
         assay_used=assay_name,
-        key=reduction_key,
+        key=key,
         cell_names=cells,
         feature_names=dim_names,
         misc={"umap_model": reducer},

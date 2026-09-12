@@ -161,14 +161,6 @@ KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
     # -- Being brought to Seurat's default by the follow-up changes of the
     #    Frontiers revision. The change that fixes one deletes its entry; one left
     #    behind fails `test_no_listed_reason_outlives_the_difference_it_explains`.
-    ("truecell.run_umap", "metric"):
-        "Seurat's RunUMAP embeds on cosine distance; truecell still uses euclidean. "
-        "The change moves every UMAP figure, so it lands on its own.",
-    ("truecell.run_umap", "reduction_key"):
-        "Seurat's NULL resolves to Key('umap'), which is 'umap_'; truecell writes "
-        "'UMAP_'. Changed together with the metric.",
-    ("truecell.run_ica", "reduction_key"):
-        "Seurat's RunICA key is 'IC_'; truecell writes 'ICA_'. Changed with run_umap's key.",
     ("truecell.cell_cycle_scoring", "ctrl"):
         "Seurat's NULL resolves to the size of the smaller gene set (43 for the "
         "Tirosh S genes); truecell passes AddModuleScore's 100, and its docstring "

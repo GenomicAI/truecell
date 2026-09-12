@@ -243,7 +243,7 @@ def run_ica(
     features: Optional[list[str]] = None,
     assay: Optional[str] = None,
     reduction_name: str = "ica",
-    reduction_key: str = "ICA_",
+    reduction_key: str = "IC_",
     seed: int = 42,
     layer: str = "scale.data",
     max_iter: int = 200,
