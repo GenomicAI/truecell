@@ -451,7 +451,7 @@ def find_spatially_variable_features(
     identical with R's. The gene *ranking* — the thing the function is for — is
     what carries over.
     """
-    from ..markers import _get_expression_matrix
+    from ..markers import _get_expression_layer
 
     if method not in METHODS:
         raise NotImplementedError(
@@ -470,9 +470,13 @@ def find_spatially_variable_features(
 
     assay_name = assay or seurat.active_assay
     assay_obj = seurat.assays[assay_name]
-    data, feature_names = _get_expression_matrix(assay_obj, layer)
+    data, feature_names, layer_cells = _get_expression_layer(assay_obj, layer)
 
-    pos = {c: i for i, c in enumerate(seurat.cell_names())}
+    # Columns are found by the layer's *own* cell names. `seurat.cell_names()`
+    # names the metadata rows, not the matrix columns; the two agree on a
+    # well-formed object, and when a subset let them drift apart this paired
+    # every cell's coordinates with another cell's expression.
+    pos = {c: i for i, c in enumerate(layer_cells)}
     keep = [c for c in coords["cell"] if c in pos]
     if len(keep) < 3:
         raise ValueError("Fewer than 3 cells have both coordinates and expression.")

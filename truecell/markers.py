@@ -949,28 +949,35 @@ def _get_expression_matrix(assay_obj, layer: Optional[str]):
     one, reachable through ``find_markers(layer=...)`` and the two aggregation
     functions.
     """
+    mat, feature_names, _ = _get_expression_layer(assay_obj, layer)
+    return mat, feature_names
+
+
+def _get_expression_layer(assay_obj, layer: str | None):
+    """:func:`_get_expression_matrix`, plus the layer's own cell names.
+
+    For callers that find columns by cell. An object's ``cell_names()`` name its
+    metadata rows, which is not the same list as a layer's columns once the two
+    have drifted apart, and a column found by position in one then reads another
+    cell in the other.
+    """
     from .assay5 import Assay5
 
     if isinstance(assay_obj, Assay5):
-        for key in _layer_aliases(layer):
+        for key in (*_layer_aliases(layer), "data", "counts"):
             if key in assay_obj.layers:
-                names = assay_obj._layer_features.get(
-                    key, assay_obj._all_feature_names)
-                return assay_obj.layers[key], list(names)
-        for candidate in ("data", "counts"):
-            if candidate in assay_obj.layers:
-                names = assay_obj._layer_features.get(
-                    candidate, assay_obj._all_feature_names)
-                return assay_obj.layers[candidate], list(names)
+                features = assay_obj._layer_features.get(key, assay_obj._all_feature_names)
+                cells = assay_obj._layer_cells.get(key, assay_obj._all_cell_names)
+                return assay_obj.layers[key], list(features), list(cells)
         raise ValueError("No expression data layer found in Assay5.")
-    else:
-        feature_names = assay_obj._feature_names
-        from ._sparse import is_matrix_empty
-        if layer == "counts":
-            return assay_obj.counts, feature_names
-        if layer in ("scale_data", "scale.data"):
-            return assay_obj.scale_data, assay_obj.features("scale_data")
-        # Prefer log-normalized data
-        if not is_matrix_empty(assay_obj.data):
-            return assay_obj.data, feature_names
-        return assay_obj.counts, feature_names
+    feature_names = assay_obj._feature_names
+    cell_names = list(assay_obj._cell_names)
+    from ._sparse import is_matrix_empty
+    if layer == "counts":
+        return assay_obj.counts, feature_names, cell_names
+    if layer in ("scale_data", "scale.data"):
+        return assay_obj.scale_data, assay_obj.features("scale_data"), cell_names
+    # Prefer log-normalized data
+    if not is_matrix_empty(assay_obj.data):
+        return assay_obj.data, feature_names, cell_names
+    return assay_obj.counts, feature_names, cell_names

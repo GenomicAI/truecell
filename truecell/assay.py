@@ -264,6 +264,13 @@ class Assay(KeyMixin):
         cells: Optional[list[str]] = None,
         features: Optional[list[str]] = None,
     ) -> "Assay":
+        """Restrict the assay to ``cells`` and/or ``features``, in the order given.
+
+        Every slot follows that order together, so the result is consistent
+        whichever order it is. Seurat's ``subset.Assay`` keeps the assay's own cell
+        order (and the requested feature order); :meth:`Truecell.subset` hands the
+        cells over in object order already, so the two agree through the object.
+        """
         col_idx = (
             [self._cell_names.index(c) for c in cells]
             if cells is not None

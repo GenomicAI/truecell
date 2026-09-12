@@ -448,24 +448,67 @@ class Truecell:
     # Subset
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _subset_idents(ident, positions: np.ndarray) -> pd.Categorical:
+        """The identities at ``positions``, level order kept, unused levels dropped.
+
+        Seurat's ``Idents(x, drop = TRUE) <- Idents(x)[cells]``. The levels come
+        back as strings, as a subset has always returned them.
+        """
+        ident = ident if isinstance(ident, pd.Categorical) else pd.Categorical(ident)
+        levels = [str(c) for c in ident.categories]
+        codes = np.asarray(ident.codes)[positions]
+        # Code -1 is a cell with no identity, which `str()` has always made "nan".
+        values = np.asarray(levels + ["nan"], dtype=object)[codes]
+        used = np.unique(codes)
+        kept = [levels[c] for c in used if c >= 0] + (["nan"] if (used < 0).any() else [])
+        return pd.Categorical(values, categories=list(dict.fromkeys(kept)),
+                              ordered=ident.ordered)
+
     def subset(
         self,
         cells: Optional[list[str]] = None,
         features: Optional[list[str]] = None,
         idents: Optional[Union[str, list[str]]] = None,
     ) -> "Truecell":
+        """Restrict the object to ``cells`` and/or ``features``.
+
+        Mirrors R's ``subset(x, cells = , features = , idents = )``.
+
+        The result keeps the **object's** cell order whatever order ``cells``
+        arrives in, as Seurat's ``intersect(colnames(x), cells)`` does. Every slot
+        is read by position against ``cell_names()``, so the order is settled once,
+        here, before any slot is subset. Taking the caller's order used to reach
+        only some of them — the metadata, the assay's cell axis, the reductions and
+        the graphs followed the request, while every layer, the identities and the
+        image coordinates stayed in object order — so a reordered request paired
+        ``nCount`` with another cell's counts and Moran's I with another cell's
+        coordinates.
+
+        Identities are carried by cell name, keep their level order, and drop the
+        levels no retained cell carries (``Idents(x, drop = TRUE)``).
+
+        A name in ``cells`` that the object does not have raises ``KeyError``.
+        Seurat drops it silently; a misspelt barcode is better reported.
+        """
         if idents is not None:
             cells = self.which_cells(ident=idents, cells=cells)
+        index = self.meta_data.index
         if cells is None:
-            cells = self.cell_names()
+            positions = np.arange(len(index))
+        else:
+            wanted = set(cells)
+            keep = index.isin(wanted)
+            if int(keep.sum()) < len(wanted):
+                known = set(index)
+                missing = [c for c in dict.fromkeys(cells) if c not in known]
+                raise KeyError(f"{len(missing)} cell(s) not in the object: {missing[:5]}")
+            positions = np.flatnonzero(keep)
+        cells = index[positions].tolist()
 
-        cell_set = set(cells)
-        new_meta = self.meta_data.loc[cells].copy()
+        new_meta = self.meta_data.iloc[positions].copy()
         new_assays = {name: a.subset(cells=cells, features=features) for name, a in self.assays.items()}
-        new_ident_vals = [
-            str(i) for c, i in zip(self.cell_names(), self._active_ident) if c in cell_set
-        ]
-        new_ident = pd.Categorical(new_ident_vals)
+        new_ident = self._subset_idents(self._active_ident, positions)
         new_reductions = {name: r.subset(cells=cells) for name, r in self.reductions.items()}
         new_images = {name: img.subset(cells) for name, img in self.images.items()}
 
