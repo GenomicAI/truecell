@@ -87,3 +87,72 @@ def test_run_umap_missing_graph_raises():
     obj, _ = _clustered_object()
     with pytest.raises(KeyError):
         run_umap(obj, graph="does_not_exist")
+
+
+# ---------------------------------------------------------------------------
+# Keys and metric, as Seurat 5.5.1 sets them
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name, key", [
+    # SeuratObject 5.4.0's Key(name, quiet = TRUE), which RunUMAP.Seurat uses
+    # when reduction.key is NULL. The last two are keys already and pass through.
+    ("umap", "umap_"), ("wnn_umap", "wnnumap_"), ("umap_harmony", "umapharmony_"),
+    ("ref.umap", "refumap_"), ("umap.cca", "umapcca_"), ("ica", "ica_"),
+    ("Umap2", "Umap2_"), ("UMAP_", "UMAP_"), ("PC_", "PC_"),
+])
+def test_update_key_matches_seurats_key(name, key):
+    from truecell.mixins.key_mixin import update_key
+
+    assert update_key(name) == key
+
+
+def test_update_key_refuses_a_name_with_nothing_to_keep():
+    """SeuratObject makes up three random letters here, which nothing can match."""
+    from truecell.mixins.key_mixin import update_key
+
+    with pytest.raises(ValueError, match="no letters or digits"):
+        update_key("._")
+
+
+def test_run_umap_defaults_are_seurats():
+    obj, _ = _clustered_object()
+    run_umap(obj, dims=range(10), seed=0)
+    dr = obj.reductions["umap"]
+    assert dr.key == "umap_"
+    # The metric has to reach umap-learn, not just sit in the signature.
+    assert dr.misc["umap_model"].metric == "cosine"
+    assert list(obj.fetch_data(["umap_1", "umap_2"]).columns) == ["umap_1", "umap_2"]
+
+
+def test_run_umap_key_follows_the_reduction_name():
+    obj, _ = _clustered_object()
+    find_neighbors(obj, dims=range(10), reduction="pca")
+    run_umap(obj, graph="RNA_snn", reduction_name="wnn_umap", seed=0)
+    assert obj.reductions["wnn_umap"].key == "wnnumap_"
+    run_umap(obj, graph="RNA_snn", reduction_name="kept", reduction_key="UMAP_", seed=0)
+    assert obj.reductions["kept"].key == "UMAP_"
+
+
+def test_run_ica_key_is_seurats():
+    obj, n = _clustered_object()
+    run_ica(obj, nics=5, seed=0)
+    assert obj.reductions["ica"].key == "IC_"
+    assert obj.fetch_data(["IC_1"]).shape == (n, 1)
+
+
+def test_dim_and_feature_plots_title_their_axes_by_the_key():
+    """DimPlot and FeaturePlot plot `paste0(Key(object[[reduction]]), dims)`."""
+    import matplotlib.pyplot as plt
+
+    from truecell.plotting import dim_plot, feature_plot
+
+    obj, _ = _clustered_object()
+    run_umap(obj, dims=range(10), seed=0)
+    fig = dim_plot(obj, reduction="pca", label=False)
+    ax = fig.axes[0]
+    assert (ax.get_xlabel(), ax.get_ylabel()) == ("PC_1", "PC_2")
+    plt.close(fig)
+    fig = feature_plot(obj, "g0", reduction="umap")
+    ax = fig.axes[0]
+    assert (ax.get_xlabel(), ax.get_ylabel()) == ("umap_1", "umap_2")
+    plt.close(fig)

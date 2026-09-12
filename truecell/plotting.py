@@ -462,6 +462,17 @@ def _get_embedding(obj, reduction: str) -> np.ndarray:
     return obj.reductions[reduction].cell_embeddings[:, :2]
 
 
+def _axis_labels(obj, reduction: str) -> tuple[str, str]:
+    """Axis titles from the reduction's key: ``PC_1``, ``umap_1``, ``tSNE_1``.
+
+    DimPlot and FeaturePlot fetch ``paste0(Key(object[[reduction]]), dims)``, and
+    ggplot titles each axis with that column name. Upper-casing the reduction's
+    name gave ``PCA_1`` and ``TSNE_1``, which name no column in either tool.
+    """
+    key = getattr(obj.reductions[reduction], "key", None) or f"{reduction}_"
+    return f"{key}1", f"{key}2"
+
+
 def _get_groups(obj, group_by: Optional[str]) -> np.ndarray:
     """Return per-cell group labels as an array of strings."""
     if group_by is None:
@@ -785,8 +796,7 @@ def feature_plot(
 
     emb = _get_embedding(obj, reduction)
     rast = _should_raster(raster, len(emb))
-    ax1_label = reduction.upper() + "_1"
-    ax2_label = reduction.upper() + "_2"
+    ax1_label, ax2_label = _axis_labels(obj, reduction)
 
     if split_by is None:
         nrow, nc = _subplot_grid(len(features), ncol)
@@ -909,8 +919,7 @@ def dim_plot(
     # would otherwise never cross the threshold in any single call below.
     rast = _should_raster(raster, len(emb))
 
-    ax1_label = reduction.upper() + "_1"
-    ax2_label = reduction.upper() + "_2"
+    ax1_label, ax2_label = _axis_labels(obj, reduction)
     colour_of = dict(zip(unique, colors))
 
     if split_by is None:

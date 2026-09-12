@@ -243,8 +243,8 @@ was a change to when memory is allocated, not to what is computed.
 * **Neighbours.** Seurat's default search is approximate (annoy); truecell's is
   exact. The tables compare against `nn.method = "rann"`, Seurat's exact option,
   and report `neighbours_annoy` separately so the default is visible too.
-* **UMAP metric.** `metric="cosine"` on both arms, which is `RunUMAP`'s default.
-  truecell's own default is euclidean, inherited from umap-learn.
+* **UMAP metric.** `metric="cosine"` on both arms. It is `RunUMAP`'s default and
+  now `run_umap`'s too; `run_umap` had used umap-learn's euclidean.
 
 
 ---

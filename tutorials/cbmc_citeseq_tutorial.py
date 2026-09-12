@@ -132,7 +132,9 @@ def run_wnn(obj, rna_dims=range(15), resolution=0.6):
     # Cluster and embed on the joint graph (not the RNA reduction).
     find_clusters(obj, resolution=resolution, graph_name="wsnn", random_seed=0)
     obj.meta_data["wnn_clusters"] = obj.meta_data["seurat_clusters"].astype(str).tolist()
-    run_umap(obj, graph="wsnn", reduction_name="wnn_umap", seed=42)
+    # The key R's verify script gives it, as the Seurat WNN vignette does.
+    run_umap(obj, graph="wsnn", reduction_name="wnn_umap", reduction_key="wnnUMAP_",
+             seed=42)
     return obj
 
 

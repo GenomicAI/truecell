@@ -104,13 +104,13 @@ sctransform(seurat, assay=None, new_assay_name="SCT", n_cells=5000, n_genes=2000
 ```python
 run_pca(seurat, n_pcs=50, features=None, assay=None, reduction_name="pca",
         reduction_key="PC_", seed=42, layer="scale.data") -> None
-run_ica(seurat, nics=50, ..., reduction_name="ica", reduction_key="ICA_", max_iter=200) -> None
+run_ica(seurat, nics=50, ..., reduction_name="ica", reduction_key="IC_", max_iter=200) -> None
 run_spca(seurat, graph, npcs=50, ..., reduction_name="spca") -> None     # graph is required
 run_tsne(seurat, dims=None, reduction="pca", n_components=2, perplexity=30.0,
          reduction_name="tsne", seed=42, assay=None) -> None
 run_umap(seurat, dims=None, reduction="pca", graph=None, n_components=2,
-         n_neighbors=30, min_dist=0.3, metric="euclidean", reduction_name="umap",
-         reduction_key="UMAP_", seed=42, assay=None) -> None
+         n_neighbors=30, min_dist=0.3, metric="cosine", reduction_name="umap",
+         reduction_key=None, seed=42, assay=None) -> None    # key None: "umap" -> "umap_"
 glm_pca(seurat, n_components=10, features=None, assay=None, reduction_name="glmpca",
         family="poisson", layer="counts", max_iter=100, tol=1e-4, penalty=1.0,
         learning_rate=0.1, theta=100.0, optimize_theta=True, seed=42) -> None

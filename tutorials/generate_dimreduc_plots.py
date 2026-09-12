@@ -167,12 +167,13 @@ def ica_scatter(obj):
     """Independent components 1 & 2."""
     import matplotlib.pyplot as plt
 
-    ica = obj.reductions["ica"].cell_embeddings
+    dr = obj.reductions["ica"]
+    ica = dr.cell_embeddings
     fig, ax = plt.subplots(figsize=(6, 5))
     ax.scatter(ica[:, 0], ica[:, 1], s=4, alpha=0.5, color=_PY_COLOR,
                edgecolors="none")
-    ax.set_xlabel("ICA_1")
-    ax.set_ylabel("ICA_2")
+    ax.set_xlabel(f"{dr.key}1")           # IC_1, the key RunICA uses
+    ax.set_ylabel(f"{dr.key}2")
     ax.set_title("Truecell — ICA components 1 & 2")
     fig.tight_layout()
     return fig

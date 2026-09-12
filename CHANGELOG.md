@@ -69,6 +69,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as the AnnData holds them, so a round trip renames nothing. The underscore
   half had sat on an unmerged branch since August; the Frontiers revision found
   it had never shipped.
+- **BREAKING: `run_umap` defaults to Seurat's cosine metric and Seurat 5's
+  key.** `RunUMAP` embeds on cosine distance. truecell had kept umap-learn's
+  euclidean, so a default call built its neighbour graph on a different distance
+  from Seurat's. The key now comes from the reduction name by SeuratObject's
+  `Key()` rule, as in `RunUMAP`: `"umap"` gives `umap_1` and `umap_2` where
+  truecell wrote `UMAP_1`, and `"wnn_umap"` gives `wnnumap_1`. Pass
+  `reduction_key="UMAP_"` to keep the old column names, or `metric="euclidean"`
+  for the old layout.
+- **BREAKING: `run_ica` names its components `IC_1`, `IC_2`, …**, the key
+  `RunICA` uses, rather than `ICA_`.
+- **`dim_plot` and `feature_plot` title their axes by the reduction's key**, as
+  `DimPlot` and `FeaturePlot` do: `PC_1`, `umap_1`, `tSNE_1`. truecell upper-cased
+  the reduction's name instead, so a PCA plot read `PCA_1`, a column neither tool
+  has.
 
 ### Fixed
 
