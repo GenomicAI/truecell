@@ -23,7 +23,8 @@ def _clean_table() -> pd.DataFrame:
     """The concordance table as it reads on a good run, measured 2026-07-26.
 
     The >5 % Spearman column was re-measured 2026-09-12, once pct was rounded
-    the way Seurat rounds it.
+    the way Seurat rounds it, and the deseq2 row the same day, once deseq2
+    tested cells as Seurat's DESeq2DETest does.
     """
     rows = {
         "wilcox":   (50, 1.000000, 6.44e-15, np.nan),
@@ -34,7 +35,7 @@ def _clean_table() -> pd.DataFrame:
         "poisson":  (50, 0.999998, 6.22e-15, np.nan),
         "roc":      (np.nan, np.nan, 6.44e-15, 4.9986e-4),
         "mast":     (50, 0.998013, 6.44e-15, np.nan),
-        "deseq2":   (22, 0.195146, 3.47, np.nan),
+        "deseq2":   (50, 0.999999, 6.22e-15, np.nan),
     }
     return pd.DataFrame(
         [{"test": k, f"top{de.TOP_N}_overlap": v[0], "p_spearman_expressed": v[1],
@@ -84,39 +85,41 @@ def test_a_single_dropped_gene_fails_the_parity_band():
     assert _holds(table) == ["wilcox top50"]
 
 
-def test_deseq2_reaching_parity_fails_too():
-    """The upper bound is the load-bearing half of the deseq2 band.
+def test_deseq2_is_held_to_the_exact_band_too():
+    """deseq2 runs Seurat's per-cell test now, so one dropped gene fails it."""
+    table = _clean_table()
+    table.loc["deseq2", f"top{de.TOP_N}_overlap"] = 49
+    assert _holds(table) == ["deseq2 top50"]
 
-    A jump to 50/50 would not read as a problem anywhere else in the report, but
-    it would mean `sample_col` had stopped being honoured and the pseudobulk
-    aggregation was no longer happening — a silent revert to the per-cell test
-    Squair et al. warn against.
+
+def test_a_return_to_the_pseudobulk_test_fails_every_deseq2_band():
+    """The pseudobulk deseq2 read 22/50, rho 0.195 and |dlog2FC| 3.47 here.
+
+    Its old bands were built to admit exactly those numbers. A regression that
+    summed cells again, or reported DESeq2's own fold change, must now fail all
+    three bands it touches.
     """
     table = _clean_table()
-    table.loc["deseq2", f"top{de.TOP_N}_overlap"] = 50
-    assert "deseq2 top50" in _holds(table)
+    table.loc["deseq2", [f"top{de.TOP_N}_overlap", "p_spearman_expressed",
+                         "log2fc_max_abs_diff"]] = [22, 0.195146, 3.47]
+    assert _holds(table) == ["deseq2 top50", "deseq2 rho>5%",
+                             "max |dlog2FC| (parity tests)"]
 
 
-def test_the_deseq2_band_admits_both_recorded_measurements():
-    """22 today, 25 on the previous cluster assignment; both are good runs."""
-    band = de.BANDS["deseq2 top50"]
-    assert band.holds(22) and band.holds(25)
-    assert band.holds(20) and band.holds(26)     # ends of the resampling sweep
-    assert not band.holds(5)                     # a collapse
+def test_the_fold_change_band_covers_every_test():
+    """No row is excluded from the fold-change band any more.
 
-
-def test_the_fold_change_band_excludes_deseq2_by_name():
-    """deseq2's 3.47 must not set the tolerance for the other seven.
-
-    Taking a max over every row would let a real cell-level fold-change
-    regression hide under the pseudobulk row, which is correct at ~3.5.
+    deseq2 was excluded by name while it reported a fold change on summed counts.
+    It reports Seurat's now, so a regression in it has to fail the same band as
+    one in any other test.
     """
     measured = de.measure_bands(_clean_table())
-    assert measured["max |dlog2FC| (parity tests)"] == pytest.approx(6.44e-15)
+    assert measured["max |dlog2FC| (parity tests)"] == pytest.approx(6.44e-15, rel=1e-9, abs=0)
 
-    table = _clean_table()
-    table.loc["mast", "log2fc_max_abs_diff"] = 1e-6
-    assert "max |dlog2FC| (parity tests)" in _holds(table)
+    for test in ("mast", "deseq2"):
+        table = _clean_table()
+        table.loc[test, "log2fc_max_abs_diff"] = 1e-6
+        assert "max |dlog2FC| (parity tests)" in _holds(table), test
 
 
 def test_the_auc_band_is_r_s_rounding_and_not_a_free_tolerance():

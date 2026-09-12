@@ -1,10 +1,12 @@
 # Differential expression
 
 `find_markers` implements all nine of Seurat's tests: `wilcox` (tie-corrected),
-`t`, `bimod`, `LR`, `negbinom`, `poisson`, `roc`, `mast` and `deseq2`. Eight of
-them are per-cell and reproduce Seurat's top 50 genes exactly on PBMC 3k;
-`deseq2` is pseudobulk and deliberately does not, because it is answering a
-different question — see [the DE vignette](../tutorials/de_vignette.md).
+`t`, `bimod`, `LR`, `negbinom`, `poisson`, `roc`, `mast` and `deseq2`. On PBMC 3k
+the eight that return a p-value reproduce Seurat's top 50 genes exactly, and
+`roc` its AUCs to Seurat's three-decimal rounding — see
+[the DE vignette](../tutorials/de_vignette.md). `deseq2` tests every cell as a
+replicate, as Seurat's `DESeq2DETest` does; `sample_col` sums each sample's cells
+first and makes it a pseudobulk test.
 
 Two numbers to know before reading a result table:
 

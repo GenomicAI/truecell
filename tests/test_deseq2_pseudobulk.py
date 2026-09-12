@@ -58,9 +58,15 @@ def test_deseq2_recovers_planted_de_genes(pseudobulk_obj):
     assert res["p_val"].is_monotonic_increasing
 
 
-def test_deseq2_requires_sample_col(pseudobulk_obj):
-    with pytest.raises(ValueError, match="sample_col"):
-        find_markers(pseudobulk_obj, ident_1="A", ident_2="B", test_use="deseq2")
+def test_deseq2_per_cell_refuses_counts_where_every_gene_has_a_zero(pseudobulk_obj):
+    """Without sample_col every cell is a replicate, as in Seurat's DESeq2DETest.
+
+    Every gene here has a zero in some cell, so DESeq2's median-of-ratios size
+    factors do not exist, and estimateSizeFactors stops. So does this.
+    """
+    with pytest.raises(ValueError, match="at least one zero"):
+        find_markers(pseudobulk_obj, ident_1="A", ident_2="B", test_use="deseq2",
+                     min_pct=0.0)
 
 
 def test_deseq2_unknown_sample_col_raises(pseudobulk_obj):

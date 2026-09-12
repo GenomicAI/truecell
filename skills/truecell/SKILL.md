@@ -18,7 +18,7 @@ pip install truecell                 # core: objects, preprocessing, PCA, marker
 pip install "truecell[analysis]"     # + clustering, UMAP, plotting  ← the usual one
 pip install "truecell[anndata]"      # + AnnData interop
 pip install "truecell[integration]"  # + Harmony (harmonypy)
-pip install "truecell[deseq2]"       # + pseudobulk DESeq2
+pip install "truecell[deseq2]"       # + DESeq2 (pydeseq2)
 pip install "truecell[all]"          # everything, incl. dev + docs tooling
 ```
 

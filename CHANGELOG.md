@@ -121,6 +121,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   features instead, which leaves out every gene variable in some datasets but not
   all. A list still means those features; `integrate_layers`, whose batches share
   one list, gets that list back unchanged.
+- **BREAKING: `find_markers(test_use="deseq2")` is Seurat's DESeq2 test.**
+  `FindMarkers(test.use = "DESeq2")` gives DESeq2 one column per cell. truecell
+  required `sample_col`, summed counts per sample and ran pydeseq2's defaults, so
+  it answered a different question and returned different genes. Now the default
+  `sample_col=None` tests every cell as a replicate, and `sample_col` sums each
+  sample's cells first, then runs the same test. Four of pydeseq2's choices give
+  way to DESeq2's: the local dispersion trend, written from the published method
+  because locfit, which DESeq2 fits it with, is GPL; gene-wise dispersions set to
+  the minimum where the likelihood is flat, which keeps them out of the trend fit
+  as DESeq2 does; no Cook's refit; and fitted means floored at 0.5 in the Wald
+  standard error. As in Seurat, `logfc_threshold` no longer pre-filters DESeq2's
+  genes, `p_val_adj` is Bonferroni over every feature where it was pydeseq2's
+  Benjamini-Hochberg `padj`, and `avg_log2FC` is Seurat's fold change on the data
+  layer rather than DESeq2's `log2FoldChange`. A matrix in which every gene has a
+  zero raises, as `estimateSizeFactors` stops. On Seurat's ifnb pseudobulk
+  vignette the genes tested are now Seurat's in all 11 cell types, and the genes
+  called at `p_val_adj < 0.05` agree at Jaccard 0.947–1.000 (median 0.993), where
+  1.2.0 reached 0.41–0.66. Per cell on PBMC 3k, truecell and Seurat call the same
+  726 genes, with the same top 50 and p-value Spearman 0.9999995 on genes detected
+  above 5 %. The `deseq2` extra needs pydeseq2 0.5.4 or a later 0.5 release, the
+  version this was checked against.
 
 ### Fixed
 

@@ -93,11 +93,11 @@ def test_render_returns_false_and_names_the_reason(capsys):
     A bare "OUT" tells the next reader nothing about whether to widen the band
     or fix the port.
     """
-    bands = {"deseq2 top50": Band(15, 32, "pseudobulk against per-cell")}
-    ok = render_verdicts(check_bands(bands, {"deseq2 top50": 48}), "T")
+    bands = {"jackstraw |dPC|": Band(0, 2, "R seeds each replicate from its loop index")}
+    ok = render_verdicts(check_bands(bands, {"jackstraw |dPC|": 5}), "T")
     out = capsys.readouterr().out
     assert ok is False
-    assert "OUT" in out and "pseudobulk against per-cell" in out
+    assert "OUT" in out and "R seeds each replicate from its loop index" in out
 
 
 def test_render_is_true_when_everything_holds(capsys):

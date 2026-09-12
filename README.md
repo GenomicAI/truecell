@@ -54,7 +54,7 @@ dimensionality reduction, clustering, and marker detection — entirely in Pytho
 - **Clustering** — `find_clusters` (Louvain via python-igraph, Leiden via leidenalg)
 - **UMAP** — `run_umap` (via umap-learn; embeds a reduction or a precomputed graph)
 - **PC significance** — `jack_straw`, `score_jackstraw` (JackStraw permutation test)
-- **Differential expression** — `find_markers`, `find_all_markers` and `find_conserved_markers` (cross-condition, Fisher-combined), with **all nine** of Seurat's tests: `wilcox` (tie-corrected, the default), `t`, `bimod`, `LR`, `negbinom`, `poisson`, `mast` hurdle, `deseq2` pseudobulk, and `roc`. Seven of them — every per-cell p-value test — reproduce Seurat's top 50 genes exactly on PBMC 3k (`roc` agrees within Seurat's own 3-dp AUC rounding, and `deseq2` is pseudobulk where Seurat's is per-cell, so it deliberately differs). `poisson` and `negbinom` are Seurat's two `GLMDETest` families and both run on the **counts** layer — prefer `negbinom`, since fixing the dispersion at 1 makes `poisson` anti-conservative on overdispersed UMI counts
+- **Differential expression** — `find_markers`, `find_all_markers` and `find_conserved_markers` (cross-condition, Fisher-combined), with **all nine** of Seurat's tests: `wilcox` (tie-corrected, the default), `t`, `bimod`, `LR`, `negbinom`, `poisson`, `mast` hurdle, `deseq2`, and `roc`. Eight of them — every p-value test — reproduce Seurat's top 50 genes exactly on PBMC 3k, and `roc` agrees within Seurat's own 3-dp AUC rounding. `deseq2` is Seurat's `DESeq2DETest`, every cell a replicate, and `sample_col` makes it a pseudobulk test. `poisson` and `negbinom` are Seurat's two `GLMDETest` families and both run on the **counts** layer — prefer `negbinom`, since fixing the dispersion at 1 makes `poisson` anti-conservative on overdispersed UMI counts
 - **Pseudobulk** — `aggregate_expression` (sum counts per group → matrix or one-cell-per-group object), pseudobulk DESeq2 via `find_markers(test_use="deseq2", sample_col=...)`
 - **Plotting** — `dim_plot`, `feature_plot`, `vln_plot`, `dot_plot`, `elbow_plot`, `do_heatmap`, `dim_heatmap`, `feature_scatter`, `variable_feature_plot`, `ridge_plot`, `plot_perturb_score`, `mixscape_heatmap` (matplotlib/seaborn)
 - **AnnData interoperability** — `as_anndata`, `from_anndata`
@@ -301,8 +301,9 @@ conserved = find_conserved_markers(pbmc, ident_1=1, grouping_var="condition")
 # Pseudobulk counts summed per (cell type × donor) — input for sample-level DE.
 pseudobulk = aggregate_expression(pbmc, group_by=["cell_type", "donor"])
 
-# Pseudobulk DESeq2 between two conditions, one profile per donor (needs
+# Pseudobulk DESeq2 between two conditions, one summed profile per donor (needs
 # `pip install truecell[deseq2]`). pbmc.idents must hold the two conditions.
+# Without sample_col every cell is a replicate, as in Seurat's FindMarkers.
 de = find_markers(pbmc, ident_1="stim", ident_2="ctrl",
                   test_use="deseq2", sample_col="donor")
 ```

@@ -1114,7 +1114,9 @@ regime. Don't "simplify" them.
     **Left standing:** `deseq2` is **pseudobulk** where Seurat's `DESeq2DETest`
     tests **cells as replicates** — the practice Squair et al. 2021 showed
     inflates false positives — and since it requires `sample_col` it raises
-    rather than silently substituting; `mast` is a hand-rolled hurdle model
+    rather than silently substituting (superseded in the Frontiers Revision 1 fix
+    release: `deseq2` now runs Seurat's per-cell test, and `sample_col` is
+    optional); `mast` is a hand-rolled hurdle model
     (Spearman 0.9993 on detected genes) because MAST has no Python equivalent;
     Seurat rounds `myAUC` to 3 dp inside `DifferentialAUC`, so ROC agrees only to
     5e-4 by construction. Also corrected: the docstring advised passing CDR "to

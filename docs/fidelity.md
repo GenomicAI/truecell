@@ -144,8 +144,8 @@ inside the expected spread read as normal variation.
 **and the reason for it**. `--report` prints a verdict per band and exits
 non-zero outside one. Two rules make them worth having:
 
-- **Every band came from a sweep, not from one run.** The JackStraw band is 60
-  seeds; the DESeq2 band is 20 resampled replicate splits.
+- **A band on a number that moves came from a sweep, not from one run.** The
+  JackStraw band is 60 seeds.
 - **A missing measurement fails.** `Band.holds(nan)` is `False`, because a
   measurement that quietly vanished is exactly how a stale reference goes
   unnoticed.
@@ -153,13 +153,11 @@ non-zero outside one. Two rules make them worth having:
 | Band | Range | Why it is where it is |
 |---|---|---|
 | JackStraw PC cutoff | \|truecell − R\| ≤ 2 | R's `JackRandom` seeds each replicate from its loop index, so R is deterministic at 13. truecell seeds from its `seed` argument and keeps 12/13/14/15 for 2/28/11/19 of 60 seeds — mode 13, which is R's answer. |
-| `deseq2` top-50 overlap | 15–32 | Measured 20–26 over 20 replicate splits, median 22. A **divergence** measurement, not a parity target, and the *upper* bound is the load-bearing half: reaching 50 would mean `sample_col` had stopped being honoured and the pseudobulk aggregation was no longer happening. |
-| The other seven DE tests | exactly 50 | Two different cluster assignments both gave 50 of 50. One dropped gene is a regression. |
+| The eight DE p-value tests | exactly 50 | One dropped gene is a regression. Seven have given 50 of 50 on two cluster assignments. `deseq2` has given it on one, where the 50th and 51st genes sit 0.97 decades apart in both tools and no gene within three ranks of the cut differs by more than 0.12. |
 | `roc` max ∆AUC | ≤ 5e-4 | Half a unit in Seurat's third decimal. Measured 4.9986e-4 — bands are inclusive by design, and this one sits on its boundary. |
 
-`max |Δlog2FC|` excludes `deseq2` **by name rather than by threshold**: its 3.47
-is correct — a pseudobulk fold change on summed counts — and a threshold wide
-enough to admit it would set the tolerance for everyone else.
+`max |Δlog2FC|` is one band over every test, `deseq2` included: all of them
+report Seurat's fold change on the same matrix, so all of them agree to 6.2e-15.
 
 ## The reference has to be the one the handoff asked for
 

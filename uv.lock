@@ -2420,7 +2420,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.24" },
     { name = "packaging", specifier = ">=23.0" },
     { name = "pandas", specifier = ">=2.0" },
-    { name = "pydeseq2", marker = "extra == 'deseq2'", specifier = ">=0.4" },
+    { name = "pydeseq2", marker = "extra == 'deseq2'", specifier = ">=0.5.4,<0.6" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "python-igraph", marker = "extra == 'analysis'", specifier = ">=0.11" },

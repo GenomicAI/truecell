@@ -154,7 +154,7 @@ cluster   gene  avg_log2FC
 ```
 
 `find_markers` runs all nine of Seurat's tests via `test_use=`. On a shared
-cell assignment, seven of them reproduce Seurat's top 50 genes exactly and
+cell assignment, the eight that return a p-value reproduce Seurat's top 50 genes exactly and
 `avg_log2FC` agrees to 7.1e-15 — [the DE vignette](tutorials/de_vignette.md)
 has the full table.
 

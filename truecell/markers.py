@@ -380,9 +380,10 @@ def find_markers(
                       'poisson' (Poisson GLM Wald test on counts — fast, but
                       anti-conservative on overdispersed UMI data; prefer
                       'negbinom'), 'mast' (MAST two-part hurdle LRT on
-                      log-normalized data), 'deseq2' (pseudobulk DESeq2 — sums
-                      counts per sample then tests sample-level, requires
-                      ``sample_col``; needs ``pip install truecell[deseq2]``),
+                      log-normalized data), 'deseq2' (DESeq2 as Seurat runs it:
+                      size factors, local dispersion trend and Wald test on
+                      counts, every cell a replicate unless ``sample_col``
+                      aggregates them; needs ``pip install truecell[deseq2]``),
                       or 'roc' (AUC classifier power).
     only_pos        : only return positive markers
     min_pct         : minimum fraction of cells expressing the gene in either
@@ -399,14 +400,16 @@ def find_markers(
                       you pass one — so leaving this empty is what matches
                       Seurat's default. Passing CDR is the MAST paper's advice,
                       and a deliberate departure from Seurat.
-    sample_col      : metadata column identifying pseudobulk replicates (donor /
-                      sample); required for ``test_use='deseq2'``, ignored
-                      otherwise.
+    sample_col      : for ``test_use='deseq2'``, a metadata column naming each
+                      cell's replicate (donor / sample); counts are summed per
+                      replicate before the test. ``None`` (default) tests every
+                      cell as a replicate, as Seurat's ``DESeq2DETest`` does.
+                      Ignored by the other tests.
     max_cells_per_ident : downsample each group to this many cells
 
     Returns
     -------
-    For 'wilcox' / 't' / 'bimod' / 'LR' / 'negbinom' / 'poisson' / 'mast':
+    For 'wilcox' / 't' / 'bimod' / 'LR' / 'negbinom' / 'poisson' / 'mast' / 'deseq2':
     DataFrame with columns p_val, avg_log2FC, pct.1, pct.2, p_val_adj, in
     Seurat's order: by p_val, ties to the larger |pct.1 - pct.2|.
     For 'roc': columns myAUC, avg_diff, power, avg_log2FC, pct.1, pct.2, by
@@ -514,8 +517,9 @@ def find_markers(
     group2_mean = (_row_expm1_sum(sub2) + PSEUDOCOUNT) / n2
     avg_log2fc = np.log2(group1_mean) - np.log2(group2_mean)
 
-    # Pre-filter by logfc_threshold
-    if logfc_threshold > 0:
+    # Pre-filter by logfc_threshold. Seurat skips it for DESeq2
+    # (`DEmethods_noprefilter()`) and keeps min.pct.
+    if logfc_threshold > 0 and test_use != "deseq2":
         fc_mask_arr = np.abs(avg_log2fc) >= logfc_threshold
         combined_mask = combined_mask & fc_mask_arr
 
@@ -574,13 +578,6 @@ def find_markers(
     if len(test_indices) == 0:
         return pd.DataFrame(
             columns=["p_val", "avg_log2FC", "pct.1", "pct.2", "p_val_adj"]
-        )
-
-    # ---- pseudobulk DESeq2: sample-level test, not per-cell -------------------
-    if test_use == "deseq2":
-        return _deseq2_pseudobulk(
-            seurat, assay_obj, cells_1, cells_2, sample_col,
-            feature_names, test_indices, pct1, pct2, only_pos,
         )
 
     # ---- p-value-based tests -------------------------------------------------
@@ -642,6 +639,11 @@ def find_markers(
         for i in range(len(test_indices)):
             cnts = np.concatenate([c1[i, :], c2[i, :]])
             p_vals[i] = glm_test(cnts, group, latent)
+    elif test_use == "deseq2":
+        p_vals = _deseq2_pvalues(
+            seurat, assay_obj, cells_1, cells_2, idx_1, idx_2, sample_col,
+            feature_names, test_indices,
+        )
     else:
         raise ValueError(
             f"Unsupported test_use: {test_use!r}. Use 'wilcox', 't', 'bimod', "
@@ -873,98 +875,73 @@ def find_conserved_markers(
     return result.sort_values("combined_p_val")
 
 
-def _deseq2_pseudobulk(
+def _deseq2_pvalues(
     seurat,
     assay_obj,
     cells_1: list[str],
     cells_2: list[str],
+    idx_1: list[int],
+    idx_2: list[int],
     sample_col: Optional[str],
     feature_names: list[str],
     test_indices: np.ndarray,
-    pct1: np.ndarray,
-    pct2: np.ndarray,
-    only_pos: bool,
-) -> pd.DataFrame:
-    """Pseudobulk DESeq2 test (Seurat's ``test.use = "DESeq2"``).
+) -> np.ndarray:
+    """p-values from Seurat's DESeq2 test (``test.use = "DESeq2"``).
 
-    Sums raw counts to one pseudobulk profile per (group, ``sample_col``) — the
-    same aggregation as :func:`truecell.aggregate.aggregate_expression` — then fits
-    a DESeq2 model with design ``~condition`` and contrasts group 1 vs group 2.
-    A positive ``avg_log2FC`` (DESeq2's ``log2FoldChange``) means up in group 1.
+    With ``sample_col=None`` every cell is a replicate, which is what Seurat's
+    ``DESeq2DETest`` does with the columns it is given. With ``sample_col``, the
+    counts are first summed per (group, sample), and those profiles are tested the
+    same way. Either way the test is :func:`truecell._deseq2.wald_pvalues`: DESeq2's
+    size factors, local dispersion trend and Wald test, with no outlier refit. A
+    gene R would give an NA p-value, a Cook's outlier or a gene with no counts,
+    gets 1 here, as every other test in this function gives a gene it cannot test.
     """
     try:
-        from pydeseq2.dds import DeseqDataSet
-        from pydeseq2.ds import DeseqStats
+        import pydeseq2  # noqa: F401
     except ImportError as e:  # pragma: no cover - exercised only without the dep
         raise ImportError(
             "test_use='deseq2' requires pydeseq2. Install with "
             "`pip install truecell[deseq2]`."
         ) from e
-
-    if sample_col is None:
-        raise ValueError(
-            "test_use='deseq2' is a pseudobulk test and requires sample_col — the "
-            "replicate/donor column to aggregate cells into per-sample profiles."
-        )
-    if sample_col not in seurat.meta_data.columns:
-        raise KeyError(f"sample_col {sample_col!r} not found in meta_data.")
+    from . import _deseq2
 
     counts_mat, _ = _get_expression_matrix(assay_obj, "counts")
-    counts_sub = counts_mat[test_indices, :]  # tested genes × all cells
-    cell_pos = {c: i for i, c in enumerate(seurat.cell_names())}
-    samples = seurat.meta_data[sample_col].astype(str)
-    gene_names = [feature_names[i] for i in test_indices]
+    columns = list(idx_1) + list(idx_2)
+    if sp.issparse(counts_mat) or is_lazy(counts_mat):
+        sub = _dense_rows(counts_mat[:, columns], test_indices)
+    else:
+        sub = np.asarray(counts_mat)[np.ix_(test_indices, np.asarray(columns))]
+    sub = np.rint(sub).astype(np.int64)                  # tested genes × cells
+    genes = [feature_names[i] for i in test_indices]
+    cells = list(cells_1) + list(cells_2)
+    in_group1 = np.arange(len(cells)) < len(cells_1)
 
-    def _pseudobulk(group_cells: list[str], cond: str) -> dict[str, np.ndarray]:
-        by_sample: dict[str, list[int]] = {}
-        for c in group_cells:
-            by_sample.setdefault(samples[c], []).append(cell_pos[c])
-        cols: dict[str, np.ndarray] = {}
-        for samp, idxs in by_sample.items():
-            summed = counts_sub[:, idxs].sum(axis=1)
-            cols[f"{cond}::{samp}"] = np.asarray(summed).ravel()
-        return cols
+    if sample_col is None:
+        counts = pd.DataFrame(sub.T, index=cells, columns=genes)
+        group1 = in_group1
+    else:
+        if sample_col not in seurat.meta_data.columns:
+            raise KeyError(f"sample_col {sample_col!r} not found in meta_data.")
+        samples = seurat.meta_data[sample_col].astype(str)
+        keys = [("group1" if g1 else "group2", samples[c]) for c, g1 in zip(cells, in_group1)]
+        profiles = list(dict.fromkeys(keys))
+        row_of = {key: i for i, key in enumerate(profiles)}
+        summed = np.zeros((len(profiles), len(genes)), dtype=np.int64)
+        for col, key in enumerate(keys):
+            summed[row_of[key]] += sub[:, col]
+        group1 = np.array([key[0] == "group1" for key in profiles])
+        n1, n2 = int(group1.sum()), int((~group1).sum())
+        if n1 < 2 or n2 < 2:
+            warnings.warn(
+                f"DESeq2 pseudobulk has {n1} vs {n2} replicate(s) in {sample_col!r}; "
+                "dispersion estimates are unreliable without ≥2 replicates per group.",
+                RuntimeWarning,
+                stacklevel=3,
+            )
+        counts = pd.DataFrame(summed, index=[f"{g}::{s}" for g, s in profiles], columns=genes)
 
-    pb = {**_pseudobulk(cells_1, "group1"), **_pseudobulk(cells_2, "group2")}
-    sample_names = list(pb)
-    condition = ["group1" if s.startswith("group1::") else "group2" for s in sample_names]
-
-    n1, n2 = condition.count("group1"), condition.count("group2")
-    if n1 < 2 or n2 < 2:
-        warnings.warn(
-            f"DESeq2 pseudobulk has {n1} vs {n2} replicate(s) in {sample_col!r}; "
-            "dispersion estimates are unreliable without ≥2 replicates per group.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-
-    # pydeseq2 wants samples × genes, integer counts.
-    counts_df = pd.DataFrame(
-        np.column_stack([pb[s] for s in sample_names]).T.astype(int),
-        index=sample_names,
-        columns=gene_names,
-    )
-    metadata = pd.DataFrame({"condition": condition}, index=sample_names)
-
-    dds = DeseqDataSet(counts=counts_df, metadata=metadata, design="~condition", quiet=True)
-    dds.deseq2()
-    stat = DeseqStats(dds, contrast=["condition", "group1", "group2"], quiet=True)
-    stat.summary()
-    res = stat.results_df.reindex(gene_names)
-
-    out = pd.DataFrame(
-        {
-            "p_val": res["pvalue"].fillna(1.0).to_numpy(),
-            "avg_log2FC": res["log2FoldChange"].fillna(0.0).to_numpy(),
-            "pct.1": pct1[test_indices],
-            "pct.2": pct2[test_indices],
-            "p_val_adj": res["padj"].fillna(1.0).to_numpy(),
-        },
-        index=gene_names,
-    )
-    if only_pos:
-        out = out[out["avg_log2FC"] > 0]
-    return _order_like_seurat(out)
+    p = _deseq2.wald_pvalues(counts, group1).to_numpy(dtype=float)
+    return np.where(np.isnan(p), 1.0, p)
 
 
 # ------------------------------------------------------------------

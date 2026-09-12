@@ -73,15 +73,21 @@ variance. truecell returns them with ``p_val = 1`` instead — no evidence rathe
 than no row — which keeps the frame's gene set the same across every
 ``test_use``. Verified gene-by-gene, not assumed: the two sets coincide exactly.
 
+Changed later: ``deseq2``
+-------------------------
+``deseq2`` used to sum counts per sample and required ``sample_col``, while
+Seurat's ``DESeq2DETest`` gives DESeq2 one column per cell, so its row here was a
+divergence (22/50). It now runs Seurat's test, every cell a replicate, and
+``sample_col`` sums each sample's cells first for a sample-level test. pydeseq2
+needed four of DESeq2's choices: the local dispersion trend, gene-wise
+dispersions kept out of the trend fit where the likelihood is flat, no Cook's
+refit, and the 0.5 floor on fitted means in the Wald standard error
+(``truecell/_deseq2.py``). Per cell here: **50/50** on the top 50,
+p-value Spearman **0.9999995** on genes detected above 5 %, and the same **726**
+genes at ``p_val_adj < 0.05``.
+
 Differences left standing, and why
 ----------------------------------
-* **``deseq2`` is not Seurat's DESeq2.** Seurat's ``DESeq2DETest`` builds a
-  ``DESeqDataSet`` with **one column per cell** and tests cells as replicates.
-  truecell sums counts per sample and tests at the sample level. Treating cells as
-  replicates is the practice Squair et al. (2021) showed inflates false
-  positives, so the pseudobulk route is the better statistics — and because it
-  **requires ``sample_col``**, it cannot silently be mistaken for the per-cell
-  test; it raises instead. Reported here rather than "fixed" in either direction.
 * **``mast`` is a hand-rolled hurdle model**, not a call to the MAST package —
   which is not installable as a Python dependency. Spearman 0.947 on p-values and
   the same top 50 genes.
@@ -149,30 +155,21 @@ LOG2FC_TOLERANCE = 1e-12
 # prose and had drifted to 22 without anyone noticing, and the same silence
 # would have covered a real regression in any other row.
 #
-# Seven of the eight tests are ports of the same statistic over the same cells,
-# so their bands are exact. `deseq2` is the one measurement of a *deliberate*
-# divergence — truecell aggregates counts per sample and tests samples, Seurat's
-# `DESeq2DETest` tests cells as replicates — so its band comes from measurement:
-# resampling the pseudo-replicate split 20 times moves the overlap over 20-26
-# (median 22), and the previous cluster assignment gave 25.
-RANKED_TESTS = ("wilcox", "t", "bimod", "LR", "negbinom", "poisson", "mast")
+# Every p-value test is a port of the same statistic over the same cells, so
+# its top-50 band is exact. `deseq2` joined them when it began testing cells as
+# replicates, as Seurat's `DESeq2DETest` does. Before that it tested pseudobulk
+# samples, and its band was a divergence measurement of 15-32.
+RANKED_TESTS = ("wilcox", "t", "bimod", "LR", "negbinom", "poisson", "mast", "deseq2")
 
 _PARITY_TOP50 = (
     "The same statistic on the same cells: the 50 most significant genes must "
-    "be the same 50. A single dropped gene here is a regression, not scatter — "
-    "this has read 50/50 on two different cluster assignments.")
+    "be the same 50. A single dropped gene here is a regression, not scatter. "
+    "The first seven have read 50/50 on two cluster assignments; at deseq2's "
+    "cut the 50th and 51st genes sit 0.97 decades apart in both tools.")
 
 BANDS: dict[str, Band] = {
     **{f"{t} top50": Band(TOP_N, TOP_N, _PARITY_TOP50, fmt=".0f")
        for t in RANKED_TESTS},
-    "deseq2 top50": Band(
-        15, 32,
-        "A divergence measurement, not a parity target: truecell tests pseudobulk "
-        "samples, Seurat's DESeq2DETest tests cells. 20-26 over 20 resampled "
-        "replicate splits and 25 on the previous cluster assignment. Bounded "
-        "well below 50 on purpose — reaching parity would mean the pseudobulk "
-        "aggregation had stopped happening and `sample_col` was being ignored.",
-        fmt=".0f"),
     **{f"{t} rho>5%": Band(low, 1.0, why) for t, low, why in (
         ("wilcox", 0.9999,
          "Identical rank-sum statistic; measured exactly 1.0."),
@@ -191,17 +188,13 @@ BANDS: dict[str, Band] = {
         ("mast", 0.99,
          "truecell's hurdle model is hand-rolled rather than a call to the MAST "
          "package, so this is the closest a reimplementation gets: 0.9980."),
+        ("deseq2", 0.9999, "DESeq2's Wald test as DESeq2DETest runs it: 0.9999995."),
     )},
-    "deseq2 rho>5%": Band(
-        0.12, 0.30,
-        "Pseudobulk against per-cell, so a low correlation is the expected "
-        "result and a high one would be the surprise. 0.1902-0.2021 over the 20 "
-        "resampled splits.", ),
     "max |dlog2FC| (parity tests)": Band(
         0, LOG2FC_TOLERANCE,
         "avg_log2FC is arithmetic on the shared matrix with no statistics in "
-        "it, so every test that shares Seurat's cell-level definition must "
-        "agree to floating point: 6.4e-15 measured.", fmt=".2e"),
+        "it, and every test reports Seurat's definition, deseq2 included, so "
+        "all must agree to floating point: 6.2e-15 measured.", fmt=".2e"),
     "roc max |dAUC|": Band(
         0, AUC_TOLERANCE,
         "Seurat rounds myAUC to three decimals inside DifferentialAUC, so this "
@@ -246,15 +239,12 @@ def shared_groups(obj) -> pd.Series:
 def run_tests(obj, groups: pd.Series, tests=None) -> dict[str, pd.DataFrame]:
     sub = obj.subset(cells=list(groups.index))
     sub.idents = list(groups.values)
-    # A replicate label for the pseudobulk path. Three pseudo-replicates per
-    # group: enough for DESeq2 to estimate dispersion, and deterministic.
-    sub.meta_data["rep"] = [f"{g}_r{i % 3}" for i, g in enumerate(groups.values)]
 
     out = {}
     for test in (tests or TEST_MAP):
-        kwargs = {"sample_col": "rep"} if test == "deseq2" else {}
+        # deseq2 too tests every cell as a replicate, as Seurat's DESeq2DETest does.
         out[test] = find_markers(sub, IDENT_1, IDENT_2, test_use=test,
-                                 logfc_threshold=0, min_pct=0, **kwargs)
+                                 logfc_threshold=0, min_pct=0)
     return out
 
 
@@ -472,13 +462,10 @@ def measure_bands(table: pd.DataFrame) -> dict[str, float]:
         if f"{test} rho>5%" in BANDS:
             measured[f"{test} rho>5%"] = table.loc[test].get(
                 "p_spearman_expressed", float("nan"))
-    # One band over every test that shares Seurat's cell-level fold change.
-    # deseq2 is excluded by name rather than by threshold: its fold change is
-    # computed on summed counts, so ~3.5 is correct there and would silently
-    # set the maximum for everyone else.
-    cell_level = [t for t in table.index if t != "deseq2"]
+    # One band over every test: all of them report Seurat's fold change, deseq2
+    # included. It was excluded by name while it reported a pseudobulk one.
     measured["max |dlog2FC| (parity tests)"] = float(
-        table.loc[cell_level, "log2fc_max_abs_diff"].max())
+        table["log2fc_max_abs_diff"].max())
     if "auc_max_abs_diff" in table.columns:
         measured["roc max |dAUC|"] = float(table.loc["roc", "auc_max_abs_diff"])
     return measured
