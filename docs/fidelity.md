@@ -91,8 +91,9 @@ changes which genes a later stage sees, which is why references have to be
 regenerated together rather than piecemeal.
 
 **Anything with an RNG differs by its RNG, and only by that.** `add_module_score`
-draws control genes at random: per-cell phase calls come out 96.6 % concordant
-and the continuous scores correlate at Pearson ≥ 0.998. JackStraw permutes.
+draws control genes at random: per-cell phase calls come out 95.9 % concordant,
+the rate two NumPy seeds agree with each other, and the continuous scores
+correlate at Pearson ≥ 0.997. JackStraw permutes.
 Differences here get proved distribution-against-distribution over matched seeds,
 never from a single pair — single-run pairs were actively misleading on the
 sketch composition.

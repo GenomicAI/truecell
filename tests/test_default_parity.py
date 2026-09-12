@@ -80,3 +80,16 @@ def test_marker_thresholds_are_seurat_5s(name):
     params = inspect.signature(getattr(truecell, name)).parameters
     assert params["logfc_threshold"].default == 0.1
     assert params["min_pct"].default == 0.01
+
+
+def test_a_deprecated_alias_does_not_stand_in_for_the_formal_it_renames(monkeypatch):
+    """FindSpatiallyVariableFeatures.Seurat declares `layer = "scale.data"` and the
+    deprecated `slot = NULL`. Both map to truecell's `layer`; the real formal decides."""
+    name = "truecell.find_spatially_variable_features"
+    reference = cd.load_reference()
+    spec = cd.FUNCTIONS[name][0]
+    assert {"layer", "slot"} <= set(reference["functions"][spec])
+    monkeypatch.setattr(cd, "FUNCTIONS", {name: cd.FUNCTIONS[name]})
+    mismatches, stats = cd.compare(reference)
+    assert stats["compared"] > 0
+    assert (name, "layer") not in {m.key for m in mismatches}

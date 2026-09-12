@@ -271,7 +271,7 @@ def toy_anchors() -> dict:
 def moransi_anchors(obj, cells: list[str]) -> dict:
     """Moran's I on the R-sized subset, with R's weighting."""
     sub = _subset_object(obj, cells)
-    res = find_spatially_variable_features(sub, method="moransi",
+    res = find_spatially_variable_features(sub, layer="data", method="moransi",
                                            weights="inverse_square")
     res = res.sort_values("moransi", ascending=False)
     return {
@@ -294,9 +294,9 @@ def knn_comparison(obj, cells: list[str]) -> dict:
     from scipy.stats import pearsonr, spearmanr
 
     sub = _subset_object(obj, cells)
-    exact = find_spatially_variable_features(sub, method="moransi",
+    exact = find_spatially_variable_features(sub, layer="data", method="moransi",
                                              weights="inverse_square")["moransi"]
-    knn = find_spatially_variable_features(sub, method="moransi",
+    knn = find_spatially_variable_features(sub, layer="data", method="moransi",
                                            weights="knn")["moransi"]
     shared = exact.index.intersection(knn.index)
     a, b = exact[shared], knn[shared]

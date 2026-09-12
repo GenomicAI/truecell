@@ -373,7 +373,7 @@ def find_spatially_variable_features(
     k: int = 10,
     weights: str = "inverse_square",
     assay: Optional[str] = None,
-    layer: Optional[str] = None,
+    layer: str = "scale.data",
     image: Optional[Union[str, Sequence[str]]] = None,
     r_metric: float = 5.0,
     bandwidth: float = 1.0,
@@ -400,7 +400,9 @@ def find_spatially_variable_features(
     bandwidth: *markvariogram only* — half-width of the distance band around
                ``r_metric``, in the same units. Widen it if the slide is sparse
                and the band catches too few pairs to average over.
-    layer    : expression layer (default: the normalized ``data``).
+    layer    : expression layer. ``"scale.data"`` by default, as in Seurat's
+               object method, so only the features that were scaled are
+               ranked; ``"data"`` ranks every gene on its log-normalized values.
     image    : image name(s) to draw coordinates from (default: all).
 
     Returns
@@ -422,7 +424,9 @@ def find_spatially_variable_features(
 
     Notes
     -----
-    Run this on log-normalized ``data`` (the default). Be aware that when a few
+    Seurat ranks ``scale.data`` by default, and so does this. Moran's I does not
+    change when a gene is shifted and rescaled, so ``data`` gives the same
+    statistic except where ScaleData clipped a value at 10. Be aware that when a few
     strongly spatial genes dominate a cell's library size, log-normalization
     divides every gene by a spatially-structured total and leaks that structure
     into otherwise-flat genes — inflating their score. That is a property of
@@ -470,6 +474,12 @@ def find_spatially_variable_features(
 
     assay_name = assay or seurat.active_assay
     assay_obj = seurat.assays[assay_name]
+    if not _has_layer(assay_obj, layer):
+        raise ValueError(
+            f"Layer {layer!r} not found in assay {assay_name!r}. Like Seurat, this "
+            "reads scale.data by default: run scale_data() first, or pass "
+            "layer='data'."
+        )
     data, feature_names, layer_cells = _get_expression_layer(assay_obj, layer)
 
     # Columns are found by the layer's *own* cell names. `seurat.cell_names()`
@@ -503,6 +513,18 @@ def find_spatially_variable_features(
 
     _write_feature_meta(assay_obj, res)
     return res
+
+
+def _has_layer(assay_obj, layer: str) -> bool:
+    """Whether the assay holds ``layer``."""
+    from ..assay5 import Assay5
+
+    if isinstance(assay_obj, Assay5):
+        return layer in assay_obj.layers or layer.replace(".", "_") in assay_obj.layers
+    if layer in ("scale.data", "scale_data"):
+        mat = getattr(assay_obj, "scale_data", None)
+        return mat is not None and min(getattr(mat, "shape", (0,))) > 0
+    return True
 
 
 def _write_feature_meta(assay_obj, res: pd.DataFrame) -> None:

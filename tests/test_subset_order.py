@@ -145,8 +145,8 @@ def test_ncount_is_the_column_sum_of_counts_by_position(obj):
 
 def test_spatial_statistics_do_not_depend_on_the_request_order(obj):
     picked = obj.cell_names()[::2]
-    in_order = find_spatially_variable_features(obj.subset(cells=picked))
-    reversed_ = find_spatially_variable_features(obj.subset(cells=picked[::-1]))
+    in_order = find_spatially_variable_features(obj.subset(cells=picked), layer="data")
+    reversed_ = find_spatially_variable_features(obj.subset(cells=picked[::-1]), layer="data")
     pd.testing.assert_frame_equal(reversed_, in_order)
 
     # And the fixture can see a misalignment at all: the same cells with their
@@ -156,7 +156,7 @@ def test_spatial_statistics_do_not_depend_on_the_request_order(obj):
     assay = misaligned.assays["RNA"]
     assay.set_layer_data("data", assay.layer_data("data")[:, ::-1],
                          cell_names=assay.cells("data"))
-    moved = find_spatially_variable_features(misaligned)["moransi"].reindex(in_order.index)
+    moved = find_spatially_variable_features(misaligned, layer="data")["moransi"].reindex(in_order.index)
     assert (moved - in_order["moransi"]).abs().max() > 0.3
 
     pd.testing.assert_frame_equal(
@@ -168,7 +168,7 @@ def test_spatial_statistics_do_not_depend_on_the_request_order(obj):
 def test_morans_i_finds_columns_by_the_layers_own_cell_names(obj):
     """A data layer stored in a different column order from `cell_names()` is
     still read cell by cell — the second line of defence behind `subset`."""
-    want = find_spatially_variable_features(obj.subset(cells=obj.cell_names()))
+    want = find_spatially_variable_features(obj.subset(cells=obj.cell_names()), layer="data")
 
     shuffled = obj.subset(cells=obj.cell_names())
     assay = shuffled.assays["RNA"]
@@ -178,7 +178,7 @@ def test_morans_i_finds_columns_by_the_layers_own_cell_names(obj):
                          cell_names=[names[i] for i in perm])
     assert assay.cells("data") != shuffled.cell_names()
 
-    pd.testing.assert_frame_equal(find_spatially_variable_features(shuffled), want)
+    pd.testing.assert_frame_equal(find_spatially_variable_features(shuffled, layer="data"), want)
 
 
 def test_identity_levels_keep_their_order(obj):

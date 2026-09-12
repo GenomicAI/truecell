@@ -64,10 +64,10 @@ dimensionality reduction, clustering, and marker detection — entirely in Pytho
 - **PBMC 8k advanced tutorial** — larger dataset + T/NK subclustering workflow
 - **CITE-seq multimodal tutorial** — RNA + surface protein (ADT) with CLR normalization and WNN joint clustering
 - **Cell-hashing tutorial** — `hto_demux` + `multiseq_demux` demultiplexing, 99.81% call-concordant with R Seurat's `HTODemux`
-- **Mixscape tutorial** — pooled-CRISPR `calc_perturb_sig` + `run_mixscape` + `mixscape_lda`, 97.45% per-cell call-concordant with R Seurat on the THP-1 ECCITE-seq screen
+- **Mixscape tutorial** — pooled-CRISPR `calc_perturb_sig` + `run_mixscape` + `mixscape_lda`, 97.68% per-cell call-concordant with R Seurat on the THP-1 ECCITE-seq screen
 - **Integration tutorial** — `run_harmony` / `integrate_layers` on the ifnb IFN-β benchmark; Harmony, CCA and RPCA all reach batch mixing 0.991. The first tutorial to catch real defects: four RPCA-path bugs, all fixed — a crash on unequal batch sizes, a 4× under-integration, `integrate_layers` silently running v4's `IntegrateData` algorithm behind the v5 `IntegrateEmbeddings` API, and sklearn's randomized SVD drifting `run_pca`'s trailing components (batch mixing 0.222 → 0.867 → 0.991, now above Seurat's own 0.917)
 - **Reference mapping tutorial** — `find_transfer_anchors` / `transfer_data` / `map_query` on the panc8 cross-technology benchmark; label transfer is 98.71% per-cell concordant with R Seurat, both ~98.5% accurate against the held-out cell types
-- **Cell-cycle & module-score tutorial** — `cell_cycle_scoring` / `add_module_score` on the proliferating THP-1 line; per-cell phase is 96.6% concordant with R Seurat and the S/G2M/module scores correlate at Pearson ≥ 0.998 (residual is the control-gene RNG)
+- **Cell-cycle & module-score tutorial** — `cell_cycle_scoring` / `add_module_score` on the proliferating THP-1 line; per-cell phase is 95.9% concordant with R Seurat, as often as two NumPy seeds agree with each other, and the S/G2M/module scores correlate at Pearson ≥ 0.997 (residual is the control-gene RNG)
 - **Xenium spatial tutorial** — spatial neighbourhood/niche analysis, verified to 8 s.f. against R Seurat
 
 ---

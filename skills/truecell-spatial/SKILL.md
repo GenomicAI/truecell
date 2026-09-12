@@ -116,6 +116,10 @@ svf = truecell.find_spatially_variable_features(
 top = svf.head(20)          # rank 1 is the most spatially structured
 ```
 
+It reads `scale.data` by default, as Seurat does, so run `scale_data` over those
+features first, or pass `layer="data"` to rank log-normalized values. Moran's I
+is the same on both except where scaling clipped a value at 10.
+
 **`weights="inverse_square"` is the default and reproduces R exactly** — 1/d²
 between every pair of cells, row-standardised. It is O(n²). `weights="knn"` is an
 approximation trading that for O(nk); reach for it only when the slide is too

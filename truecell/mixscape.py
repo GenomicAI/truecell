@@ -202,7 +202,7 @@ def run_mixscape(
     labels: str = "gene",
     nt_class: str = "NT",
     de_assay: str = "RNA",
-    layer: str = "data",
+    layer: str = "scale.data",
     min_de_genes: int = 5,
     min_cells: int = 5,
     logfc_threshold: float = 0.25,
@@ -239,7 +239,11 @@ def run_mixscape(
     nt_class        : value in ``labels`` marking non-targeting controls.
     de_assay        : assay used for the gene-vs-NT differential expression
                       (default ``"RNA"``).
-    layer           : signature layer to project (default ``"data"``).
+    layer           : ``"scale.data"`` (default) scales each target gene's DE
+                      genes over its cells and the NT cells before the
+                      mixture, as RunMixscape's ``slot = "scale.data"`` does;
+                      ``"data"`` projects the signature unscaled. Both read the
+                      signature's data layer, never a stored scale.data.
     min_de_genes    : a gene needs at least this many DE genes to be testable;
                       otherwise all its cells are NP (Seurat default 5).
     min_cells       : a gene needs at least this many cells; otherwise NP.
@@ -262,7 +266,14 @@ def run_mixscape(
     Truecell
         ``seurat``, with the ``mixscape_class`` classification and identity.
     """
-    sig, sig_feats, cells = _layer_matrix(seurat.assays[assay], layer)
+    if layer not in ("data", "scale.data"):
+        raise ValueError(
+            f"layer must be 'data' or 'scale.data', not {layer!r}: both read the "
+            "signature's data layer, and 'scale.data' scales it first."
+        )
+    # RunMixscape reads the data layer whatever `slot` says; slot = "scale.data"
+    # only decides whether ScaleData runs on each gene's DE genes first.
+    sig, sig_feats, cells = _layer_matrix(seurat.assays[assay], "data")
     sig_feat_idx = {f: i for i, f in enumerate(sig_feats)}
 
     labels_vec = _aligned_meta(seurat, labels, cells)
@@ -322,6 +333,7 @@ def run_mixscape(
             de_rows = [sig_feat_idx[g] for g in de_genes]
             ko_pos, post, n_iter, score = _mixscape_em(
                 sig, de_rows, nt_idx, gene_local, iter_num, seed,
+                scale=layer == "scale.data",
             )
             info["n_iter"] = n_iter
             info["n_ko"] = int(len(ko_pos))
@@ -665,7 +677,21 @@ def _de_genes(
     return [g for g in passed if g in sig_feat_idx]
 
 
-def _mixscape_em(sig, de_rows, nt_idx, gene_local, iter_num, seed):
+def _scale_rows(mat, scale_max: float = 10.0) -> np.ndarray:
+    """Seurat's ``ScaleData`` on a matrix, row by row.
+
+    Each row is centred and divided by its standard deviation with n - 1 in the
+    denominator, then clipped at ``scale_max`` from above only. A constant row
+    comes back as zeros.
+    """
+    mat = np.asarray(mat, dtype=float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out = (mat - mat.mean(axis=1, keepdims=True)) / mat.std(axis=1, ddof=1, keepdims=True)
+    out[~np.isfinite(out)] = 0.0
+    return np.minimum(out, scale_max)
+
+
+def _mixscape_em(sig, de_rows, nt_idx, gene_local, iter_num, seed, scale=False):
     """Iterative 2-component mixture split of one gene's cells into KO / NP.
 
     Returns ``(ko_positions, posterior, n_iter, score)`` where ``ko_positions``
@@ -681,6 +707,10 @@ def _mixscape_em(sig, de_rows, nt_idx, gene_local, iter_num, seed):
     from sklearn.mixture import GaussianMixture
 
     dat = sig[np.ix_(de_rows, np.concatenate([nt_idx, gene_local]))]
+    if scale:
+        # RunMixscape, slot = "scale.data": ScaleData on the DE genes over the
+        # guide's cells and the NT cells, once, before the posterior loop.
+        dat = _scale_rows(dat)
     n_nt = nt_idx.size
     n_gene = gene_local.size
     nt_cols = np.arange(n_nt)

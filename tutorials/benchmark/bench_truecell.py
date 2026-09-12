@@ -335,11 +335,11 @@ def bench_spatial(bench: str, log: StepLog) -> None:
     sub = obj.subset(cells=cells)
 
     with log.step("morans_i_2k") as rec:
-        res = find_spatially_variable_features(sub, method="moransi",
+        res = find_spatially_variable_features(sub, layer="data", method="moransi",
                                                weights="inverse_square")
         rec["anchor"] = int(len(res))
     with log.step("morans_i_full") as rec:
-        res = find_spatially_variable_features(obj, method="moransi",
+        res = find_spatially_variable_features(obj, layer="data", method="moransi",
                                                weights="inverse_square")
         rec["anchor"] = int(len(res))
 

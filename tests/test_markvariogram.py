@@ -190,7 +190,7 @@ def spatial_obj():
 
 
 def test_markvariogram_ranks_structured_genes_first(spatial_obj):
-    res = find_spatially_variable_features(spatial_obj, method="markvariogram")
+    res = find_spatially_variable_features(spatial_obj, layer="data", method="markvariogram")
 
     assert list(res.columns) == ["markvariogram", "markvariogram_rank"]
     assert set(res.index[:3]) == set(STRUCTURED)
@@ -204,7 +204,7 @@ def test_markvariogram_ranks_structured_genes_first(spatial_obj):
 
 
 def test_undetected_gene_is_ranked_last(spatial_obj):
-    res = find_spatially_variable_features(spatial_obj, method="markvariogram")
+    res = find_spatially_variable_features(spatial_obj, layer="data", method="markvariogram")
     assert np.isnan(res.loc["silent", "markvariogram"])
     assert res.index[-1] == "silent"
     assert res.loc["silent", "markvariogram_rank"] == len(res)
@@ -212,20 +212,20 @@ def test_undetected_gene_is_ranked_last(spatial_obj):
 
 def test_moransi_also_survives_an_undetected_gene(spatial_obj):
     """The NaN score is ranked, not crashed on — both methods share that path."""
-    res = find_spatially_variable_features(spatial_obj, method="moransi", k=8)
+    res = find_spatially_variable_features(spatial_obj, layer="data", method="moransi", k=8)
     assert np.isnan(res.loc["silent", "moransi"])
     assert res.index[-1] == "silent"
 
 
 def test_both_methods_agree_on_the_top_gene(spatial_obj):
     """Two different statistics, one slide — they had better pick the same gene."""
-    mv = find_spatially_variable_features(spatial_obj, method="markvariogram")
-    mi = find_spatially_variable_features(spatial_obj, method="moransi", k=8)
+    mv = find_spatially_variable_features(spatial_obj, layer="data", method="markvariogram")
+    mi = find_spatially_variable_features(spatial_obj, layer="data", method="moransi", k=8)
     assert set(mv.index[:3]) == set(mi.index[:3]) == set(STRUCTURED)
 
 
 def test_results_written_to_feature_metadata(spatial_obj):
-    res = find_spatially_variable_features(spatial_obj, method="markvariogram")
+    res = find_spatially_variable_features(spatial_obj, layer="data", method="markvariogram")
     meta = spatial_obj.assays["RNA"].meta_data
     for col in ("markvariogram", "markvariogram_rank"):
         assert col in meta.columns
@@ -234,7 +234,7 @@ def test_results_written_to_feature_metadata(spatial_obj):
 
 def test_features_argument_restricts_output(spatial_obj):
     res = find_spatially_variable_features(
-        spatial_obj, features=["blob", "rand0"], method="markvariogram")
+        spatial_obj, layer="data", features=["blob", "rand0"], method="markvariogram")
     assert set(res.index) == {"blob", "rand0"}
     assert res.index[0] == "blob"
 
@@ -242,18 +242,18 @@ def test_features_argument_restricts_output(spatial_obj):
 def test_r_metric_reads_the_variogram_further_out(spatial_obj):
     """The blob decorrelates with distance, so γ climbs as r grows."""
     near = find_spatially_variable_features(
-        spatial_obj, method="markvariogram", r_metric=2.0)
+        spatial_obj, layer="data", method="markvariogram", r_metric=2.0)
     far = find_spatially_variable_features(
-        spatial_obj, method="markvariogram", r_metric=6.0)
+        spatial_obj, layer="data", method="markvariogram", r_metric=6.0)
     assert near.loc["blob", "markvariogram"] < far.loc["blob", "markvariogram"]
 
 
 def test_bandwidth_widens_the_band_without_moving_the_answer(spatial_obj):
     """A wider band averages over more pairs; the gene ranking is unmoved."""
     narrow = find_spatially_variable_features(
-        spatial_obj, method="markvariogram", bandwidth=0.6)
+        spatial_obj, layer="data", method="markvariogram", bandwidth=0.6)
     wide = find_spatially_variable_features(
-        spatial_obj, method="markvariogram", bandwidth=2.0)
+        spatial_obj, layer="data", method="markvariogram", bandwidth=2.0)
     assert not np.isclose(
         narrow.loc["blob", "markvariogram"], wide.loc["blob", "markvariogram"])
     assert set(narrow.index[:3]) == set(wide.index[:3])
@@ -262,13 +262,13 @@ def test_bandwidth_widens_the_band_without_moving_the_answer(spatial_obj):
 def test_bad_parameters_raise(spatial_obj):
     with pytest.raises(ValueError, match="r_metric must be positive"):
         find_spatially_variable_features(
-            spatial_obj, method="markvariogram", r_metric=0.0)
+            spatial_obj, layer="data", method="markvariogram", r_metric=0.0)
     with pytest.raises(ValueError, match="bandwidth must be positive"):
         find_spatially_variable_features(
-            spatial_obj, method="markvariogram", bandwidth=-1.0)
+            spatial_obj, layer="data", method="markvariogram", bandwidth=-1.0)
 
 
 def test_r_metric_beyond_the_slide_raises(spatial_obj):
     with pytest.raises(ValueError, match="No cell pairs"):
         find_spatially_variable_features(
-            spatial_obj, method="markvariogram", r_metric=500.0)
+            spatial_obj, layer="data", method="markvariogram", r_metric=500.0)

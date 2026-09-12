@@ -99,7 +99,7 @@ def spatial_obj():
 
 
 def test_spatially_variable_ranks_structured_genes_first(spatial_obj):
-    res = find_spatially_variable_features(spatial_obj, k=8)
+    res = find_spatially_variable_features(spatial_obj, layer="data", k=8)
 
     assert list(res.columns) == [
         "moransi", "moransi_pval", "moransi_padj", "moransi_rank",
@@ -117,7 +117,7 @@ def test_spatially_variable_ranks_structured_genes_first(spatial_obj):
 
 
 def test_results_written_to_feature_metadata(spatial_obj):
-    res = find_spatially_variable_features(spatial_obj, k=8)
+    res = find_spatially_variable_features(spatial_obj, layer="data", k=8)
     meta = spatial_obj.assays["RNA"].meta_data
     for col in ("moransi", "moransi_pval", "moransi_padj", "moransi_rank"):
         assert col in meta.columns
@@ -126,19 +126,19 @@ def test_results_written_to_feature_metadata(spatial_obj):
 
 def test_features_argument_restricts_output(spatial_obj):
     res = find_spatially_variable_features(
-        spatial_obj, features=["blob", "rand0"], k=8)
+        spatial_obj, layer="data", features=["blob", "rand0"], k=8)
     assert set(res.index) == {"blob", "rand0"}
     assert res.index[0] == "blob"          # the structured one ranks first
 
 
 def test_unknown_features_raise(spatial_obj):
     with pytest.raises(ValueError, match="None of the requested features"):
-        find_spatially_variable_features(spatial_obj, features=["nope"], k=8)
+        find_spatially_variable_features(spatial_obj, layer="data", features=["nope"], k=8)
 
 
 def test_unsupported_method_raises(spatial_obj):
     with pytest.raises(NotImplementedError, match="not implemented"):
-        find_spatially_variable_features(spatial_obj, method="sepal")
+        find_spatially_variable_features(spatial_obj, layer="data", method="sepal")
 
 
 def test_object_without_coordinates_raises():
@@ -148,4 +148,4 @@ def test_object_without_coordinates_raises():
         cell_names=[f"c{i}" for i in range(5)],
     )
     with pytest.raises(ValueError, match="no spatial"):
-        find_spatially_variable_features(obj)
+        find_spatially_variable_features(obj, layer="data")

@@ -263,28 +263,35 @@ verify script writes):
 
 | Comparison | Agreement |
 |---|---:|
-| **Mixscape** global class (KO/NP/NT)       | **97.52 %** |
-| **Mixscape** full class (`<gene> KO`/`NP`) | **97.52 %** |
+| **Mixscape** global class (KO/NP/NT)       | **97.68 %** |
+| **Mixscape** full class (`<gene> KO`/`NP`) | **97.68 %** |
 
 Mixscape global — Truecell (rows) × R (cols):
 
 |          | R KO | R NP | R NT |
 |---|---:|---:|---:|
-| **KO** | 4,767 |   175 |     0 |
-| **NP** |   340 | 13,061 |    0 |
+| **KO** | 4,832 |   204 |     0 |
+| **NP** |   277 | 13,030 |    0 |
 | **NT** |     0 |     0 | 2,386 |
 
-**Truecell reproduces Seurat to 97.52 %** — 515 of 20,729 cells differ — with the
+**Truecell reproduces Seurat to 97.68 %** — 481 of 20,729 cells differ — with the
 disagreement landing exactly where a mixture model is least certain. All 2,386 NT
 cells agree; all 14 zero-phenotype guides agree 100 %; the strong interferon-γ
-hits agree tightly (`STAT1` 98.4 %, `JAK2` 98.0 %, `IFNGR2` 97.4 %, `IFNGR1`
-97.1 %). The divergence concentrates in the **weak, boundary guides** — `MYC`
-(42 % of its cells differ), `SPI1` (33 %), `BRD4` (18 %), `CUL3` (14 %) — whose
+hits agree tightly (`STAT1` 98.4 %, `JAK2` 98.3 %, `IFNGR2` 97.8 %, `IFNGR1`
+97.4 %). The divergence concentrates in the **weak, boundary guides** — `MYC`
+(59 % of its cells differ), `SPI1` (23 %), `BRD4` (15 %), `CUL3` (11 %) — whose
 perturbation score sits close to the NT mode, so a small difference in the DE gene
 set or the EM initialisation flips a cell KO↔NP. That is the genuinely
 method-level residual, not a bug: scipy's `GaussianMixture` and R's `mixtools`
 seed and iterate their EM differently, and the per-gene Wilcoxon DE breaks ties its
 own way in each language.
+
+> These numbers are from after `run_mixscape` began scaling each target gene's DE
+> genes before the mixture, as `RunMixscape`'s default `slot = "scale.data"` does.
+> Unscaled, agreement was 97.46 % (527 cells differ). Eight of the eleven guides
+> with an effect moved toward Seurat and `STAT1` held; `STAT2` moved away by 0.2
+> points and `MYC` (109 cells) from 58 % to 41 %, the boundary case getting no
+> easier.
 
 **No defect found — the Mixscape port recovers the same biology as Seurat**, down
 to the same responsive-guide ranking and KO/NP/NT proportions. This is the

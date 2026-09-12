@@ -239,20 +239,29 @@ def cell_cycle_scoring(
     layer: str = "data",
     set_ident: bool = False,
     nbin: int = 24,
-    ctrl: int = 100,
+    ctrl: int | None = None,
     seed: int = 1,
 ) -> "object":
     """Score S and G2/M phases and assign a discrete phase per cell.
 
     Mirrors R's CellCycleScoring(): runs AddModuleScore for the S and G2/M gene
-    sets, writes ``S.Score`` / ``G2M.Score`` to metadata, and assigns ``Phase``:
-    ``G1`` when both scores are ≤ 0, otherwise whichever of S / G2M is larger.
+    sets, writes ``S.Score`` / ``G2M.Score`` to metadata, and assigns ``Phase``
+    by Seurat's rule: ``G1`` when both scores are below zero, ``Undecided`` when
+    the two tie for the highest, otherwise whichever of S / G2M is larger.
     Defaults to the Tirosh 2016 human gene sets (``CC_GENES``).
+
+    ``ctrl`` is the number of control genes drawn per scored gene. ``None`` uses
+    the size of the smaller gene set, as CellCycleScoring does, rather than
+    AddModuleScore's own 100.
 
     If ``set_ident`` is True, the active identity is set to ``Phase``.
     """
     s_features = s_features if s_features is not None else CC_GENES["s_genes"]
     g2m_features = g2m_features if g2m_features is not None else CC_GENES["g2m_genes"]
+    if ctrl is None:
+        # CellCycleScoring: `ctrl <- min(vapply(X = features, FUN = length, ...))`,
+        # over the gene sets as given.
+        ctrl = min(len(s_features), len(g2m_features))
 
     add_module_score(
         seurat,
@@ -263,10 +272,15 @@ def cell_cycle_scoring(
     s = seurat.meta_data["S.Score"].values.astype(float)
     g2m = seurat.meta_data["G2M.Score"].values.astype(float)
 
+    # CellCycleScoring: `all(scores < 0)` is G1, and more than one score at the
+    # maximum is "Undecided". Two scores of exactly 0, as when neither the genes
+    # nor their controls are detected in a cell, are therefore Undecided, not G1.
     phase = np.empty(len(s), dtype=object)
     for i in range(len(s)):
-        if s[i] <= 0 and g2m[i] <= 0:
+        if s[i] < 0 and g2m[i] < 0:
             phase[i] = "G1"
+        elif s[i] == g2m[i]:
+            phase[i] = "Undecided"
         elif s[i] > g2m[i]:
             phase[i] = "S"
         else:

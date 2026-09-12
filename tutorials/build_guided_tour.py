@@ -1242,7 +1242,7 @@ run_mixscape(obj)                  # -> mixscape_class: "<gene> KO" / NP / NT
 mixscape_lda(obj)
 ```
 
-→ [Mixscape tutorial](https://genomicai.github.io/truecell/tutorials/mixscape_vignette/) — 97.45%
+→ [Mixscape tutorial](https://genomicai.github.io/truecell/tutorials/mixscape_vignette/) — 97.68%
 per-cell concordant on the THP-1 ECCITE-seq screen.
 
 ### Spatial transcriptomics
@@ -1256,7 +1256,7 @@ from truecell import (load_xenium, load_visium, build_niche_assay,
 
 obj = load_xenium("path/to/xenium/")
 build_niche_assay(obj, fov="fov", group_by="celltype")
-find_spatially_variable_features(obj, method="moransi")
+find_spatially_variable_features(obj, layer="data", method="moransi")
 ```
 
 → [Xenium](https://genomicai.github.io/truecell/tutorials/xenium_spatial_tutorial/) ·

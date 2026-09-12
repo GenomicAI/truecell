@@ -151,9 +151,9 @@ the flat all-G1 that resting PBMCs would give:
 
 | phase | Truecell | R Seurat |
 |-------|---:|---:|
-| G1 | 72.4 % | 70.8 % |
-| S | 15.1 % | 16.5 % |
-| G2M | 12.5 % | 12.8 % |
+| G1 | 70.3 % | 70.8 % |
+| S | 16.9 % | 16.5 % |
+| G2M | 12.7 % | 12.8 % |
 
 `add_module_score` on the interferon program produces the expected distribution —
 most cells near zero, a positive tail of responders:
@@ -170,13 +170,27 @@ extremely tightly, and the discrete phase is robust to the residual wobble:
 
 | metric | Pearson | Spearman |
 |--------|---:|---:|
-| `S.Score` | **0.9982** | 0.9834 |
-| `G2M.Score` | **0.9993** | 0.9853 |
+| `S.Score` | **0.9975** | 0.9766 |
+| `G2M.Score` | **0.9990** | 0.9773 |
 | `IFN.Response` (`add_module_score`) | **0.9995** | 0.9993 |
 
-> **Per-cell Phase concordance: 0.9662 (20,028 / 20,729 cells).**
-> (Agreement with Papalexi's *published* phase — a different pipeline — is 0.88,
+> **Per-cell Phase concordance: 0.9586 (19,870 / 20,729 cells).**
+> (Agreement with Papalexi's *published* phase — a different pipeline — is 0.86,
 > for context.)
+
+### Why per-cell agreement is lower than it was
+
+`CellCycleScoring` draws as many control genes per scored gene as the smaller
+gene set has: 40 here, the S genes found on this panel. truecell used to pass
+`AddModuleScore`'s own 100. Matching Seurat moved the phase split onto R's
+(72.4 / 15.1 / 12.5 % became 70.3 / 16.9 / 12.7 %, against R's 70.8 / 16.5 /
+12.8 %) and lowered per-cell agreement from 96.62 % to 95.86 %.
+
+The lower number is the ceiling the control draw sets, not a regression. With 40
+controls, truecell agrees with *itself* across four NumPy seeds 95.75–95.88 % of
+the time, and with R 95.86–95.99 %. With 100 it agreed with itself 97.64–97.90 %
+but with R only 96.44–96.79 %, a point short of its own ceiling. That point was
+the parameter difference.
 
 ### Taking the RNG out, so the algorithm can be checked exactly
 
@@ -208,16 +222,17 @@ exhausts the largest.
 
 ### Three programs in one call, at non-default settings
 
-Everything above runs one program at a time at `nbin = 24, ctrl = 100`. Scoring
+Everything above runs one program at a time at `nbin = 24`, with `ctrl` at
+Seurat's 40 for the cell cycle and 100 for the interferon program. Scoring
 S, G2/M and interferon in a single call at `nbin = 12, ctrl = 40` exercises both
 the multi-program path and settings nothing had used: Pearson 0.9972 / 0.9988 /
 0.9986, with column order preserved. Order is the part worth pinning — programs
 are identified by position alone, so a transposition would leave every
 correlation high and every label wrong.
 
-The scores correlate at Pearson ≥ 0.998 — the algorithm is faithfully ported, and
+The scores correlate at Pearson ≥ 0.997 — the algorithm is faithfully ported, and
 the only reason the numbers are not bit-identical is the random control set.
-**96.62 % of cells get the same phase call**, and the ~3.4 % that differ sit right
+**95.86 % of cells get the same phase call**, and the ~4.1 % that differ sit right
 on the phase boundary (`S.Score` or `G2M.Score` near 0), where the small
 RNG-driven score shift tips the discrete call one way or the other — the same
 boundary-sensitivity as Mixscape's weak guides. **No defect found**:

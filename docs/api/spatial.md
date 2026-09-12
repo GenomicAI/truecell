@@ -14,7 +14,8 @@ and `Molecules` boundaries, or a `VisiumV2` holding the H&E image and its
 
 `find_spatially_variable_features` computes Moran's I on R's inverse-square
 distance weights, not on a kNN graph. Those give different answers, and the kNN
-version was the bug.
+version was the bug. Like `FindSpatiallyVariableFeatures` on an object, it reads
+`scale.data` unless given `layer="data"`.
 
 ## Loading
 

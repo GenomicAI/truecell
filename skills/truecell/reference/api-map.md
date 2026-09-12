@@ -211,7 +211,7 @@ required for every method.
 add_module_score(seurat, features, pool=None, nbin=24, ctrl=100, name="Cluster",
                  assay=None, layer="data", seed=1, search=False)
 cell_cycle_scoring(seurat, s_features=None, g2m_features=None, assay=None,
-                   layer="data", set_ident=False, nbin=24, ctrl=100, seed=1)
+                   layer="data", set_ident=False, nbin=24, ctrl=None, seed=1)
 CC_GENES     # the Tirosh 2016 human S / G2M sets, used when the args are None
 ```
 
@@ -230,7 +230,7 @@ calc_perturb_sig(seurat, assay="RNA", features=None, layer="data", labels="gene"
                  nt_class="NT", split_by=None, num_neighbors=20, reduction="pca",
                  ndims=15, new_assay="PRTB")
 run_mixscape(seurat, assay="PRTB", labels="gene", nt_class="NT", de_assay="RNA",
-             layer="data", min_de_genes=5, min_cells=5, logfc_threshold=0.25,
+             layer="scale.data", min_de_genes=5, min_cells=5, logfc_threshold=0.25,
              min_pct=0.05, pval_cutoff=0.05, iter_num=10, prtb_type="KO",
              new_class="mixscape_class", de_test="wilcox", seed=0, verbose=False)
 mixscape_lda(seurat, labels="gene", nt_class="NT", assay="PRTB", de_assay="RNA",
@@ -263,7 +263,7 @@ local_neighborhood(seurat, group_by, reference=None, k=10, image=None) -> pd.Dat
 build_niche_assay(seurat, group_by, image=None, k=20, niches=4, assay_name="niche",
                   cluster=True, seed=0)
 find_spatially_variable_features(seurat, features=None, method="moransi", k=10,
-                                 weights="inverse_square", assay=None, layer=None,
+                                 weights="inverse_square", assay=None, layer="scale.data",
                                  image=None, r_metric=5.0, bandwidth=1.0) -> pd.DataFrame
 composition_test(seurat, group_by, split_by, reference=None) -> pd.DataFrame
 ```
