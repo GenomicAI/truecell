@@ -99,11 +99,15 @@ comparison, match the summation, not just the formula's shape.
 ## Filters
 
 ```python
-truecell.find_markers(obj, ident_1="1", min_pct=0.1, logfc_threshold=0.25, only_pos=False)
+truecell.find_markers(obj, ident_1="1", min_pct=0.01, logfc_threshold=0.1, only_pos=False)
 ```
 
-- `min_pct=0.1` — the gene must be detected in ≥10 % of cells in **either** group.
-- `logfc_threshold=0.25` — |log2FC| floor, applied **before** testing. It is a
+These are Seurat 5's defaults. Seurat 4 used `min_pct=0.1` and
+`logfc_threshold=0.25`; pass those explicitly to reproduce an analysis run on it.
+
+- `min_pct=0.01` — the gene must be detected in ≥1 % of cells in **either** group.
+  The fraction is rounded to three decimals first, exactly as Seurat rounds it.
+- `logfc_threshold=0.1` — |log2FC| floor, applied **before** testing. It is a
   speed filter with statistical consequences: raise it and you lose genuinely
   significant small-effect genes.
 - `only_pos=True` — up in group 1 only. Standard for cluster markers.

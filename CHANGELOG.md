@@ -18,8 +18,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`tools/compare_defaults.py`: every default checked against Seurat's.** It
+  reads the formals of the 83 Seurat and SeuratObject functions behind 67 ported
+  ones, dumped from Seurat 5.5.1 into `tests/data/seurat_formals.json`, and
+  `tests/test_default_parity.py` fails on any shared argument whose default
+  differs without a written reason, and on a reason that no longer describes a
+  live difference. Beyond the marker thresholds below it found 52 differences:
+  11 the same value spelled differently, 14 plotting choices, 6 arguments Seurat
+  gives a default and truecell requires, 12 kept on purpose, and 9 real
+  mismatches that the next changes in this series fix (`run_umap`'s metric and
+  key, `run_ica`'s key, `cell_cycle_scoring`'s control-gene count,
+  `dim_heatmap`'s cell count, the mixscape and Moran's I layers, integration
+  anchor features, and `find_clusters`' resolution).
+
 ### Changed
 
+- **BREAKING: `find_markers`, `find_all_markers` and `find_conserved_markers`
+  default to Seurat 5's `min_pct=0.01` and `logfc_threshold=0.1`.** They carried
+  Seurat 4's 0.1 and 0.25, so a default call returned fewer genes than
+  `FindMarkers` or `FindAllMarkers` did. Calls that pass both thresholds are
+  unaffected.
+- **BREAKING: marker tables come back in Seurat 5.5.1's row order.** Rows sort by
+  `p_val` and then by the larger `|pct.1 - pct.2|`, as both `FindMarkers` and
+  `FindAllMarkers` do. `find_all_markers` broke ties on descending `avg_log2FC`,
+  older Seurat's rule, and `find_markers` did not break them at all. The strongest
+  markers are the ones that tie, so this decides "the top N". `roc` tables sort
+  by `power` and then `myAUC`.
+- **`pct.1` and `pct.2` are rounded to three decimals, as Seurat's `FoldChange`
+  rounds them, before `min_pct` filters on them.** R's rounding is neither
+  numpy's nor Python's — over all 11,624 fractions k/n tried, numpy's `round`
+  differed on 260 and Python's on 234 — so it is reproduced exactly. A gene in 19
+  of 2,000 cells now passes `min_pct=0.01`, as in Seurat.
+- **`find_all_markers(test_use="roc")` filters on `myAUC` at Seurat's 0.7.**
+  Seurat swaps its default `return.thresh` of 0.01 for 0.7 when the test is ROC;
+  truecell kept every gene with an AUC above 0.01 or below 0.99, which is nearly
+  all of them.
 - **BREAKING: feature names are rewritten the way Seurat rewrites them.**
   `create_truecell_object`, `create_assay_object` and `create_assay5_object` now
   replace `_` and `|` in the feature names they are given with `-`, and warn,
