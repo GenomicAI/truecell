@@ -153,6 +153,14 @@ obj   = from_anndata(adata, assay="RNA", spatial_key="spatial", fov_key="fov")
 **Orientation flips.** truecell/Seurat store features × cells; AnnData stores
 cells × features. The conversion handles it — don't transpose by hand on top.
 
+**Space travels in Scanpy's layout.** `obsm["spatial"]` holds one (x, y) per cell,
+from the first image that places it (NaN if none does); `obs["fov"]` names that image;
+`uns["spatial"][name]` holds a `VisiumV2`'s tissue image and scale factors. That is
+what Squidpy reads, and `from_anndata` rebuilds the same images from it, including a
+file `scanpy.read_visium` wrote. Cell polygons and molecules have nowhere to go in
+AnnData and stay behind; a segmentation-only image is written at its centroids.
+Pass `assay=` on the way back — `from_anndata` does not read it from `uns`.
+
 ## Subsetting
 
 ```python

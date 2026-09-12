@@ -153,10 +153,30 @@ if your slide comes out mirrored against the source viewer.
 Use `image_*` for imaging-based platforms (Xenium/CosMx/MERSCOPE) and
 `spatial_*` for Visium, where there is a tissue image to draw under the spots.
 
+## Handing off to Scanpy, Squidpy or SpatialData
+
+```python
+from truecell.compat.anndata import as_anndata, from_anndata
+
+adata = as_anndata(obj)                     # obsm["spatial"], obs["fov"], uns["spatial"]
+obj = from_anndata(adata, assay="Xenium")   # images rebuilt, a VisiumV2 included
+```
+
+`as_anndata` writes space in Scanpy's layout. `obsm["spatial"]` holds each cell's point,
+from the first image that places it, and `obs["fov"]` names that image. A Visium image's
+tissue photo and scale factors go to `uns["spatial"][image]`. On 10x's mouse-brain slide
+the result is identical to `scanpy.read_visium`'s, so `sc.pl.spatial` works on it, and
+`from_anndata` reads a `read_visium` file back into a `VisiumV2`. An image with only a
+segmentation is written at `Segmentation.as_centroids()`, SeuratObject's centroid. Cell
+polygons and molecules have no place in AnnData. For SpatialData, build shapes and a
+table from the `as_anndata` result: the docs page *AnnData, Scanpy and SpatialData* has
+the recipes, checked through zarr.
+
 ## Traps
 
 | Symptom | Cause |
 |---|---|
+| `from_anndata` gives an `RNA` assay on a Xenium file | Pass `assay=`; it is not read from `uns`. |
 | `obj.images` empty after loading | Wrong path level — point at the directory holding the matrix and `spatial/`, not one above. |
 | Plot is mirrored vertically | `flip_y`; toggle it. |
 | `find_spatially_variable_features` never returns | `weights="inverse_square"` is O(n²) over all cells. Restrict `features=`, or use `weights="knn"` and note the approximation. |
@@ -169,3 +189,4 @@ Use `image_*` for imaging-based platforms (Xenium/CosMx/MERSCOPE) and
 - [Xenium spatial](https://genomicai.github.io/truecell/tutorials/xenium_spatial_tutorial/) — verified to 8 s.f. against R Seurat.
 - [Spatial statistics & the container](https://genomicai.github.io/truecell/tutorials/svf_vignette/) — 38 of 39 anchors exact.
 - [Visium](https://genomicai.github.io/truecell/tutorials/visium_vignette/) — 24 of 24 anchors, and the radius finding.
+- [AnnData, Scanpy and SpatialData](https://genomicai.github.io/truecell/interop/) — what `as_anndata` carries, checked against `scanpy.read_visium`, and the SpatialData recipes.

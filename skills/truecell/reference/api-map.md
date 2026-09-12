@@ -53,9 +53,14 @@ Everything caches to `~/.truecell_data/` (~770 MB for the full set).
 
 ```python
 from truecell.compat.anndata import as_anndata, from_anndata
-as_anndata(seurat, assay=None)
-from_anndata(adata, assay="RNA", spatial_key="spatial", fov_key="fov") -> Truecell
+as_anndata(seurat, assay=None, spatial_key="spatial", fov_key="fov")
+from_anndata(adata, assay="RNA", spatial_key="spatial", fov_key="fov",
+             image_resolution="lowres") -> Truecell
 ```
+
+Space goes both ways in Scanpy's layout: `obsm["spatial"]` (x, y per cell),
+`obs["fov"]` (the image), `uns["spatial"][library]` (a `VisiumV2`'s image and scale
+factors). `Segmentation.as_centroids()` is SeuratObject's `as(seg, "Centroids")`.
 
 ## Preprocessing
 

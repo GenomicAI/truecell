@@ -242,8 +242,10 @@ def create_fovs(
 
     ``coords`` must have columns ``x, y, cell``. When ``fov`` is given (a column
     name in ``coords`` or a per-row array of labels) the cells are split into one
-    FOV per distinct label — matching a multi-FOV Xenium/CosMx run. Otherwise a
-    single FOV named ``default_name`` is returned.
+    FOV per distinct label — matching a multi-FOV Xenium/CosMx run. The FOVs come
+    in order of first appearance, or in category order when the labels are
+    categorical, which is how ``as_anndata`` records the order of the images.
+    Otherwise a single FOV named ``default_name`` is returned.
 
     Shared by the spatial loaders and ``from_anndata`` so both build identical,
     accessor-ready ``seurat.images`` structures.
@@ -260,14 +262,20 @@ def create_fovs(
     if isinstance(fov, str):
         if fov not in coords.columns:
             raise ValueError(f"fov column '{fov}' not in coords.")
-        labels = coords[fov].astype(str).to_numpy()
+        series = coords[fov]
     else:
-        labels = pd.Series(fov).astype(str).to_numpy()
-        if len(labels) != len(coords):
+        series = pd.Series(fov)
+        if len(series) != len(coords):
             raise ValueError("fov label length must match number of rows in coords.")
+    labels = series.astype(str).to_numpy()
+    names = list(pd.unique(labels))
+    if isinstance(series.dtype, pd.CategoricalDtype):
+        present = set(names)
+        ordered = [c for c in series.cat.categories.astype(str) if c in present]
+        names = ordered + [n for n in names if n not in set(ordered)]
 
     images: dict[str, FOV] = {}
-    for name in pd.unique(labels):
+    for name in names:
         sub = coords.loc[labels == name, ["x", "y", "cell"]]
         safe = str(name).replace(" ", "_")
         images[safe] = create_fov(sub, type_="centroids", assay=assay, key=f"{safe}_")

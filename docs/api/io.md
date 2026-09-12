@@ -31,6 +31,10 @@ run on, which is what makes each tutorial reproducible from a clean machine.
 
 ## AnnData interoperability
 
+Both functions live on `truecell.compat.anndata`, not on the top-level package.
+[AnnData, Scanpy and SpatialData](../interop.md) covers what carries across, spatial
+data included, and how to build a SpatialData object from the result.
+
 ::: truecell.compat.anndata.as_anndata
 
 ::: truecell.compat.anndata.from_anndata

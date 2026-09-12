@@ -200,6 +200,7 @@ nav:
       - index.md
       - installation.md
       - quickstart.md
+      - interop.md
       - fidelity.md
   - Tutorials:
       - tutorials/README.md
