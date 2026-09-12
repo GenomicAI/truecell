@@ -31,7 +31,7 @@ def _clean_table() -> pd.DataFrame:
         "t":        (50, 1.000000, 6.44e-15, np.nan),
         "bimod":    (50, 1.000000, 6.44e-15, np.nan),
         "LR":       (50, 1.000000, 6.44e-15, np.nan),
-        "negbinom": (50, 0.921672, 6.44e-15, np.nan),
+        "negbinom": (50, 0.999999, 6.44e-15, np.nan),
         "poisson":  (50, 0.999998, 6.22e-15, np.nan),
         "roc":      (np.nan, np.nan, 6.44e-15, 4.9986e-4),
         "mast":     (50, 0.998013, 6.44e-15, np.nan),

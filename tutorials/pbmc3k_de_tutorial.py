@@ -38,10 +38,12 @@ Two defects, both fixed here.
    the **Wald** p-value off the group coefficient. truecell used a fixed
    method-of-moments dispersion and a **likelihood-ratio** test: a different
    estimator *and* a different statistic. It read HLA-DRA at 5.5e-128 against
-   R's 1.1e-321. After the fix the p-values agree **exactly** (median |log10
-   ratio| 0.000) for every gene detected above 5 %; what disagreement remains
-   sits below that, where the negative-binomial GLM is fitting almost-empty rows
-   and Seurat's own ``min.cells.feature`` drops the genes anyway.
+   R's 1.1e-321. The first fix called statsmodels' ``NegativeBinomial``, whose
+   BFGS fit failed on some genes, and on different ones in different statsmodels
+   versions: 49/50 on the top 50 under 0.15.0. truecell now fits glm.nb's
+   estimator itself (``truecell/_glm_nb.py``). Above 5 % detection the p-values
+   agree to a median 2e-10 decades, and no gene lands on the other side of
+   ``p_val_adj`` = 0.05; the same bits come out under statsmodels 0.14.6 and 0.15.0.
 
 Added later: ``poisson``
 ------------------------
@@ -176,10 +178,10 @@ BANDS: dict[str, Band] = {
         ("t", 0.9999, "Identical Welch t; measured exactly 1.0."),
         ("bimod", 0.9999, "Identical likelihood-ratio test; measured exactly 1.0."),
         ("LR", 0.9999, "Identical logistic-regression LRT; measured exactly 1.0."),
-        ("negbinom", 0.88,
-         "Both fit a negative-binomial GLM but not with the same optimiser, so "
-         "the agreement is high rather than exact: 0.9217 here; 0.9165 before "
-         "pct was rounded as Seurat rounds it, and 0.9194 before that."),
+        ("negbinom", 0.9999,
+         "truecell fits glm.nb's own estimator, theta and coefficients by "
+         "maximum likelihood: 0.9999991. It read 0.9217, against a floor of "
+         "0.88, while it ran statsmodels' BFGS fit."),
         ("poisson", 0.9999,
          "Identical Poisson GLM Wald test; measured 0.9999984. The residual is "
          "R's glm.control(epsilon = 1e-8) stopping an iteration early, not a "

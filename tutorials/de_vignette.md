@@ -40,7 +40,7 @@ would look exactly like a DE difference.
 | **Tests reproducing Seurat's top 50 genes** | **8 of 8** p-value tests (`roc` scores AUC, not p) |
 | `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999980 · 0.999994 · 0.999975 |
 | `mast` — Spearman (all genes / detected >5%) | 0.9469 / **0.9980** |
-| `negbinom` — Spearman (all genes / detected >5%) | 0.6943 / **0.9217** |
+| `negbinom` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999991** |
 | `poisson` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999984** |
 | `deseq2` — Spearman (all genes / detected >5%) | 0.9983 / **0.9999995**, and the same 726 genes at `p_val_adj < 0.05` |
 | `roc` — max abs AUC difference | 5.0e-04, which is Seurat's own 3-dp rounding |
@@ -309,23 +309,29 @@ coefficient (`summary(...)$coef[2, 4]`). truecell used a fixed method-of-moments
 dispersion and a **likelihood-ratio** test: a different estimator *and* a
 different statistic. HLA-DRA read **5.5e-128** against R's **1.1e-321**.
 
-After the fix the p-values agree **exactly** for every gene anyone would look at:
+The first fix called statsmodels' `NegativeBinomial`. That agreed with R only on
+genes detected above 5 % (Spearman 0.92 there, 0.69 over every gene), and it had
+a second problem, found later: its BFGS optimiser collapsed theta, or stopped
+unconverged, on some genes, and which genes moved with the statsmodels version.
+The Frontiers revision's fresh install, on statsmodels 0.15.0, read 49 of the top
+50. truecell now fits glm.nb's estimator itself (`truecell/_glm_nb.py`), IRLS for
+the coefficients alternating with maximum likelihood for theta. Its output is
+the same bits under statsmodels 0.14.6 and 0.15.0, and against R:
 
 | detection (max of the two groups) | genes | median \|log10 ratio\| | Spearman |
 |---|---|---|---|
-| > 25 % | 980 | **0.000** | 0.988 |
-| 10 – 25 % | 1,519 | **0.000** | 0.933 |
-| 5 – 10 % | 1,919 | **0.000** | 0.773 |
-| 1 – 5 % | 5,120 | 0.063 | 0.285 |
-| < 1 % | 1,928 | 0.144 | 0.085 |
+| > 25 % | 962 | 2e-10 | **1.0000** |
+| 10 – 25 % | 1,525 | 6e-11 | **1.0000** |
+| 5 – 10 % | 1,850 | 4e-10 | **1.0000** |
+| 1 – 5 % | 4,973 | 3e-6 | 0.9999 |
+| < 1 % | 2,144 | 1e-5 | 0.9875 |
 
-What disagreement remains sits below 5 % detection, where the negative-binomial
-GLM is fitting almost-empty rows and neither tool is estimating anything
-meaningful. Seurat agrees: its `min.cells.feature` default drops those genes, and
-in this run R returned 11,466 genes against truecell's 13,714 — **every one of the
-2,248 it dropped was below 1 % detection in both groups** (the highest reached
-0.4 %). The headline Spearman of 0.69 is that tail; on genes Seurat would
-actually have tested, it is 0.92.
+No gene anywhere differs by more than 0.006 decades, and none lands on the other
+side of `p_val_adj` = 0.05 or 0.01. The small spread left is in near-empty genes,
+which Seurat does not report anyway: its `min.cells.feature` default drops them,
+and in this run R returned 11,466 genes against truecell's 13,714 — **every one of
+the 2,248 it dropped was below 1 % detection in both groups** (the highest reached
+0.4 %).
 
 ### Differences left standing, and why
 
@@ -364,7 +370,7 @@ previous version of this note called them.
 | `t` | 13,714 | 6.2e-15 | 0.999980 | 1.0000 | 50/50 |
 | `bimod` | 13,714 | 6.2e-15 | 0.999994 | 1.0000 | 50/50 |
 | `LR` | 13,714 | 6.2e-15 | 0.999975 | 1.0000 | 50/50 |
-| `negbinom` | 11,466 | 6.2e-15 | 0.694340 | **0.9217** | 50/50 |
+| `negbinom` | 11,466 | 6.2e-15 | 0.999598 | **1.0000** | 50/50 |
 | `roc` | 13,714 | 6.2e-15 | *AUC 5.0e-04* | — | — |
 | `mast` | 13,714 | 6.2e-15 | 0.946873 | **0.9980** | 50/50 |
 | `deseq2` | 13,714 | 6.2e-15 | 0.998317 | **1.0000** | 50/50 |
@@ -374,13 +380,13 @@ previous version of this note called them.
 > the truecell side, until its factories adopted Seurat's `_` → `-` rule. Only
 > the `mast` and `deseq2` all-gene Spearman moved with them.
 
-> The detected >5 % column moved for `negbinom` (0.9165 → 0.9217) and `mast`
-> (0.9979 → 0.9980) when truecell began rounding
+> The detected >5 % column moved for `mast` (0.9979 → 0.9980), and for `negbinom`
+> before its fit was replaced, when truecell began rounding
 > `pct.1` and `pct.2` to three decimals, as Seurat's `FoldChange` does. That
 > column's genes are picked from the Python table's detection rates, and 69 genes
 > detected in exactly 26 of cluster 1's 515 cells (5.05 %, which Seurat reports
 > as 0.050) had been let in on that rate alone. Both tables now carry identical
-> rates and pick the same 4,349 genes.
+> rates, so both pick the same genes.
 
 > The last digits of these moved slightly when the CSV round-trip was fixed (see
 > *The two columns a person actually reads*, below): they had been read back
@@ -403,7 +409,7 @@ out that the max-difference bound and a set overlap answer neither question.
 | `t` | **1.000000** | **1.000000** | 50/50 | 0.9999 | **1.0000** | 0 |
 | `bimod` | **1.000000** | **1.000000** | 50/50 | 0.9997 | 0.9999 | 2 |
 | `LR` | **1.000000** | **1.000000** | 50/50 | 0.9915 | **1.0000** | 0 |
-| `negbinom` | **1.000000** | **1.000000** | 50/50 | 0.8547 | 0.9958 | 48 |
+| `negbinom` | **1.000000** | **1.000000** | 50/50 | 0.9819 | **1.0000** | 0 |
 | `roc` | **1.000000** | **1.000000** | 50/50 | — | — | — |
 | `mast` | **1.000000** | **1.000000** | 50/50 | 0.7985 | 0.9895 | 144 |
 | `deseq2` | **1.000000** | **1.000000** | 50/50 | 0.9400 | **1.0000** | 0 |
@@ -420,7 +426,7 @@ stating rather than the rate. The *correction* is identical — both tools compu
 p-values feeding it differ by up to **0.54 % relative** on `wilcox`, a real
 difference between SciPy's Wilcoxon and Seurat's, so the product rarely lands on
 the same double. What survives that is what matters: the ordering is exact, and
-**every gene** falls on the same side of 0.05 for `wilcox`, `t`, `LR` and `deseq2`.
+**every gene** falls on the same side of 0.05 for `wilcox`, `t`, `LR`, `negbinom` and `deseq2`.
 
 Two traps in measuring this, both of which had to be fixed before the numbers
 above meant anything:
@@ -454,7 +460,7 @@ if one falls outside:
 |---|---|---|
 | top 50, the eight p-value tests | **= 50** | Same statistic, same cells. One dropped gene is a regression. At `deseq2`'s cut the 50th and 51st genes sit 0.97 decades apart in both tools, and no gene within three ranks of it differs by more than 0.12. |
 | p Spearman >5 %, `wilcox`/`t`/`bimod`/`LR` | **≥ 0.9999** | Measured at exactly 1.0. |
-| p Spearman >5 %, `negbinom` | **≥ 0.88** | Same model, different optimiser: 0.9217. |
+| p Spearman >5 %, `negbinom` | **≥ 0.9999** | glm.nb's own estimator: 0.9999991. It was 0.9217, and set at ≥ 0.88, while `negbinom` ran statsmodels' fit. |
 | p Spearman >5 %, `mast` | **≥ 0.99** | A hand-rolled hurdle model, not the MAST package: 0.9980. |
 | p Spearman >5 %, `deseq2` | **≥ 0.9999** | DESeq2's Wald test on the same cells: 0.9999995. |
 | max \|Δlog2FC\|, every test | **≤ 1e-12** | Arithmetic on the shared matrix, and every test, `deseq2` included, reports Seurat's fold change. |
@@ -475,8 +481,9 @@ Seurat's three-decimal rounding and no worse. They differed for **12,491 of
 13,712 genes**.
 
 Runtime, for scale: Seurat's slowest test here is `negbinom` at 91.8 s
-(`MAST` 60.5 s, `DESeq2` 60.3 s); truecell's are 35.7 s, 28.1 s and 7.4 s, the
-last now per cell as Seurat's is.
+(`MAST` 60.5 s, `DESeq2` 60.3 s); truecell's are 49.1 s, 28.0 s and 7.3 s.
+`negbinom` took 35.7 s while it ran statsmodels' fit, and `DESeq2` is now per cell,
+as Seurat's is.
 
 ---
 

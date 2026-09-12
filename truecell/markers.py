@@ -129,20 +129,21 @@ def _lr_pvalue(expr: np.ndarray, group: np.ndarray, latent: Optional[np.ndarray]
 def _negbinom_pvalue(counts: np.ndarray, group: np.ndarray, latent: Optional[np.ndarray]) -> float:
     """Negative-binomial GLM Wald test on counts (Seurat's 'negbinom').
 
-    Seurat's ``GLMDETest`` fits ``MASS::glm.nb`` — which estimates the dispersion
+    Seurat's ``GLMDETest`` fits ``MASS::glm.nb`` — theta and the coefficients both
     by **maximum likelihood** — and reads the **Wald** p-value off the group
-    coefficient (``summary(...)$coef[2, 4]``). ``statsmodels``'
-    ``NegativeBinomial`` does the same job: it profiles out alpha by ML rather
-    than taking it as given.
+    coefficient (``summary(...)$coef[2, 4]``). :mod:`truecell._glm_nb` fits that
+    estimator, and its docstring says why it is not ``statsmodels``'
+    ``NegativeBinomial``: that fit's answer on some genes moved with the
+    statsmodels version.
 
-    This replaced a fixed method-of-moments dispersion plus a likelihood-ratio
-    test, which is a different estimator *and* a different statistic. On pbmc3k
-    it read HLA-DRA at 5.5e-128 against R's 1.1e-321 — the ordering of the top
-    genes largely survived (Spearman 0.94 on expressed genes), but the values did
-    not, and anyone thresholding on p or comparing against an R run saw numbers
-    that were wrong by ~190 orders of magnitude.
+    Before that, a fixed method-of-moments dispersion plus a likelihood-ratio
+    test stood here, which is a different estimator *and* a different statistic.
+    On pbmc3k it read HLA-DRA at 5.5e-128 against R's 1.1e-321 — the ordering of
+    the top genes largely survived (Spearman 0.94 on expressed genes), but the
+    values did not, and anyone thresholding on p or comparing against an R run
+    saw numbers that were wrong by ~190 orders of magnitude.
     """
-    import statsmodels.api as sm
+    from ._glm_nb import wald_pvalue
 
     y = counts.astype(float)
     if y.mean() <= 0:
@@ -154,11 +155,8 @@ def _negbinom_pvalue(counts: np.ndarray, group: np.ndarray, latent: Optional[np.
         cols.append(latent)
     X = np.column_stack(cols)
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            fit = sm.NegativeBinomial(y, X).fit(disp=0, maxiter=200)
-        p = float(fit.pvalues[1])
-    except Exception:
+        p = wald_pvalue(y, X)
+    except (np.linalg.LinAlgError, ValueError, FloatingPointError):
         return 1.0
     # glm.nb can fail to converge on near-empty genes; R drops those rows, and a
     # non-finite p here means the same thing — no evidence, not strong evidence.
