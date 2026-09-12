@@ -18,6 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: feature names are rewritten the way Seurat rewrites them.**
+  `create_truecell_object`, `create_assay_object` and `create_assay5_object` now
+  replace `_` and `|` in the feature names they are given with `-`, and warn,
+  as SeuratObject's `CreateAssayObject` and `CreateAssay5Object` do (both
+  through `CheckFeaturesNames`). The same gene used to carry two names across
+  the tools — pbmc3k's `Y-RNA` in Seurat against `Y_RNA` here — so a ported
+  script selecting it by name raised `KeyError`, and every cross-tool gene-set
+  comparison counted it as a disagreement. On pbmc3k two such genes survive
+  filtering, so the DE tutorial now compares 13,714 genes with Seurat rather
+  than 13,712. Names generated for an unnamed matrix (`feature_0`, ...) are left
+  alone, since Seurat always has rownames, and `from_anndata` keeps names exactly
+  as the AnnData holds them, so a round trip renames nothing. The underscore
+  half had sat on an unmerged branch since August; the Frontiers revision found
+  it had never shipped.
+
 ### Fixed
 
 - **`subset(cells=...)` left the object misaligned whenever the cells were not

@@ -14,7 +14,7 @@ def small_counts():
 
 @pytest.fixture
 def feature_names():
-    return [f"gene_{i}" for i in range(50)]
+    return [f"gene-{i}" for i in range(50)]
 
 
 @pytest.fixture

@@ -29,7 +29,7 @@ def spatial_seurat():
     rng = np.random.default_rng(0)
     n, g = 40, 15
     counts = sp.csc_matrix(rng.poisson(1.0, size=(g, n)).astype(float))
-    feats = [f"gene_{i}" for i in range(g)]
+    feats = [f"gene-{i}" for i in range(g)]
     cells = [f"cell_{i}" for i in range(n)]
     obj = create_truecell_object(counts, assay="Xenium", feature_names=feats,
                                cell_names=cells)
@@ -186,7 +186,7 @@ def test_image_plots_return_figures(spatial_seurat):
     from truecell.preprocessing import normalize_data
     normalize_data(spatial_seurat, assay="Xenium")
     fig1 = image_dim_plot(spatial_seurat, group_by="cell_type")
-    fig2 = image_feature_plot(spatial_seurat, "gene_0")
+    fig2 = image_feature_plot(spatial_seurat, "gene-0")
     assert fig1 is not None and fig2 is not None
     assert len(fig1.axes) >= 2          # one panel per FOV (+ maybe colourbar)
 
@@ -256,8 +256,8 @@ def test_load_xenium_drops_control_features(tmp_path):
     # Two real genes + two control-probe rows; controls dropped by default,
     # kept with keep_controls=True (mirrors Seurat's LoadXenium assay split).
     rows = [("KIT", "Gene Expression"), ("TPSAB1", "Gene Expression"),
-            ("NegControlProbe_1", "Negative Control Probe"),
-            ("BLANK_1", "Blank Codeword")]
+            ("NegControlProbe-1", "Negative Control Probe"),
+            ("BLANK-1", "Blank Codeword")]
     cells = [f"cell-{i}" for i in range(4)]
     mat = sp.csc_matrix(np.array([[1, 0, 2, 1],
                                   [0, 1, 1, 0],

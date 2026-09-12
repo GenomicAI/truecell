@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 
 import numpy as np
 import scipy.sparse as sp
@@ -91,4 +92,34 @@ def validate_feature_names(names) -> list[str]:
     names = list(names)
     if not unique_names(names):
         raise ValueError("Feature names must be unique.")
+    return names
+
+
+def sanitize_feature_names(names) -> list[str]:
+    """Replace underscores and pipes with dashes in feature names, as Seurat does.
+
+    SeuratObject's ``CheckFeaturesNames``, which ``CreateAssayObject`` and
+    ``CreateAssay5Object`` both call, rewrites any feature name containing ``_``
+    and then any containing ``|``, warning once for each. Without this the same
+    gene carries two different names across the two tools -- Seurat's ``Y-RNA``
+    against ``Y_RNA`` here -- so a script that selects a feature by name
+    silently misses it, and any cross-tool comparison counts it as a mismatch.
+
+    Seurat applies the substitution *after* ``Read10X`` has already made names
+    unique, and does not re-uniquify afterwards. That is matched here rather
+    than improved on: a collision this introduces (``A_B`` and ``A-B`` both
+    becoming ``A-B``) exists in Seurat too, and diverging would trade a rare
+    duplicate for a guaranteed difference from the reference on every dataset
+    carrying an underscore.
+    """
+    names = list(names)
+    # Seurat's order: underscores, then pipes, each with its own warning.
+    for char, label in (("_", "underscores"), ("|", "pipe characters")):
+        if any(char in str(n) for n in names):
+            warnings.warn(
+                f"Feature names cannot have {label} ('{char}'), replacing with dashes ('-')",
+                UserWarning,
+                stacklevel=3,
+            )
+            names = [str(n).replace(char, "-") for n in names]
     return names

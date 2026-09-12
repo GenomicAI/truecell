@@ -59,7 +59,7 @@ library(Seurat)
 
 cells <- readLines("figures_sketch/cells.txt")
 hvg   <- readLines("figures_sketch/hvg_features.txt")
-hvg   <- gsub("_", "-", hvg)      # Read10X rewrites underscores
+hvg   <- gsub("_", "-", hvg)      # Seurat's spelling of feature names
 
 ifnb <- CreateSeuratObject(Read10X(DATA), min.cells = 3)
 ifnb <- subset(ifnb, cells = cells)

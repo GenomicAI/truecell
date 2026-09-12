@@ -895,7 +895,7 @@ python  tutorials/generate_de_plots.py
 | `py_02_threshold_impact.png` | Genes returned at each `logfc_threshold`, truecell vs R |
 | `py_03_test_concordance.png` | All eight tests against Seurat |
 
-**Accuracy vs R** (13,712 shared genes):
+**Accuracy vs R** (13,714 shared genes):
 
 | Comparison | Agreement |
 |---|---:|

@@ -36,10 +36,10 @@ would look exactly like a DE difference.
 
 | Metric | Result |
 |---|---|
-| **`avg_log2FC` vs Seurat**, all 13,712 shared genes | **max abs diff 6.44e-15** |
+| **`avg_log2FC` vs Seurat**, all 13,714 shared genes | **max abs diff 6.44e-15** |
 | **Tests reproducing Seurat's top 50 genes** | **7 of 7** per-cell p-value tests (`roc` scores AUC, not p; `deseq2` is pseudobulk) |
 | `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999980 · 0.999994 · 0.999975 |
-| `mast` — Spearman (all genes / detected >5%) | 0.9471 / **0.9979** |
+| `mast` — Spearman (all genes / detected >5%) | 0.9469 / **0.9979** |
 | `negbinom` — Spearman (all genes / detected >5%) | 0.6943 / **0.9165** |
 | `poisson` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999984** |
 | `roc` — max abs AUC difference | 5.0e-04, which is Seurat's own 3-dp rounding |
@@ -228,7 +228,7 @@ The most telling part: where **both** groups express a gene, the two formulas
 nearly agree (Spearman 0.990 on the 1,362 genes with pct > 0.1 in both). The
 error was concentrated in sparse, marker-like genes — precisely what
 differential expression exists to find. After the fix, **6.44e-15 across all
-13,712 genes**.
+13,714 genes**.
 
 **There was already a test for this.** `test_avg_log2fc_matches_seurat_formula`
 re-implemented the same wrong formula and checked that truecell agreed with
@@ -302,14 +302,19 @@ previous version of this note called them.
 
 | Test | Genes | max \|Δlog2FC\| | p Spearman (all) | p Spearman (detected >5 %) | Top 50 |
 |---|---|---|---|---|---|
-| `wilcox` | 13,712 | 6.2e-15 | **1.000000** | 1.0000 | 50/50 |
-| `t` | 13,712 | 6.2e-15 | 0.999980 | 1.0000 | 50/50 |
-| `bimod` | 13,712 | 6.2e-15 | 0.999994 | 1.0000 | 50/50 |
-| `LR` | 13,712 | 6.2e-15 | 0.999975 | 1.0000 | 50/50 |
+| `wilcox` | 13,714 | 6.2e-15 | **1.000000** | 1.0000 | 50/50 |
+| `t` | 13,714 | 6.2e-15 | 0.999980 | 1.0000 | 50/50 |
+| `bimod` | 13,714 | 6.2e-15 | 0.999994 | 1.0000 | 50/50 |
+| `LR` | 13,714 | 6.2e-15 | 0.999975 | 1.0000 | 50/50 |
 | `negbinom` | 11,466 | 6.2e-15 | 0.694340 | **0.9165** | 50/50 |
-| `roc` | 13,712 | 6.2e-15 | *AUC 5.0e-04* | — | — |
-| `mast` | 13,712 | 6.2e-15 | 0.947038 | **0.9979** | 50/50 |
-| `deseq2` | 13,712 | *3.47* | 0.476942 | 0.1959 | 22/50 |
+| `roc` | 13,714 | 6.2e-15 | *AUC 5.0e-04* | — | — |
+| `mast` | 13,714 | 6.2e-15 | 0.946873 | **0.9979** | 50/50 |
+| `deseq2` | 13,714 | *3.47* | 0.476989 | 0.1959 | 22/50 |
+
+> 13,714 rather than the 13,712 an earlier version of this table showed: two
+> genes, `Y-RNA` and `RP11-442N24--B.1`, used to be spelled with underscores on
+> the truecell side, until its factories adopted Seurat's `_` → `-` rule. Only
+> the `mast` and `deseq2` all-gene Spearman moved with them.
 
 > The last digits of these moved slightly when the CSV round-trip was fixed (see
 > *The two columns a person actually reads*, below): they had been read back
@@ -335,8 +340,8 @@ out that the max-difference bound and a set overlap answer neither question.
 | `LR` | **1.000000** | **1.000000** | 50/50 | 0.9915 | **1.0000** | 0 |
 | `negbinom` | **1.000000** | **1.000000** | 50/50 | 0.8547 | 0.9958 | 48 |
 | `roc` | **1.000000** | **1.000000** | 50/50 | — | — | — |
-| `mast` | **1.000000** | **1.000000** | 50/50 | 0.7984 | 0.9895 | 144 |
-| `deseq2` | 0.966510 | 0.847811 | 34/50 | 0.4314 | 0.8938 | 1,401 |
+| `mast` | **1.000000** | **1.000000** | 50/50 | 0.7985 | 0.9895 | 144 |
+| `deseq2` | 0.966512 | 0.847817 | 34/50 | 0.4314 | 0.8938 | 1,401 |
 
 Rank correlation is reported *alongside* the max-difference bound rather than
 instead of it, because the two fail differently. A uniform scale error leaves
@@ -355,7 +360,7 @@ the same double. What survives that is what matters: the ordering is exact, and
 Two traps in measuring this, both of which had to be fixed before the numbers
 above meant anything:
 
-- **Seurat clamps `p_val_adj` at 1, and 11,858 of 13,712 genes land there.** A
+- **Seurat clamps `p_val_adj` at 1, and 11,860 of 13,714 genes land there.** A
   bare "fraction identical" therefore reads ≈0.87 before a single interesting
   gene is considered. `--report` scores the unclamped subset separately.
 - **Neither side's CSV round-tripped a float64.** R's `write.csv` renders 15

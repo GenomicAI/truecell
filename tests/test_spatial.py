@@ -39,7 +39,7 @@ def mol_coords(cell_names):
     df = pd.DataFrame({
         "x": rng.uniform(0, 100, n),
         "y": rng.uniform(0, 100, n),
-        "gene": [f"gene_{i % 10}" for i in range(n)],
+        "gene": [f"gene-{i % 10}" for i in range(n)],
         "cell": [cell_names[i % 20] for i in range(n)],
     })
     return df

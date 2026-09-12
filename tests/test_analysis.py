@@ -456,7 +456,7 @@ def test_ridge_plot_labels_align_with_rows(small_seurat):
     normalize_data(small_seurat)
     small_seurat.idents = ["A"] * 7 + ["B"] * 7 + ["C"] * 6
 
-    fig = ridge_plot(small_seurat, features=["gene_0"], group_by=None)
+    fig = ridge_plot(small_seurat, features=["gene-0"], group_by=None)
     fig.canvas.draw()
     ax = fig.axes[0]
     labels = [t.get_text() for t in ax.get_yticklabels()]

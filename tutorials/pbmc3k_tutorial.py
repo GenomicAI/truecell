@@ -436,10 +436,12 @@ def _assign_cell_types(
 
 FIGURES = Path(__file__).parent / "figures"
 
-# R's Read10X() rewrites underscores in gene symbols to dashes ("RP11-34P13_3"
-# -> "RP11-34P13-3"); truecell's loader keeps the file's spelling. Map Python's
-# symbols through the same rule before joining, or ~30 genes silently drop out
-# of every per-gene comparison.
+# Seurat's assay constructors rewrite underscores in feature names to dashes
+# ("RP11-34P13_3" -> "RP11-34P13-3"), and truecell's factories now do the same.
+# Mapping through the rule here keeps the join right for names that never passed
+# through a constructor (read straight from the files, or written by an earlier
+# release), where ~30 genes would otherwise silently drop out of every per-gene
+# comparison.
 def _r_symbols(genes) -> list:
     return [str(g).replace("_", "-") for g in genes]
 

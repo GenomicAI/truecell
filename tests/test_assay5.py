@@ -31,20 +31,20 @@ def test_layer_data(small_assay5):
 
 def test_layer_data_subset(small_assay5):
     cells = [f"cell_{i}" for i in range(5)]
-    feats = [f"gene_{i}" for i in range(10)]
+    feats = [f"gene-{i}" for i in range(10)]
     sub = small_assay5.layer_data("counts", cells=cells, features=feats)
     assert sub.shape == (10, 5)
 
 
 def test_variable_features(small_assay5):
-    feats = [f"gene_{i}" for i in range(5)]
+    feats = [f"gene-{i}" for i in range(5)]
     small_assay5.variable_features = feats
     assert small_assay5.variable_features == feats
 
 
 def test_subset(small_assay5):
     cells = [f"cell_{i}" for i in range(5)]
-    feats = [f"gene_{i}" for i in range(10)]
+    feats = [f"gene-{i}" for i in range(10)]
     sub = small_assay5.subset(cells=cells, features=feats)
     assert len(sub.cells()) == 5
     assert len(sub.features()) == 10

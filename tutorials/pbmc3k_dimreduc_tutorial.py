@@ -362,12 +362,13 @@ def build_scoreboard(rows: list[dict]) -> pd.DataFrame:
 
 
 def _r_feature_key(name: str) -> str:
-    """Normalise a feature symbol to how R's ``Read10X`` would have stored it.
+    """Normalise a feature symbol to Seurat's spelling.
 
-    R rewrites underscores in feature names to dashes, so pbmc3k's ``Y_RNA``
-    arrives as ``Y-RNA`` on that side. Comparing the two p-value matrices *by
-    name* rather than by row position means this — and any future reordering or
-    dropped feature — can never silently misalign the comparison.
+    Seurat's assay constructors rewrite underscores in feature names to dashes,
+    so pbmc3k's ``Y_RNA`` is ``Y-RNA`` there — and, now that truecell's factories
+    apply the same rule, here too. Comparing the two p-value matrices *by name*
+    rather than by row position means no reordering or dropped feature can ever
+    silently misalign the comparison.
     """
     return str(name).replace("_", "-")
 

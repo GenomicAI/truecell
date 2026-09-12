@@ -13,7 +13,7 @@ from truecell.preprocessing import normalize_data  # noqa: E402
 
 @pytest.fixture
 def pseudobulk_obj():
-    """120 cells, 40 genes, 6 donors (3 per condition). gene_0 up in A, gene_1 up in B."""
+    """120 cells, 40 genes, 6 donors (3 per condition). gene-0 up in A, gene-1 up in B."""
     rng = np.random.default_rng(0)
     n_genes, per = 40, 20
     cond_of = {"d1": "A", "d2": "A", "d3": "A", "d4": "B", "d5": "B", "d6": "B"}
@@ -27,7 +27,7 @@ def pseudobulk_obj():
         cond_col += [cond] * per
     obj = create_truecell_object(
         counts=sp.csc_matrix(np.hstack(blocks)),
-        feature_names=[f"gene_{i}" for i in range(n_genes)],
+        feature_names=[f"gene-{i}" for i in range(n_genes)],
         cell_names=cells,
     )
     obj.meta_data["donor"] = donor_col
@@ -45,16 +45,16 @@ def test_deseq2_recovers_planted_de_genes(pseudobulk_obj):
         )
 
     assert list(res.columns) == ["p_val", "avg_log2FC", "pct.1", "pct.2", "p_val_adj"]
-    # gene_0 is up in A -> positive LFC and significant.
-    assert res.loc["gene_0", "avg_log2FC"] > 0
-    assert res.loc["gene_0", "p_val_adj"] < 0.05
-    # gene_1 is up in B -> down in A.
-    assert res.loc["gene_1", "avg_log2FC"] < 0
-    assert res.loc["gene_1", "p_val_adj"] < 0.05
+    # gene-0 is up in A -> positive LFC and significant.
+    assert res.loc["gene-0", "avg_log2FC"] > 0
+    assert res.loc["gene-0", "p_val_adj"] < 0.05
+    # gene-1 is up in B -> down in A.
+    assert res.loc["gene-1", "avg_log2FC"] < 0
+    assert res.loc["gene-1", "p_val_adj"] < 0.05
     # A non-DE gene should not be significant.
-    assert res.loc["gene_5", "p_val_adj"] > 0.05
+    assert res.loc["gene-5", "p_val_adj"] > 0.05
     # Sorted by p_val ascending; a planted gene ranks first.
-    assert res.index[0] in {"gene_0", "gene_1"}
+    assert res.index[0] in {"gene-0", "gene-1"}
     assert res["p_val"].is_monotonic_increasing
 
 

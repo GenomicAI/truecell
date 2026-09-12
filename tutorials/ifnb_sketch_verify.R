@@ -74,8 +74,9 @@ if (!all(file.exists(CELLS_TXT, HVG_TXT)))
 # ---- 1. Object on the SHARED cell + feature basis ----------------------------
 cells <- readLines(CELLS_TXT)
 hvg   <- readLines(HVG_TXT)
-# Read10X() rewrites underscores in feature names to dashes; normalise Python's
-# symbols the same way before they are used to index the R object.
+# CreateSeuratObject() rewrites underscores in feature names to dashes, and
+# truecell's factories now do too; normalising Python's symbols the same way keeps
+# a handoff written by an older truecell usable to index the R object.
 hvg <- gsub("_", "-", hvg)
 cat(sprintf("Shared basis from Python: %d cells, %d variable features\n",
             length(cells), length(hvg)))

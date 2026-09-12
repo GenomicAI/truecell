@@ -126,11 +126,12 @@ find_neighbors(obj, dims=list(range(10)))
 </tr>
 </table>
 
-> **Gotcha, and it is not truecell's.** `Read10X` rewrites `_` to `-` in gene
-> symbols — pbmc3k carries `Y_RNA` and a long tail of `RP11-*_*` — while
-> truecell's loader leaves them alone. That belongs to the two file readers, not
-> to the object model, so feature names are compared in R's spelling on both
-> sides rather than failing every field that mentions a gene.
+> **Feature names are rewritten on the way in, in both tools.** Seurat's assay
+> constructors turn `_` (and `|`) into `-` and warn — pbmc3k carries `Y_RNA` and
+> a long tail of `RP11-*_*`. truecell's factories used to keep the file's
+> spelling, so the same gene had two names across the tools; they now apply
+> Seurat's rule and warn the same way. The comparison still reads both sides
+> through that rule, which is a no-op on current output.
 
 ---
 

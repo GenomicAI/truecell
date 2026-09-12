@@ -55,7 +55,7 @@ def test_aggregate_return_object(small_seurat, small_counts):
 
 def test_aggregate_features_subset(small_seurat):
     small_seurat.meta_data["donor"] = ["d1", "d2"] * 10
-    genes = ["gene_0", "gene_5", "gene_9"]
+    genes = ["gene-0", "gene-5", "gene-9"]
     agg = aggregate_expression(small_seurat, group_by="donor", features=genes)
     assert list(agg.index) == genes
 

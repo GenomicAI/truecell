@@ -313,7 +313,7 @@ def label_accuracy(predicted, truth):
 
 
 def _r_feature_key(name):
-    """R's ``Read10X`` rewrites underscores in feature names to dashes."""
+    """Seurat's spelling: its assay constructors (and now truecell's) turn ``_`` into ``-``."""
     return name.replace("_", "-")
 
 
