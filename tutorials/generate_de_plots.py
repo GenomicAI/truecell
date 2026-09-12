@@ -169,11 +169,6 @@ def test_concordance(table):
     ax.legend(fontsize=8, frameon=False, loc="upper center", ncol=2,
               bbox_to_anchor=(0.5, -0.16))
     ax.spines[["top", "right"]].set_visible(False)
-    # negbinom's all-gene bar is far from 1 because of genes nobody tests.
-    for i, t in enumerate(tests):
-        note = {"negbinom": "near-empty genes only"}.get(t)
-        if note:
-            ax.text(1.03, i, note, va="center", fontsize=7.5, color=_R)
     return fig
 
 

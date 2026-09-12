@@ -904,7 +904,7 @@ python  tutorials/generate_de_plots.py
 | Tests reproducing Seurat's top 50 genes | **8 of 8** p-value tests (`roc` is AUC-scored) |
 | `wilcox` / `t` / `bimod` / `LR` — p-value Spearman | 1.000000 / 0.999980 / 0.999994 / 0.999975 |
 | `mast` — Spearman, detected >5 % | **0.9980** |
-| `negbinom` — Spearman, detected >5 % | **0.9217** |
+| `negbinom` — Spearman, detected >5 % | **0.9999991** |
 | `deseq2` — Spearman, detected >5 % | **0.9999995**; the same 726 genes at `p_val_adj` < 0.05 |
 
 **Found and fixed two defects** — `avg_log2FC` put Seurat's pseudocount on

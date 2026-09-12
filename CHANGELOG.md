@@ -167,6 +167,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retained cell carries are now dropped, as `Idents(x, drop = TRUE)` drops them.
 - **`Assay5.subset` and `DimReduc.subset` no longer slow quadratically with the
   number of cells.** Both located every cell with a `list.index` call.
+- **`find_markers(test_use="negbinom")` no longer depends on the statsmodels
+  version, and it is now `glm.nb`'s answer.** Seurat's `GLMDETest` fits
+  `MASS::glm.nb`, which estimates theta and the coefficients by maximum
+  likelihood. truecell called statsmodels' `NegativeBinomial`. Its BFGS fit
+  collapsed theta or stopped unconverged on some genes, and which genes changed
+  with the numpy, scipy and statsmodels versions. Between statsmodels 0.14.6 and
+  0.15.0, the p-values of 39 of PBMC 3k's genes moved by more than 2 %, 8 of them
+  by more than a decade, and the DE tutorial's top 50 fell to 49 of Seurat's under
+  0.15.0. The fit is now truecell's own (`truecell/_glm_nb.py`): IRLS for the
+  coefficients, alternating with maximum likelihood for theta, stopped as
+  `glm.control` stops. Its output is identical to the bit under both versions.
+  Against Seurat on the DE tutorial's clusters:
+  - p-value Spearman on genes detected above 5 % is 0.9999991 (0.9217 before);
+  - no gene falls on the other side of `p_val_adj < 0.05` (48 before);
+  - on the genes the two statsmodels versions disagreed on, it matches R's
+    `glm.nb` within 2e-5.
+
+  It is slower: 49 s against 36 s on the DE tutorial's 13,714 genes.
 
 ## [1.2.0] - 2026-08-10
 

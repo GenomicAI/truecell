@@ -177,14 +177,25 @@ def test_logfc_threshold_filters_on_the_corrected_value(two_group_object):
 # ---------------------------------------------------------------------------
 
 def test_negbinom_matches_glm_nb_wald():
-    """Against statsmodels' ML fit directly, which is what MASS::glm.nb does.
+    """Against MASS::glm.nb's own p-value, on these exact counts.
 
     Seurat reads `summary(glm.nb(...))$coef[2, 4]` — a Wald p-value on an
     ML-estimated dispersion. The previous implementation fixed the dispersion by
     method of moments and ran a likelihood-ratio test instead, which on pbmc3k
     put HLA-DRA at 5.5e-128 against R's 1.1e-321.
+
+    This compared against statsmodels' `NegativeBinomial` fit until that fit was
+    replaced. It is not glm.nb: on the hit below the two differ by 1.5e-3 in p.
+    The reference is R's, from `tests/data/make_negbinom_reference.R`.
     """
-    import statsmodels.api as sm
+    import json
+    from pathlib import Path
+
+    data = Path(__file__).parent / "data"
+    stored = {s["name"]: s["counts"] for s in
+              json.loads((data / "negbinom_reference_counts.json").read_text())["synthetic"]}
+    want = {s["name"]: s["p_val"] for s in
+            json.loads((data / "r_negbinom_reference.json").read_text())["synthetic"]}
 
     rng = np.random.default_rng(5)
     n1 = n2 = 60
@@ -192,6 +203,10 @@ def test_negbinom_matches_glm_nb_wald():
         np.r_[rng.poisson(8.0, n1), rng.poisson(2.0, n2)],   # clearly different
         np.r_[rng.poisson(3.0, n1), rng.poisson(3.0, n2)],   # null
     ]).astype(float)
+    # R was fitted on the stored counts; if the generator draws different ones,
+    # the comparison below would be against the wrong fit.
+    assert counts[0].tolist() == stored["seed5_hit"]
+    assert counts[1].tolist() == stored["seed5_null"]
     obj = create_truecell_object(
         sp.csc_matrix(counts), assay="RNA", feature_names=["hit", "null"],
         cell_names=[f"c{i}" for i in range(n1 + n2)],
@@ -201,21 +216,13 @@ def test_negbinom_matches_glm_nb_wald():
     res = find_markers(obj, "A", "B", test_use="negbinom",
                        logfc_threshold=0, min_pct=0)
 
-    grp = np.r_[np.zeros(n1), np.ones(n2)]
-    X = sm.add_constant(grp)
-    for gene, row in (("hit", counts[0]), ("null", counts[1])):
-        want = sm.NegativeBinomial(row, X).fit(disp=0, maxiter=200).pvalues[1]
+    for gene, name in (("hit", "seed5_hit"), ("null", "seed5_null")):
         got = res.loc[gene, "p_val"]
         # `abs=0` matters. `pytest.approx` carries a default *absolute* tolerance
         # of 1e-12, which is larger than these p-values, so the plain form would
         # call any two tiny numbers equal and prove nothing. Setting abs=0 leaves
         # a pure relative comparison, which works at both ends of the range.
-        #
-        # 1e-3 rather than something tighter because both sides are iterative ML
-        # fits and agree to ~5 significant figures, not to machine precision. It
-        # is still 26 orders of magnitude away from the moment-dispersion LRT
-        # this replaced, which is the thing being guarded against.
-        assert got == pytest.approx(want, rel=1e-3, abs=0), gene
+        assert got == pytest.approx(want[name], rel=1e-5, abs=0), gene
 
     assert res.loc["hit", "p_val"] < 1e-6
     assert res.loc["null", "p_val"] > 0.01
