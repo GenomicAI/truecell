@@ -316,6 +316,40 @@ def _bimod_pvalue(x1: np.ndarray, x2: np.ndarray, xmin: float = 0.0) -> float:
     return float(chi2.sf(max(lrt, 0.0), df=3))
 
 
+def _round_like_r(x, digits: int = 3) -> np.ndarray:
+    """R's ``round(x, digits)`` for non-negative ``x``, reproduced exactly.
+
+    Seurat rounds ``pct.1``/``pct.2`` to three decimals in ``FoldChange``, and
+    ``min.pct`` filters on the rounded values, so both the fractions a table
+    reports and which genes pass that filter depend on R's rounding. That is
+    neither numpy's (round half to even on ``x * 10**digits``) nor Python's
+    (correct rounding of the exact binary value): R 4's ``fround`` takes the floor
+    and the ceiling of ``x * 10**digits``, keeps whichever is nearer ``x`` in
+    double arithmetic, and breaks an exact tie towards the even neighbour.
+    Checked against R on all 11,624 fractions ``k/n`` for 16 group sizes up to
+    2,638: numpy's ``round`` differs on 260 of them, Python's on 234, this on none.
+    """
+    x = np.asarray(x, dtype=float)
+    scale = 10.0 ** digits
+    floor = np.floor(scale * x)
+    down, up = floor / scale, np.ceil(scale * x) / scale
+    d_up, d_down = up - x, x - down
+    return np.where((d_up < d_down) | ((d_up == d_down) & (np.fmod(floor, 2.0) == 1)), up, down)
+
+
+def _order_like_seurat(results: pd.DataFrame) -> pd.DataFrame:
+    """Seurat's row order for a p-value table: ``order(p_val, -abs(pct.1 - pct.2))``.
+
+    Both ``FindMarkers.default`` and ``FindAllMarkers`` sort this way in Seurat
+    5.5.1. The tie-break decides "the top N markers", because the strongest
+    markers are exactly the ones that tie: a clean separation underflows every
+    p-value to 0. Rows still tied on both keys keep their incoming feature order,
+    as R's ``order`` does, and a NaN p-value sorts last.
+    """
+    gap = np.abs(results["pct.1"].to_numpy(float) - results["pct.2"].to_numpy(float))
+    return results.iloc[np.lexsort((-gap, results["p_val"].to_numpy(float)))]
+
+
 def find_markers(
     seurat,
     ident_1: Union[str, list[str]],
@@ -324,8 +358,8 @@ def find_markers(
     layer: Optional[str] = None,
     test_use: str = "wilcox",
     only_pos: bool = False,
-    min_pct: float = 0.1,
-    logfc_threshold: float = 0.25,
+    min_pct: float = 0.01,
+    logfc_threshold: float = 0.1,
     features: Optional[list[str]] = None,
     latent_vars: Optional[list[str]] = None,
     sample_col: Optional[str] = None,
@@ -351,8 +385,10 @@ def find_markers(
                       ``sample_col``; needs ``pip install truecell[deseq2]``),
                       or 'roc' (AUC classifier power).
     only_pos        : only return positive markers
-    min_pct         : minimum fraction cells expressing gene in either group
-    logfc_threshold : minimum log2 fold-change filter
+    min_pct         : minimum fraction of cells expressing the gene in either
+                      group, compared after rounding to three decimals as
+                      Seurat does. Seurat 5's default, 0.01.
+    logfc_threshold : minimum absolute log2 fold change. Seurat 5's default, 0.1.
     features        : restrict to these genes (default: all)
     latent_vars     : metadata columns to regress out as covariates in the
                       'LR', 'negbinom', 'poisson' and 'mast' models — the same
@@ -371,10 +407,10 @@ def find_markers(
     Returns
     -------
     For 'wilcox' / 't' / 'bimod' / 'LR' / 'negbinom' / 'poisson' / 'mast':
-    DataFrame with columns p_val, avg_log2FC, pct.1, pct.2, p_val_adj
-    (sorted by p_val).
-    For 'roc': columns myAUC, avg_diff, power, avg_log2FC, pct.1, pct.2
-    (sorted by power), with no p-value — matching Seurat.
+    DataFrame with columns p_val, avg_log2FC, pct.1, pct.2, p_val_adj, in
+    Seurat's order: by p_val, ties to the larger |pct.1 - pct.2|.
+    For 'roc': columns myAUC, avg_diff, power, avg_log2FC, pct.1, pct.2, by
+    power and then myAUC, both descending, with no p-value — matching Seurat.
 
     Notes
     -----
@@ -450,9 +486,11 @@ def find_markers(
     else:
         feat_mask = np.ones(len(feature_names), dtype=bool)
 
-    # Percent cells expressing (> 0)
-    pct1 = _row_pct_positive(sub1)
-    pct2 = _row_pct_positive(sub2)
+    # Fraction of cells expressing (> 0), rounded as Seurat's `FoldChange` rounds
+    # it. `min_pct` below filters on the rounded values, so a gene at 19 of 2,000
+    # cells (0.0095, which R rounds to 0.010) passes a 0.01 cutoff in both tools.
+    pct1 = _round_like_r(_row_pct_positive(sub1))
+    pct2 = _round_like_r(_row_pct_positive(sub2))
 
     # Pre-filter: gene must be expressed in at least min_pct of either group
     pct_mask = (pct1 >= min_pct) | (pct2 >= min_pct)
@@ -529,7 +567,9 @@ def find_markers(
         )
         if only_pos:
             roc_res = roc_res[roc_res["avg_log2FC"] > 0]
-        return roc_res.sort_values("power", ascending=False)
+        # Seurat: `order(-power, -myAUC)`.
+        order = np.lexsort((-roc_res["myAUC"].to_numpy(float), -roc_res["power"].to_numpy(float)))
+        return roc_res.iloc[order]
 
     if len(test_indices) == 0:
         return pd.DataFrame(
@@ -626,7 +666,7 @@ def find_markers(
     if only_pos:
         results = results[results["avg_log2FC"] > 0]
 
-    return results.sort_values("p_val")
+    return _order_like_seurat(results)
 
 
 def find_all_markers(
@@ -635,8 +675,8 @@ def find_all_markers(
     layer: Optional[str] = None,
     test_use: str = "wilcox",
     only_pos: bool = False,
-    min_pct: float = 0.1,
-    logfc_threshold: float = 0.25,
+    min_pct: float = 0.01,
+    logfc_threshold: float = 0.1,
     sample_col: Optional[str] = None,
     max_cells_per_ident: Optional[int] = None,
     random_seed: int = 1,
@@ -649,19 +689,26 @@ def find_all_markers(
     Returns a single DataFrame with an extra 'cluster' column.
 
     ``return_thresh`` is Seurat's ``return.thresh``: only genes with
-    ``p_val < return_thresh`` are returned (for ``test_use="roc"``, only genes
-    whose ``myAUC`` is further than ``return_thresh`` from 0.5 in either
-    direction, since ROC reports no p-value). Pass ``None`` for the unfiltered
+    ``p_val < return_thresh`` are returned (for ``test_use="roc"``, which has no
+    p-value, only genes with ``myAUC > return_thresh`` or
+    ``myAUC < 1 - return_thresh``). Pass ``None`` for the unfiltered
     table. Without it truecell returned every gene that survived the pct and
     logfc pre-filters, including plainly non-significant ones: on PBMC 3k that
     was 3,036 rows against Seurat's 3,446 spread over one fewer cluster, and on
     the two clusters whose membership matched Seurat exactly the filtered table
     reproduces Seurat's gene set exactly (151 and 242 genes).
 
-    Rows are ordered by ``p_val`` ascending and then ``avg_log2FC`` descending
-    within each cluster, matching Seurat's ``order(gde$p_val, -gde[, 2])``.
-    The tie-break matters: Wilcoxon p-values tie at 0 for the strongest
-    markers, so without it "the top 10 markers" depends on incoming row order.
+    Within each cluster, rows follow Seurat 5.5.1's
+    ``order(p_val, -abs(pct.1 - pct.2))``, which is how :func:`find_markers`
+    returns them. The tie-break matters: Wilcoxon p-values tie at 0 for the
+    strongest markers, so without it "the top 10 markers" depends on incoming row
+    order. It used to be descending ``avg_log2FC`` here, older Seurat's
+    ``-gde[, 2]``; on a full tie Seurat 5 keeps feature order instead.
+
+    With ``test_use="roc"``, Seurat swaps the default ``return.thresh`` of 0.01,
+    which means nothing for an AUC, for 0.7 before filtering, so only genes with
+    ``myAUC`` above 0.7 or below 0.3 come back. It tests the value, not whether
+    it was passed, so an explicit 0.01 is swapped too; truecell does the same.
     """
     clusters = sorted(set(str(i) for i in seurat.idents), key=_ident_sort_key)
     all_results = []
@@ -695,22 +742,24 @@ def find_all_markers(
             columns=["p_val", "avg_log2FC", "pct.1", "pct.2", "p_val_adj", "cluster", "gene"]
         )
 
+    # Clusters in the order visited, each already in Seurat's row order from
+    # find_markers: what FindAllMarkers' rbind produces. Sorting again here used
+    # to replace that order with a different tie-break.
     combined = pd.concat(all_results, axis=0)
     if return_thresh is not None:
         if test_use == "roc":
-            # ROC has no p-value; Seurat thresholds on distance from chance.
+            # ROC has no p-value, so Seurat filters on myAUC, swapping its default
+            # threshold of 0.01 for 0.7 first.
+            thresh = 0.7 if return_thresh == 0.01 else return_thresh
             auc = combined["myAUC"]
-            combined = combined[(auc > return_thresh) | (auc < 1 - return_thresh)]
+            combined = combined[(auc > thresh) | (auc < 1 - thresh)]
         else:
             combined = combined[combined["p_val"] < return_thresh]
     if test_use == "roc":
         cols = ["cluster", "gene", "myAUC", "avg_diff", "power", "avg_log2FC",
                 "pct.1", "pct.2"]
-        cols = [c for c in cols if c in combined.columns]
-        return combined[cols].sort_values(["cluster", "myAUC"], ascending=[True, False])
-    combined = combined[["cluster", "gene", "p_val", "avg_log2FC", "pct.1", "pct.2", "p_val_adj"]]
-    return combined.sort_values(["cluster", "p_val", "avg_log2FC"],
-                                ascending=[True, True, False])
+        return combined[[c for c in cols if c in combined.columns]]
+    return combined[["cluster", "gene", "p_val", "avg_log2FC", "pct.1", "pct.2", "p_val_adj"]]
 
 
 def find_conserved_markers(
@@ -722,8 +771,8 @@ def find_conserved_markers(
     layer: Optional[str] = None,
     test_use: str = "wilcox",
     only_pos: bool = False,
-    min_pct: float = 0.1,
-    logfc_threshold: float = 0.25,
+    min_pct: float = 0.01,
+    logfc_threshold: float = 0.1,
     features: Optional[list[str]] = None,
 ) -> pd.DataFrame:
     """Find markers conserved across the levels of a grouping variable.
@@ -915,7 +964,7 @@ def _deseq2_pseudobulk(
     )
     if only_pos:
         out = out[out["avg_log2FC"] > 0]
-    return out.sort_values("p_val")
+    return _order_like_seurat(out)
 
 
 # ------------------------------------------------------------------

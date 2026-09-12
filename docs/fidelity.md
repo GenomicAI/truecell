@@ -172,8 +172,9 @@ The guards now in `tutorials/bands.py`:
 
 - **DE**: `pct.1` and `pct.2` must agree to 5e-4. They are counts of detected
   cells per group with no statistics in the way, which is what makes them the
-  discriminator — they had differed for 12,491 of 13,712 genes. To 5e-4 and no
-  closer, because Seurat rounds them to three decimals.
+  discriminator — they had differed for 12,491 of 13,712 genes. Seurat rounds
+  them to three decimals and truecell now rounds them the same way, so a current
+  run agrees exactly; the 5e-4 allows for a table written before it did.
 - **Dim-reduction**: exact cell-set and feature-set equality. The old code
   reindexed R's frame onto Python's cells, which filled absent barcodes with NaN
   and printed `nan` correlations without complaint.

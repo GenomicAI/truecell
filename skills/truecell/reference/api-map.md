@@ -156,15 +156,15 @@ find_multi_modal_neighbors(seurat, reduction_list=("pca", "apca"), dims_list=Non
 
 ```python
 find_markers(seurat, ident_1, ident_2=None, assay=None, layer=None, test_use="wilcox",
-             only_pos=False, min_pct=0.1, logfc_threshold=0.25, features=None,
+             only_pos=False, min_pct=0.01, logfc_threshold=0.1, features=None,
              latent_vars=None, sample_col=None, max_cells_per_ident=None,
              random_seed=1) -> pd.DataFrame
 find_all_markers(seurat, assay=None, layer=None, test_use="wilcox", only_pos=False,
-                 min_pct=0.1, logfc_threshold=0.25, sample_col=None,
+                 min_pct=0.01, logfc_threshold=0.1, sample_col=None,
                  max_cells_per_ident=None, random_seed=1, return_thresh=0.01) -> pd.DataFrame
 find_conserved_markers(seurat, ident_1, grouping_var, ident_2=None, assay=None,
-                       layer=None, test_use="wilcox", only_pos=False, min_pct=0.1,
-                       logfc_threshold=0.25, features=None) -> pd.DataFrame
+                       layer=None, test_use="wilcox", only_pos=False, min_pct=0.01,
+                       logfc_threshold=0.1, features=None) -> pd.DataFrame
 aggregate_expression(seurat, group_by="ident", assays=None, features=None,
                      layer="counts", return_object=False)
 ```

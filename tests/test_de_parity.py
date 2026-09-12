@@ -358,29 +358,38 @@ def _tied_marker_object():
     return obj
 
 
-def test_find_all_markers_breaks_p_value_ties_on_fold_change():
-    """Seurat orders each cluster by `order(gde$p_val, -gde[, 2])`.
+def test_find_all_markers_orders_ties_the_way_seurat_5_does():
+    """Seurat 5.5.1 orders each cluster by `order(p_val, -abs(pct.1 - pct.2))`.
 
     This is not cosmetic. Without the tie-break, "the top N markers" — which is
     what every tutorial in the suite prints — is decided by incoming row order
     among the genes that tie, and the strongest markers are exactly the ones
     that tie.
+
+    R, on this exact fixture (counts exported and read into Seurat 5.5.1): the
+    six markers tie on p_val (9.728486e-11) *and* on |pct.1 - pct.2| (1.0), and
+    come back in feature order g0..g5 in both clusters — ascending fold change.
+    This test used to assert descending fold change, older Seurat's
+    `-gde[, 2]`, which reverses that block.
     """
     from truecell.markers import find_all_markers
 
     got = find_all_markers(_tied_marker_object())
     checked = 0
-    for cluster, block in got.groupby("cluster", sort=False):
+    for cluster in ("0", "1"):
+        block = got[got["cluster"] == cluster]
+        assert list(block["gene"].iloc[:6]) == [f"g{i}" for i in range(6)]
         p = block["p_val"].to_numpy()
-        fc = block["avg_log2FC"].to_numpy()
+        gap = np.abs(block["pct.1"] - block["pct.2"]).to_numpy()
         assert np.all(np.diff(p) >= 0), f"cluster {cluster} not sorted by p_val"
         ties = p[:-1] == p[1:]
         checked += int(ties.sum())
-        assert np.all(np.diff(fc)[ties] <= 0), (
-            f"cluster {cluster} does not break p_val ties on descending log2FC"
+        assert np.all(np.diff(gap)[ties] <= 0), (
+            f"cluster {cluster} does not break p_val ties on |pct.1 - pct.2|"
         )
-    # Anti-vacuity: with no tied pairs anywhere, the loop above asserts nothing.
-    assert checked >= 4, (
+    # Anti-vacuity: the six-way tie has to exist in both clusters, or the
+    # feature-order assertion above says nothing about the tie-break.
+    assert checked >= 10, (
         f"fixture produced only {checked} tied adjacent pairs — the tie-break "
         f"assertion would be vacuous"
     )

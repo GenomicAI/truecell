@@ -11,8 +11,9 @@ number.**
 `truecell` ports Seurat v5 — the object model, preprocessing, dimensional
 reduction, clustering, differential expression, integration, spatial and the
 rest — to pure Python on NumPy, SciPy and pandas. It is not a reimplementation
-that borrows the ideas. It follows the same code paths, keeps the same defaults,
-and where the two disagree, the disagreement is measured and written down.
+that borrows the ideas. It follows the same code paths, keeps the same defaults
+(a test compares every shared default with Seurat's), and where the two
+disagree, the disagreement is measured and written down.
 
 ```python
 import truecell

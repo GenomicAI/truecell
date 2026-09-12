@@ -20,17 +20,21 @@ from tutorials.bands import check_bands  # noqa: E402
 
 
 def _clean_table() -> pd.DataFrame:
-    """The concordance table as it reads on a good run, measured 2026-07-26."""
+    """The concordance table as it reads on a good run, measured 2026-07-26.
+
+    The >5 % Spearman column was re-measured 2026-09-12, once pct was rounded
+    the way Seurat rounds it.
+    """
     rows = {
         "wilcox":   (50, 1.000000, 6.44e-15, np.nan),
         "t":        (50, 1.000000, 6.44e-15, np.nan),
         "bimod":    (50, 1.000000, 6.44e-15, np.nan),
         "LR":       (50, 1.000000, 6.44e-15, np.nan),
-        "negbinom": (50, 0.916463, 6.44e-15, np.nan),
+        "negbinom": (50, 0.921672, 6.44e-15, np.nan),
         "poisson":  (50, 0.999998, 6.22e-15, np.nan),
         "roc":      (np.nan, np.nan, 6.44e-15, 4.9986e-4),
-        "mast":     (50, 0.997925, 6.44e-15, np.nan),
-        "deseq2":   (22, 0.195879, 3.47, np.nan),
+        "mast":     (50, 0.998013, 6.44e-15, np.nan),
+        "deseq2":   (22, 0.195146, 3.47, np.nan),
     }
     return pd.DataFrame(
         [{"test": k, f"top{de.TOP_N}_overlap": v[0], "p_spearman_expressed": v[1],
@@ -170,8 +174,9 @@ def test_report_concordance_accepts_a_reference_within_r_s_rounding(tmp_path,
                                                                     monkeypatch):
     """The guard must not fire on R's three-decimal pct columns.
 
-    Seurat rounds; truecell does not. If this were exact, every real run would be
-    rejected as stale.
+    Seurat rounds to three decimals and truecell now does too, but a Python table
+    written before it did carries unrounded rates. The guard is there to catch a
+    stale reference, so it has to let a rounding difference through.
     """
     monkeypatch.setattr(de, "FIGURES", tmp_path)
     for test in de.TEST_MAP:

@@ -902,8 +902,8 @@ python  tutorials/generate_de_plots.py
 | `avg_log2FC` vs Seurat, all genes | max abs diff **6.44e-15** |
 | Tests reproducing Seurat's top 50 genes | **7 of 7** per-cell p-value tests (`roc` is AUC-scored) |
 | `wilcox` / `t` / `bimod` / `LR` — p-value Spearman | 1.000000 / 0.999980 / 0.999994 / 0.999975 |
-| `mast` — Spearman, detected >5 % | **0.9979** |
-| `negbinom` — Spearman, detected >5 % | **0.9165** |
+| `mast` — Spearman, detected >5 % | **0.9980** |
+| `negbinom` — Spearman, detected >5 % | **0.9217** |
 
 **Found and fixed two defects** — `avg_log2FC` put Seurat's pseudocount on
 the group *mean* rather than the group *sum* (Seurat 4's formula, not

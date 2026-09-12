@@ -147,8 +147,10 @@ def render_verdicts(verdicts: Sequence[Verdict], title: str,
 # The handoff check
 # ---------------------------------------------------------------------------
 
-# Seurat rounds pct.1/pct.2 to three decimals inside FindMarkers, so two runs
-# over the same cells agree to half a unit in the last place and no closer.
+# Seurat rounds pct.1/pct.2 to three decimals in FoldChange, and truecell now
+# rounds them the same way, so two current runs over the same cells agree
+# exactly. Half a unit in the last place still lets a table written before
+# truecell rounded read as current rather than stale.
 PCT_ROUNDING_TOL = 5e-4
 
 

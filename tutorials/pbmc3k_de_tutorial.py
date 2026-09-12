@@ -181,7 +181,8 @@ BANDS: dict[str, Band] = {
         ("LR", 0.9999, "Identical logistic-regression LRT; measured exactly 1.0."),
         ("negbinom", 0.88,
          "Both fit a negative-binomial GLM but not with the same optimiser, so "
-         "the agreement is high rather than exact: 0.9165 here, 0.9194 before."),
+         "the agreement is high rather than exact: 0.9217 here; 0.9165 before "
+         "pct was rounded as Seurat rounds it, and 0.9194 before that."),
         ("poisson", 0.9999,
          "Identical Poisson GLM Wald test; measured 0.9999984. The residual is "
          "R's glm.control(epsilon = 1e-8) stopping an iteration early, not a "
@@ -189,7 +190,7 @@ BANDS: dict[str, Band] = {
          "docstring."),
         ("mast", 0.99,
          "truecell's hurdle model is hand-rolled rather than a call to the MAST "
-         "package, so this is the closest a reimplementation gets: 0.9979."),
+         "package, so this is the closest a reimplementation gets: 0.9980."),
     )},
     "deseq2 rho>5%": Band(
         0.12, 0.30,
