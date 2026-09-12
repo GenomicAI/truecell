@@ -36,6 +36,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ranked by how many datasets call them variable, ties by their median rank and
   then by name. Checked against R on lists built so the cut falls inside each
   kind of tie.
+- **`as_anndata` carries space, and `from_anndata` reads it back, in the layout
+  Scanpy and Squidpy use.** Each cell's (x, y) goes to `obsm["spatial"]`, from the
+  first image that places it, and that image's name to `obs["fov"]`. A `VisiumV2`'s
+  tissue image and scale factors go to `uns["spatial"][image]`. 1.2.0 wrote none of
+  it. The Frontiers revision found `obsm` empty for a 36,602-cell Xenium slide, which
+  left no way from a truecell object into Squidpy or SpatialData.
+  - On 10x's V1 mouse-brain slide, `as_anndata(load_visium(...))` matches
+    `scanpy.read_visium` for all 2,695 spots: the same int64 positions, scale factors
+    and lowres image.
+  - `from_anndata` turns `read_visium`'s own output into a `VisiumV2` that matches
+    `load_visium`. `image_resolution=` picks which image to keep.
+  - Objects from all four loaders (Xenium, Visium, CosMx, MERSCOPE) come back from
+    an h5ad round trip with every image unchanged.
+  - A new docs page, *AnnData, Scanpy and SpatialData*, gives recipes for cells, cell
+    polygons and a Visium image. Each was checked through zarr with spatialdata 0.8.0.
+  - Both functions stay on `truecell.compat.anndata`, and the README now shows that
+    import rather than listing them as if they were top-level.
+- **`Segmentation.as_centroids()`**, SeuratObject's `as(segmentation, "Centroids")`:
+  each ring's area centroid, or its first vertex when the ring has no area. It is
+  within 5.1e-16 of SeuratObject 5.4.0 on 40 random polygons and exact on the rings
+  with no area. `as_anndata` uses it for an image that has only a segmentation.
 
 ### Changed
 
@@ -168,6 +189,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The DE tutorial now tests clusters of 703 and 480 cells rather than 692 and
   515, so its numbers were re-measured; the `deseq2` and `negbinom` entries above
   quote the earlier clusters.
+- **`create_fovs` puts the images in category order when the FOV labels are
+  categorical.** Other labels still give the order of first appearance. `from_anndata`
+  relies on this to rebuild `obj.images` in the order `as_anndata` recorded, even when
+  a later image's cells come first.
 
 ### Fixed
 
@@ -225,6 +250,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   differ by at most 5e-4, but `0.488 - 0.4875` is 0.0005000000000000004, and six of
   PBMC 3k's genes sat a few ULPs past the bound. The difference is now rounded at
   1e-12 before it is compared.
+- **`from_anndata` no longer adds a layer named `None`.** anndata 0.13 lists `X` among
+  the layers under that key, so the conversion copied the counts a second time, and
+  `as_anndata` then refused the object `from_anndata` had just built.
+- **The `ImportError` from `as_anndata` and `from_anndata` names the right extra**,
+  `truecell[anndata]`, where it said `seurat-object[anndata]`.
 
 ## [1.2.0] - 2026-08-10
 

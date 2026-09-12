@@ -52,6 +52,25 @@ class ScaleFactors:
             return self.lowres
         raise ValueError(f"resolution must be 'hires' or 'lowres', got {resolution!r}.")
 
+    @classmethod
+    def from_dict(cls, d) -> ScaleFactors:
+        """From ``scalefactors_json.json``'s keys. A missing key is NaN."""
+        return cls(
+            spot=float(d.get("spot_diameter_fullres", np.nan)),
+            fiducial=float(d.get("fiducial_diameter_fullres", np.nan)),
+            hires=float(d.get("tissue_hires_scalef", np.nan)),
+            lowres=float(d.get("tissue_lowres_scalef", np.nan)),
+        )
+
+    def to_dict(self) -> dict[str, float]:
+        """Under ``scalefactors_json.json``'s keys, as Scanpy keeps them in ``uns``."""
+        return {
+            "spot_diameter_fullres": self.spot,
+            "fiducial_diameter_fullres": self.fiducial,
+            "tissue_hires_scalef": self.hires,
+            "tissue_lowres_scalef": self.lowres,
+        }
+
 
 def read_scale_factors(path: Union[str, Path]) -> ScaleFactors:
     """Read a ``scalefactors_json.json`` (the file itself, or its parent dir)."""
@@ -60,12 +79,7 @@ def read_scale_factors(path: Union[str, Path]) -> ScaleFactors:
         path = path / "scalefactors_json.json"
     with open(path, encoding="utf-8") as fh:
         d = json.load(fh)
-    return ScaleFactors(
-        spot=float(d.get("spot_diameter_fullres", np.nan)),
-        fiducial=float(d.get("fiducial_diameter_fullres", np.nan)),
-        hires=float(d.get("tissue_hires_scalef", np.nan)),
-        lowres=float(d.get("tissue_lowres_scalef", np.nan)),
-    )
+    return ScaleFactors.from_dict(d)
 
 
 def read_tissue_image(
