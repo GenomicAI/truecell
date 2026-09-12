@@ -39,8 +39,8 @@ would look exactly like a DE difference.
 | **`avg_log2FC` vs Seurat**, all 13,714 shared genes | **max abs diff 6.44e-15** |
 | **Tests reproducing Seurat's top 50 genes** | **7 of 7** per-cell p-value tests (`roc` scores AUC, not p; `deseq2` is pseudobulk) |
 | `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999980 · 0.999994 · 0.999975 |
-| `mast` — Spearman (all genes / detected >5%) | 0.9469 / **0.9979** |
-| `negbinom` — Spearman (all genes / detected >5%) | 0.6943 / **0.9165** |
+| `mast` — Spearman (all genes / detected >5%) | 0.9469 / **0.9980** |
+| `negbinom` — Spearman (all genes / detected >5%) | 0.6943 / **0.9217** |
 | `poisson` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999984** |
 | `roc` — max abs AUC difference | 5.0e-04, which is Seurat's own 3-dp rounding |
 | *Before the fix* — genes returned at `logfc_threshold=0.25` | truecell **2,298** vs Seurat **11,931** (Jaccard 0.193) |
@@ -272,7 +272,7 @@ because it **requires `sample_col`**, it cannot be silently mistaken for the
 per-cell test: it raises. Reported rather than changed in either direction.
 
 **`mast` is a hand-rolled hurdle model**, not a call to the MAST package, which
-has no Python equivalent to depend on. Spearman 0.947 across all genes, **0.9979
+has no Python equivalent to depend on. Spearman 0.947 across all genes, **0.9980
 on genes detected above 5 %**, and the same top 50. Worth knowing: Seurat's
 `MASTDETest` fits `~ condition` alone — it adds **no** cellular detection rate
 term unless you pass one. truecell's docstring previously advised passing CDR "to
@@ -306,15 +306,23 @@ previous version of this note called them.
 | `t` | 13,714 | 6.2e-15 | 0.999980 | 1.0000 | 50/50 |
 | `bimod` | 13,714 | 6.2e-15 | 0.999994 | 1.0000 | 50/50 |
 | `LR` | 13,714 | 6.2e-15 | 0.999975 | 1.0000 | 50/50 |
-| `negbinom` | 11,466 | 6.2e-15 | 0.694340 | **0.9165** | 50/50 |
+| `negbinom` | 11,466 | 6.2e-15 | 0.694340 | **0.9217** | 50/50 |
 | `roc` | 13,714 | 6.2e-15 | *AUC 5.0e-04* | — | — |
-| `mast` | 13,714 | 6.2e-15 | 0.946873 | **0.9979** | 50/50 |
-| `deseq2` | 13,714 | *3.47* | 0.476989 | 0.1959 | 22/50 |
+| `mast` | 13,714 | 6.2e-15 | 0.946873 | **0.9980** | 50/50 |
+| `deseq2` | 13,714 | *3.47* | 0.476989 | 0.1951 | 22/50 |
 
 > 13,714 rather than the 13,712 an earlier version of this table showed: two
 > genes, `Y-RNA` and `RP11-442N24--B.1`, used to be spelled with underscores on
 > the truecell side, until its factories adopted Seurat's `_` → `-` rule. Only
 > the `mast` and `deseq2` all-gene Spearman moved with them.
+
+> The detected >5 % column moved for `negbinom` (0.9165 → 0.9217), `mast`
+> (0.9979 → 0.9980) and `deseq2` (0.1959 → 0.1951) when truecell began rounding
+> `pct.1` and `pct.2` to three decimals, as Seurat's `FoldChange` does. That
+> column's genes are picked from the Python table's detection rates, and 69 genes
+> detected in exactly 26 of cluster 1's 515 cells (5.05 %, which Seurat reports
+> as 0.050) had been let in on that rate alone. Both tables now carry identical
+> rates and pick the same 4,349 genes.
 
 > The last digits of these moved slightly when the CSV round-trip was fixed (see
 > *The two columns a person actually reads*, below): they had been read back
@@ -390,8 +398,8 @@ if one falls outside:
 | top 50, the seven cell-level tests | **= 50** | Same statistic, same cells. One dropped gene is a regression. |
 | top 50, `deseq2` | **15 – 32** | A divergence measurement. 20–26 over 20 resampled replicate splits; 25 on the previous clustering. Bounded well below 50 — reaching parity would mean `sample_col` had stopped being honoured. |
 | p Spearman >5 %, `wilcox`/`t`/`bimod`/`LR` | **≥ 0.9999** | Measured at exactly 1.0. |
-| p Spearman >5 %, `negbinom` | **≥ 0.88** | Same model, different optimiser: 0.9165. |
-| p Spearman >5 %, `mast` | **≥ 0.99** | A hand-rolled hurdle model, not the MAST package: 0.9979. |
+| p Spearman >5 %, `negbinom` | **≥ 0.88** | Same model, different optimiser: 0.9217. |
+| p Spearman >5 %, `mast` | **≥ 0.99** | A hand-rolled hurdle model, not the MAST package: 0.9980. |
 | p Spearman >5 %, `deseq2` | **0.12 – 0.30** | Pseudobulk against per-cell; a *high* value here would be the surprise. |
 | max \|Δlog2FC\|, cell-level tests | **≤ 1e-12** | Arithmetic on the shared matrix. `deseq2` is excluded by name, not by threshold — its 3.47 is correct and would otherwise set everyone else's tolerance. |
 | max \|ΔAUC\|, `roc` | **≤ 5e-4** | Half a unit in Seurat's third decimal. Measured 4.9986e-4, i.e. on the boundary. |
