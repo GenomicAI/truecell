@@ -24,6 +24,8 @@ clustering they produce, in [Anchor internals](../tutorials/anchors_vignette.md)
 
 ::: truecell.anchors.find_integration_anchors
 
+::: truecell.anchors.select_integration_features
+
 ::: truecell.anchors.integrate_embeddings
 
 ::: truecell.anchors.integrate_data

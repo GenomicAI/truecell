@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   key, `run_ica`'s key, `cell_cycle_scoring`'s control-gene count,
   `dim_heatmap`'s cell count, the mixscape and Moran's I layers, integration
   anchor features, and `find_clusters`' resolution).
+- **`select_integration_features`**, Seurat's `SelectIntegrationFeatures`: genes
+  ranked by how many datasets call them variable, ties by their median rank and
+  then by name. Checked against R on lists built so the cut falls inside each
+  kind of tie.
 
 ### Changed
 
@@ -111,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and rescaled, so the statistic on `data` differs only where `ScaleData` clipped
   a value at 10. The tutorials and tests pass `layer="data"`, which is what their
   R references compute on.
+- **BREAKING: `find_integration_anchors` picks 2000 anchor features with
+  `select_integration_features` by default**, as `FindIntegrationAnchors`'
+  `anchor.features = 2000` does. truecell intersected the objects' variable
+  features instead, which leaves out every gene variable in some datasets but not
+  all. A list still means those features; `integrate_layers`, whose batches share
+  one list, gets that list back unchanged.
 
 ### Fixed
 
