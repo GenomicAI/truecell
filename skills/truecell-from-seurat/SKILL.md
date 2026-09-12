@@ -142,9 +142,6 @@ obj.assays["ADT"] = create_assay5_object(counts=adt, feature_names=proteins,
 **`SplitObject(obj, split.by = "batch")`** — v5 splits *layers*, not objects:
 `obj.get_assay().split_layers(f)`, and `join_layers()` to put them back.
 
-**`FindClusters(algorithm = 3)`** — SLM is not implemented. Use 1 (Louvain),
-2 (Louvain multilevel), or 4 (Leiden).
-
 ## Comparing the two tools honestly
 
 If you are checking a port against R, these differences are real and expected.
@@ -163,7 +160,7 @@ gets blamed on the wrong function.
 
 | Difference | Size | Why |
 |---|---|---|
-| Louvain cluster count | ±1 | Same algorithm, different local optimum. PBMC 3k: 8 vs 9 at ARI 0.938. Seurat runs 10 restarts; truecell a single multilevel pass. |
+| Seurat's `FindClusters` partition | arm64 vs x86_64, where edge weights tie exactly | On one graph truecell gives Seurat's labels, but Seurat's arm64 build fuses a multiply-add that flips near-tied moves. truecell follows x86_64, as with `clara`. |
 | Variable features | ~2 of 2,000 | Boundary jitter — the swapped genes agree on standardized variance to three decimals. |
 | `add_module_score`, `jack_straw` | RNG-sized | Random control genes / permutations. 95.9 % phase concordance (two NumPy seeds agree 95.8 %), Pearson ≥ 0.997. Prove differences distribution-against-distribution over matched seeds, never from a single pair. |
 | JackStraw PC cutoff | \|Δ\| ≤ 2 | R seeds each replicate from its loop index and is deterministic at 13; truecell seeds from `seed` and has mode 13 over 60 seeds. |

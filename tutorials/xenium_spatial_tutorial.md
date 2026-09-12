@@ -267,10 +267,10 @@ run_umap(obj, dims=range(20), reduction_name="umap", seed=42)
 
 > Top row: the UMAP coloured by cell type. Bottom row: the raw unsupervised
 > clusters drawn back in tissue space (`ImageDimPlot` by cluster) — the cortical
-> layers and hippocampal structure fall out on their own. Louvain clustering is
-> stochastic and the two UMAP libraries (`uwot` vs `umap-learn`) place clusters
-> differently — R found 20 clusters, Truecell 18 — but the same spatial structure
-> separates cleanly in both (see the
+> layers and hippocampal structure fall out on their own. The two tools build
+> slightly different neighbour graphs, and the two UMAP libraries (`uwot` vs
+> `umap-learn`) place clusters differently — R found 20 clusters, Truecell 19 — but
+> the same spatial structure separates cleanly in both (see the
 > [PBMC 3k note](pbmc3k_tutorial.md#step-12--umap)).
 
 ---

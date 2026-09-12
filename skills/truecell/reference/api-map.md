@@ -136,8 +136,9 @@ in `seurat.neighbors["<assay>.nn"]` and builds **no** graphs — Seurat's
 for the graphs. Indices are 0-based where R's `Indices()` are 1-based.
 
 ```python
-find_clusters(seurat, resolution=0.5, algorithm=1, graph_name=None, random_seed=0,
-              n_iterations=-1, group_singletons=True) -> None
+find_clusters(seurat, resolution=0.8, algorithm=1, graph_name=None, random_seed=0,
+              n_iter=10, group_singletons=True, cluster_name=None, modularity_fxn=1,
+              n_start=10, optimizer="seurat") -> None
 find_multi_modal_neighbors(seurat, reduction_list=("pca", "apca"), dims_list=None,
                            k_nn=20, l2_norm=True, knn_graph_name="wknn",
                            snn_graph_name="wsnn", knn_range=200, prune_snn=1/15,
@@ -147,8 +148,11 @@ find_multi_modal_neighbors(seurat, reduction_list=("pca", "apca"), dims_list=Non
 - `find_neighbors` writes `graphs["{assay}_nn"]` and `graphs["{assay}_snn"]`.
 - `find_clusters` reads `{assay}_snn` unless `graph_name=` is given, and writes
   `meta_data["seurat_clusters"]` plus the active identity.
-- `algorithm`: **1** = Louvain (default), **2** = Louvain multilevel,
-  **4** = Leiden. **3 (SLM) is not implemented.**
+- `algorithm`: **1** = Louvain (default), **2** = Louvain with multilevel
+  refinement, **3** = smart local moving, **4** = Leiden. For 1–3,
+  `optimizer="seurat"` runs Seurat's own optimiser, so the same graph gives
+  Seurat's labels, and `optimizer="igraph"` runs the single igraph pass of
+  truecell 1.2. `n_iterations` is a deprecated alias of `n_iter`.
 - `group_singletons=True` absorbs size-1 clusters into their best-connected
   neighbour, as Seurat's `GroupSingletons` does.
 

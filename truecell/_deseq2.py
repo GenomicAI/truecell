@@ -23,8 +23,8 @@ four ways that change the answer, and this module closes all four:
   ``minmu``) before building the weights the standard error comes from.
   pydeseq2's Wald test recomputes the means from the fold changes without the
   floor, which inflates the standard error of every low-count gene. On PBMC 3k,
-  per cell, the floor takes the genes called at Bonferroni 0.05 from 667 to
-  Seurat's 726, the same 726.
+  per cell, the floor takes the genes called at Bonferroni 0.05 from 652 to
+  Seurat's 712, the same 712.
 
 It keeps DESeq2's refusal too. Size factors are medians of ratios to each
 gene's geometric mean, which does not exist for a gene with a zero. When every

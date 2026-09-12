@@ -233,7 +233,10 @@ relied on the defaults are unaffected.
   0.02 or better; progenitor is the exception at 0.06, on a 146-cell population
   the two sides do not cut identically. truecell's neighbour search is exact where
   R's is approximate (annoy) and the Louvain implementations differ, so cluster
-  boundaries still move slightly — small populations feel it most.
+  boundaries still move slightly — small populations feel it most. Since
+  `find_clusters` became Seurat's own optimiser (2026-09-12) the RNA graph gives
+  15 clusters to Seurat's 16: truecell's graph folds Seurat's 69-cell DC/Mono
+  cluster into CD14+ Mono, and R's exact (`rann`) neighbours also give 16.
 
 ---
 
@@ -1265,7 +1268,12 @@ regime. Don't "simplify" them.
     conversion takes the strict upper triangle and discarded exactly the
     entries that were missing. `GroupSingletons` is ported alongside them.
     The guide tree (`BuildSampleTree`, three or more datasets) remains out of
-    scope, as does a faithful port of `RunModularityClusteringCpp`.
+    scope. **Reversed for the Frontiers revision (2026-09-12):** `find_clusters`
+    now runs a faithful port of `RunModularityClusteringCpp` by default, because a
+    port is judged by returning what Seurat returns. On Seurat's own RPCA graph it
+    gives Seurat's 16 clusters exactly, the CD14 Mono batch split included, and
+    `ARI(py,R)` for RPCA rose from 0.774 to 0.942. `optimizer="igraph"` keeps the
+    single pass.
 - **Expect bugs, and read a mismatch as a bug report.** Wave 1 went T7, T9 and T8
   clean, while **T6 found the first two defects**, **T-dr the next two**,
   **T-sk two more**, **T-obj eleven**, **T-sp three**, **T-de two**, **T-lazy seven**,
@@ -1279,8 +1287,8 @@ regime. Don't "simplify" them.
   true while the function was recommending every PC; `leverage_score`'s asserted
   its own full-rank definition to six decimals, and its sampling fixture was too
   small to be in the algorithm's regime at all. The
-  known-good tolerance is narrow — deterministic values match exactly, Louvain
-  cluster counts drift ±1 — so anything outside that band gets investigated,
+  known-good tolerance is narrow — deterministic values match exactly, and so
+  does a clustering on a shared graph — so anything outside that band gets investigated,
   not written up as an expected difference. This repo has twice let a real defect
   hide behind a documented "language difference" caveat.
 - **A fix can make the headline number worse, and still be the fix.** T-sk's

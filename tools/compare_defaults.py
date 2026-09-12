@@ -159,13 +159,6 @@ EQUIVALENT: dict[tuple[str, str], str] = {
 
 #: (function, argument) -> why truecell's default differs from Seurat's.
 KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
-    # -- Being brought to Seurat's default by the follow-up changes of the
-    #    Frontiers revision. The change that fixes one deletes its entry; one left
-    #    behind fails `test_no_listed_reason_outlives_the_difference_it_explains`.
-    ("truecell.find_clusters", "resolution"):
-        "Seurat's default is 0.8. truecell's 0.5 changes with the port of Seurat's "
-        "modularity optimiser, which moves every default partition anyway.",
-
     # -- Kept on purpose.
     ("truecell.find_integration_anchors", "reference"):
         "Seurat's NULL integrates every pair along a guide tree (BuildSampleTree), "

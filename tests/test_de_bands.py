@@ -20,21 +20,20 @@ from tutorials.bands import check_bands  # noqa: E402
 
 
 def _clean_table() -> pd.DataFrame:
-    """The concordance table as it reads on a good run, measured 2026-07-26.
+    """The concordance table as it reads on a good run, measured 2026-09-12.
 
-    The >5 % Spearman column was re-measured 2026-09-12, once pct was rounded
-    the way Seurat rounds it, and the deseq2 row the same day, once deseq2
-    tested cells as Seurat's DESeq2DETest does.
+    Re-measured once `find_clusters` ran Seurat's own optimiser, which changed the
+    two clusters the tutorial tests to 703 and 480 cells, from 692 and 515.
     """
     rows = {
-        "wilcox":   (50, 1.000000, 6.44e-15, np.nan),
-        "t":        (50, 1.000000, 6.44e-15, np.nan),
-        "bimod":    (50, 1.000000, 6.44e-15, np.nan),
-        "LR":       (50, 1.000000, 6.44e-15, np.nan),
-        "negbinom": (50, 0.999999, 6.44e-15, np.nan),
-        "poisson":  (50, 0.999998, 6.22e-15, np.nan),
-        "roc":      (np.nan, np.nan, 6.44e-15, 4.9986e-4),
-        "mast":     (50, 0.998013, 6.44e-15, np.nan),
+        "wilcox":   (50, 1.000000, 6.22e-15, np.nan),
+        "t":        (50, 1.000000, 6.22e-15, np.nan),
+        "bimod":    (50, 1.000000, 6.22e-15, np.nan),
+        "LR":       (50, 1.000000, 6.22e-15, np.nan),
+        "negbinom": (50, 0.999999, 6.22e-15, np.nan),
+        "poisson":  (50, 0.999999, 6.22e-15, np.nan),
+        "roc":      (np.nan, np.nan, 6.22e-15, 5.0e-4),
+        "mast":     (50, 0.999285, 6.22e-15, np.nan),
         "deseq2":   (50, 0.999999, 6.22e-15, np.nan),
     }
     return pd.DataFrame(
@@ -114,7 +113,7 @@ def test_the_fold_change_band_covers_every_test():
     one in any other test.
     """
     measured = de.measure_bands(_clean_table())
-    assert measured["max |dlog2FC| (parity tests)"] == pytest.approx(6.44e-15, rel=1e-9, abs=0)
+    assert measured["max |dlog2FC| (parity tests)"] == pytest.approx(6.22e-15, rel=1e-9, abs=0)
 
     for test in ("mast", "deseq2"):
         table = _clean_table()
@@ -128,6 +127,21 @@ def test_the_auc_band_is_r_s_rounding_and_not_a_free_tolerance():
     table = _clean_table()
     table.loc["roc", "auc_max_abs_diff"] = 1e-3
     assert "roc max |dAUC|" in _holds(table)
+
+
+def test_an_auc_exactly_at_seurat_s_rounding_passes_the_band():
+    """``0.488 - 0.4875`` is 0.0005000000000000004, a few ULPs past the bound it
+    sits on, and PBMC 3k has six such genes. ``compare`` rounds that away rather
+    than widening the band, so a run that meets Seurat's rounding exactly passes."""
+    assert 0.488 - 0.4875 > de.AUC_TOLERANCE
+    py = pd.DataFrame({"myAUC": [0.4875, 0.25]}, index=["edge", "other"])
+    r = pd.DataFrame({"myAUC": [0.488, 0.25]}, index=["edge", "other"])
+    res = de.compare(py, r, "roc")
+    assert res["auc_max_abs_diff"] == de.AUC_TOLERANCE
+    assert res["auc_within_seurat_rounding"]
+    table = _clean_table()
+    table.loc["roc", "auc_max_abs_diff"] = res["auc_max_abs_diff"]
+    assert "roc max |dAUC|" not in _holds(table)
 
 
 def test_a_missing_column_fails_rather_than_disappearing():

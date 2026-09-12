@@ -385,11 +385,11 @@ from the same 10x bytes.
 |---|---|
 | QC | **the same 7,475 barcodes**; nCount and nFeature exact, percent.mt to 5.3e-15 |
 | Normalized data | total to 8.2e-13 relative · kNN graph **149,500 on both** |
-| Stage 1 clusters | 13 vs 12 · **ARI 0.977** · 7,341/7,475 cells agree |
-| Broad lineage, per cell | **0.9858** |
-| **T/NK compartment** | **Jaccard 0.9991** — 4,631 of 4,635 cells are the same barcodes |
-| Stage 2 subclusters | 12 vs 11 · **ARI 0.916** on the shared cells |
-| T/NK subset label, per cell | **0.9821**; the four subset sizes agree within 25 cells |
+| Stage 1 clusters | 12 vs 12 · **ARI 0.983** · 7,413/7,475 cells agree |
+| Broad lineage, per cell | **0.9964** |
+| **T/NK compartment** | **Jaccard 0.9998** — 4,634 of 4,635 cells are the same barcodes |
+| Stage 2 subclusters | 11 vs 11 · **ARI 0.934** on the shared cells |
+| T/NK subset label, per cell | **0.9629**; subset sizes agree except CD4 memory and CD8 T, 149 cells apart |
 
 ### Why the compartment is compared by barcode
 
@@ -399,20 +399,15 @@ conditioned on which cells stage one selected — so a subclustering fed from th
 wrong global clusters would still produce a compartment of a plausible size,
 still produce subclusters, still produce a marker table, and a size check would
 call all of it a match. Only comparing the barcodes can tell "the same 4,600
-cells" from "4,600 cells". Here they are the same to four cells.
+cells" from "4,600 cells". Here they are the same to one cell.
 
-### The extra cluster
+### No extra cluster
 
-truecell finds 13 global clusters where Seurat finds 12. Seurat's 100-cell
-cluster 11 holds both Platelet and DC; truecell splits it into a 54-cell DC
-cluster and a 53-cell Platelet cluster. Two distinct myeloid lineages, so the
-split is the more resolved answer.
-
-Note that this runs *opposite* to the PBMC 3k tutorial, where Seurat resolves a
-32-cell DC cluster that truecell folds into CD14+ Mono. Both are the same
-borderline population landing on different sides of a resolution threshold, and
-neither run is uniformly finer than the other — which is worth knowing before
-reading a cluster count as a verdict.
+Both tools find 12 global clusters, and each pairs with one of the other's.
+While `find_clusters` ran igraph's single Louvain pass, truecell found 13: it
+split Seurat's 100-cell Platelet and DC cluster into a 54-cell DC cluster and a
+53-cell Platelet cluster. With Seurat's optimiser that cluster holds 99 cells
+here and 100 in Seurat.
 
 ---
 

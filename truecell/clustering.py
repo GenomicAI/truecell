@@ -4,8 +4,10 @@ Mirrors Seurat's FindClusters().
 """
 from __future__ import annotations
 
+import math
+import warnings
 from collections.abc import Sequence
-from typing import Optional, Union
+from functools import cache
 
 import numpy as np
 import pandas as pd
@@ -34,18 +36,29 @@ def _res_label(r: float) -> str:
 
 def find_clusters(
     seurat,
-    resolution: Union[float, Sequence[float]] = 0.5,
+    resolution: float | Sequence[float] = 0.8,
     algorithm: int = 1,
-    graph_name: Optional[str] = None,
+    graph_name: str | None = None,
     random_seed: int = 0,
-    n_iterations: int = -1,
+    n_iter: int = 10,
     group_singletons: bool = True,
-    cluster_name: Optional[Union[str, Sequence[str]]] = None,
+    cluster_name: str | Sequence[str] | None = None,
+    modularity_fxn: int = 1,
+    n_start: int = 10,
+    optimizer: str = "seurat",
+    n_iterations: int | None = None,
 ) -> None:
-    """Apply Louvain or Leiden clustering on the SNN graph.
+    """Cluster the cells on a neighbour graph, as Seurat's ``FindClusters`` does.
 
-    Mirrors R's ``FindClusters(pbmc, resolution = 0.5)``, including its
-    vector form ``FindClusters(pbmc, resolution = c(0.4, 0.8, 1.2))``.
+    Mirrors R's ``FindClusters(pbmc)``, including its vector form
+    ``FindClusters(pbmc, resolution = c(0.4, 0.8, 1.2))``.
+
+    Algorithms 1–3 run Seurat's own modularity optimiser, translated from the C++
+    behind ``RunModularityClusteringCpp``. It makes ``n_start`` random starts from
+    one random stream, iterates each up to ``n_iter`` times, and keeps the
+    partition with the highest modularity. Given the same graph and settings,
+    truecell returns Seurat's partition label for label. Algorithm 4 is Leiden,
+    run by leidenalg.
 
     Each resolution is written to its own metadata column, named
     ``{graph_name}_res.{resolution}`` as Seurat names it. ``seurat_clusters`` and
@@ -56,11 +69,15 @@ def find_clusters(
     ----------
     resolution   : higher values give more / finer clusters. A sequence runs each
                    in turn, as R's ``resolution = c(...)`` does.
-    algorithm    : 1 = Louvain, 2 = Louvain (multilevel, igraph's default),
-                   4 = Leiden. (3 = SLM is not implemented.)
+    algorithm    : 1 = Louvain, 2 = Louvain with multilevel refinement,
+                   3 = smart local moving (SLM), 4 = Leiden.
     graph_name   : SNN graph to use (defaults to '{assay}_snn')
-    random_seed  : for reproducibility
-    n_iterations : Leiden iterations (-1 = until stable)
+    random_seed  : seeds the optimiser. Leiden needs a seed above 0, so there a
+                   seed of 0 or below becomes 1, with a warning, as in Seurat.
+    n_iter       : iterations per random start. Louvain stops early once an
+                   iteration changes nothing; SLM runs all of them. For Leiden it
+                   is leidenalg's iteration count, and a negative value runs until
+                   the partition is stable.
     group_singletons : absorb size-1 clusters into their best-connected
                    neighbour, as Seurat's ``GroupSingletons`` does. With
                    ``False`` they are all pooled into one ``"singleton"``
@@ -68,14 +85,23 @@ def find_clusters(
     cluster_name : override the generated column name(s); one name, or one per
                    resolution. Seurat's ``cluster.name``. ``seurat_clusters`` is
                    still written either way.
+    modularity_fxn : 1 = standard modularity; 2 = Seurat's alternative, in which
+                   every cell weighs 1 and ``resolution`` must be at most 1.
+    n_start      : random starts; the partition with the highest modularity wins.
+    optimizer    : ``"seurat"`` runs Seurat's optimiser for algorithms 1–3.
+                   ``"igraph"`` runs one pass of igraph's ``community_multilevel``
+                   for algorithm 1 or 2, which is how truecell clustered up to
+                   1.2; it reads neither ``n_start`` nor ``n_iter``.
+    n_iterations : deprecated name for ``n_iter``, accepted for one more release.
 
     Notes
     -----
-    Seurat runs its own modularity optimiser with ``n.start = 10`` restarts and
-    keeps the highest-modularity partition; this runs a single pass of igraph's
-    multilevel Louvain. On the same graph that makes truecell's partition land in
-    a slightly shallower optimum — measurably so, but not necessarily a worse
-    one. See the clustering section of ``tutorials/integration_vignette.md``.
+    Seurat's partition can depend on the processor. Built for arm64, its C++
+    fuses a multiply-add in the rule that decides whether a cell moves, and that
+    flips moves whose gain is within one rounding of zero. Such near-ties need
+    edge weights that tie exactly, such as small fractions; they did not occur on
+    PBMC 3k's shared nearest-neighbour graph. truecell uses plain IEEE arithmetic,
+    which is Seurat as built for x86_64.
 
     Each resolution is clustered from the same seed rather than from a running
     RNG stream, so a partition does not depend on which resolutions preceded it
@@ -83,6 +109,15 @@ def find_clusters(
     resolution 0.8 gives the same partition alone, in ``c(0.4, 0.8, 1.2)``, and
     in ``c(1.2, 0.8, 0.4)``.
     """
+    if n_iterations is not None:
+        warnings.warn(
+            "`n_iterations` is deprecated and will be removed in the next release; "
+            "use `n_iter`, which is Seurat's name for it.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        n_iter = n_iterations
+
     assay_name = seurat.active_assay
     if graph_name is None:
         graph_name = f"{assay_name}_snn"
@@ -98,23 +133,32 @@ def find_clusters(
     graph = seurat.graphs[graph_name]
     mat = graph._matrix  # scipy sparse (cells × cells)
 
-    # Validated once rather than per iteration. This does *not* prevent a partial
-    # write — the dispatch sits at the top of the loop body, so a bad `algorithm`
-    # would raise on the first resolution either way, before anything is stored.
-    # It is here so the check does not depend on the loop at all.
-    #
-    # A partial write is still reachable: if a *later* resolution fails inside
-    # igraph, the earlier columns are already on the object. That is Seurat's
-    # behaviour too, and is left alone.
-    if algorithm == 3:
-        raise NotImplementedError(
-            "algorithm=3 (SLM) is not implemented. Use 1 or 2 (Louvain) or "
-            "4 (Leiden)."
-        )
-    if algorithm not in (1, 2, 4):
+    # Every argument is checked before the first resolution is clustered, so a
+    # bad one raises before any clustering runs; a failure inside a later
+    # resolution cannot leave earlier columns behind either, because nothing is
+    # written until every resolution has succeeded (below).
+    if algorithm not in (1, 2, 3, 4):
         raise ValueError(
-            f"Unknown algorithm {algorithm!r}. Use 1 or 2 (Louvain) or 4 (Leiden)."
+            f"Unknown algorithm {algorithm!r}. Use 1 (Louvain), 2 (Louvain with "
+            "multilevel refinement), 3 (SLM) or 4 (Leiden)."
         )
+    if optimizer not in ("seurat", "igraph"):
+        raise ValueError(f"Unknown optimizer {optimizer!r}. Use 'seurat' or 'igraph'.")
+    seurat_optimizer = algorithm != 4 and optimizer == "seurat"
+    if algorithm == 3 and optimizer == "igraph":
+        raise ValueError("igraph has no smart local moving algorithm; algorithm=3 "
+                         "needs optimizer='seurat'.")
+    if algorithm in (1, 2) and optimizer == "igraph" and modularity_fxn != 1:
+        raise ValueError("igraph optimises the standard modularity only; "
+                         "modularity_fxn=2 needs optimizer='seurat'.")
+    if seurat_optimizer:
+        if modularity_fxn not in (1, 2):
+            raise ValueError(f"`modularity_fxn` must be 1 (standard) or 2 "
+                             f"(alternative); got {modularity_fxn!r}.")
+        if n_start < 1:
+            raise ValueError(f"`n_start` must be at least 1; got {n_start!r}.")
+        if n_iter < 1:
+            raise ValueError(f"`n_iter` must be at least 1; got {n_iter!r}.")
 
     # `np.number` is here for the numpy scalars a caller gets out of an array;
     # np.float64 subclasses float but np.float32 does not, and iterating one
@@ -125,6 +169,9 @@ def find_clusters(
         resolutions = [float(r) for r in resolution]
     if not resolutions:
         raise ValueError("`resolution` is empty; give at least one value.")
+    if seurat_optimizer and modularity_fxn == 2 and max(resolutions) > 1.0:
+        raise ValueError("The alternative modularity (modularity_fxn=2) needs "
+                         f"resolution <= 1; got {max(resolutions)}.")
 
     if cluster_name is None:
         names = [f"{graph_name}_res.{_res_label(r)}" for r in resolutions]
@@ -136,26 +183,54 @@ def find_clusters(
                 f"{len(resolutions)} resolution(s); give one per resolution."
             )
 
-    cluster_series = None
+    leiden_seed = random_seed
+    if algorithm == 4 and random_seed <= 0:
+        warnings.warn(
+            "`random_seed` must be greater than 0 for Leiden clustering; using 1, "
+            "as Seurat does.",
+            UserWarning,
+            stacklevel=2,
+        )
+        leiden_seed = 1
+
+    # The graph is converted once, not once per resolution.
+    if seurat_optimizer:
+        try:
+            from ._modularity import build_network, run_modularity_clustering
+        except ImportError as exc:  # numba is in the [analysis] extra
+            raise ImportError(
+                "find_clusters needs numba to run Seurat's modularity optimiser; "
+                "install it with `pip install truecell[analysis]`."
+            ) from exc
+        network = build_network(mat, modularity_fxn)
+    else:
+        igraph_graph = _sparse_to_igraph(mat)
+
+    columns = []
     for res, name in zip(resolutions, names):
-        if algorithm == 4:
-            labels = _leiden_clustering(mat, res, random_seed, n_iterations)
+        if seurat_optimizer:
+            labels = run_modularity_clustering(network, res, algorithm, n_start, n_iter,
+                                               random_seed, modularity_fxn)
+        elif algorithm == 4:
+            labels = _leiden_clustering(igraph_graph, res, leiden_seed, n_iter)
         else:
-            # python-igraph's community_multilevel is the multilevel Louvain
-            # algorithm (closest to Seurat's algorithm 1/2).
-            labels = _louvain_clustering(mat, res, random_seed)
+            labels = _louvain_clustering(igraph_graph, res, random_seed)
 
         str_labels = _group_singletons(
             np.asarray([str(c) for c in labels]), mat, group_singletons
         )
         present = sorted(set(str_labels),
                          key=lambda s: (not s.isdigit(), s.isdigit() and int(s), s))
-        cluster_series = pd.Categorical(str_labels, categories=present)
-        seurat.meta_data[name] = cluster_series
+        columns.append((name, pd.Categorical(str_labels, categories=present)))
 
+    # Seurat builds every column before it assigns any, so a resolution that fails
+    # part way leaves the object as it was.
+    for name, series in columns:
+        seurat.meta_data[name] = series
     # The last resolution given, not the largest — Seurat takes the last column
     # of its results frame, so `resolution = c(1.2, 0.8, 0.4)` leaves the object
     # sitting on 0.4.
+    cluster_series = columns[-1][1]
     seurat.meta_data["seurat_clusters"] = cluster_series
     seurat.idents = cluster_series
 
@@ -177,13 +252,18 @@ def _group_singletons(
     ``sum(subSNN) / (nrow * ncol)``). With ``group_singletons = False`` they are
     instead pooled into a single ``"singleton"`` cluster.
 
-    Seurat breaks ties by ``sample()`` under ``set.seed(1)``; an R RNG draw is
-    not reproducible from Python, so the lowest-numbered cluster wins here.
-    Ties need two candidates to share a mean connectivity exactly, which the
-    Jaccard weights make rare.
+    Singletons are taken in order of first appearance, and each one scores the
+    clusters as they stand by then: a singleton absorbed earlier counts towards
+    its new cluster for the singletons after it, because Seurat looks the
+    cluster's cells up again each time. The candidate clusters themselves are
+    fixed before the loop, so one singleton never absorbs another.
+
+    A tie goes where Seurat's ``set.seed(1); sample()`` sends it, over the tied
+    clusters in order of first appearance. A cell with no edges ties across every
+    cluster.
     """
     ids = ids.copy()
-    values, counts = np.unique(ids, return_counts=True)
+    values, first, counts = np.unique(ids, return_index=True, return_counts=True)
     singletons = set(values[counts == 1].tolist())
     if not singletons:
         return ids
@@ -194,22 +274,64 @@ def _group_singletons(
         ids[np.isin(ids, list(singletons))] = "singleton"
         return ids.astype(str)
 
+    by_appearance = np.argsort(first, kind="stable")
+    order = [str(values[k]) for k in by_appearance]
+    position = {str(values[k]): int(first[k]) for k in by_appearance}
     # Candidate targets are fixed before the loop, as in Seurat: a cluster that
     # has just absorbed a singleton does not itself become a new target.
-    targets = [v for v in values if v not in singletons]
+    targets = [v for v in order if v not in singletons]
     if not targets:
         return ids
     snn = snn.tocsr()
-    members = {t: np.flatnonzero(ids == t) for t in targets}
+    members = {t: np.flatnonzero(ids == t).tolist() for t in targets}
 
-    # Seurat iterates singletons in order of first appearance in `ids`.
-    order = sorted(singletons, key=lambda s: int(np.flatnonzero(ids == s)[0]))
-    for s in order:
-        cell = int(np.flatnonzero(ids == s)[0])
+    for s in (v for v in order if v in singletons):
+        cell = position[s]
         row = snn[cell].toarray().ravel()
-        best = max(targets, key=lambda t: (row[members[t]].mean(), -_key(t)))
+        connectivity = np.array([row[members[t]].mean() for t in targets])
+        tied = np.flatnonzero(connectivity == connectivity.max())
+        best = targets[tied[_r_sample_index(len(tied))]]
         ids[cell] = best
+        members[best].append(cell)
     return ids
+
+
+@cache
+def _r_sample_index(m: int) -> int:
+    """The 0-based index R draws for ``set.seed(1); sample.int(m, 1)``.
+
+    ``GroupSingletons`` calls ``set.seed(1)`` right before its tie-breaking
+    ``sample()``, so the draw depends on ``m`` alone. R (3.6 onwards) seeds its
+    Mersenne Twister by scrambling the seed through the 69069 congruential
+    generator and filling the state from it, then samples by rejection below the
+    next power of two (``R_unif_index``). Checked against R 4.6.1 for m = 1..300
+    and nine larger values.
+    """
+    if m <= 1:
+        return 0
+    s = 1
+    for _ in range(50):
+        s = (69069 * s + 1) & 0xFFFFFFFF
+    s = (69069 * s + 1) & 0xFFFFFFFF  # the stream position, which R then resets
+    key = np.empty(624, dtype=np.uint32)
+    for k in range(624):
+        s = (69069 * s + 1) & 0xFFFFFFFF
+        key[k] = s
+    generator = np.random.MT19937()
+    generator.state = {"bit_generator": "MT19937", "state": {"key": key, "pos": 624}}
+    bits = math.ceil(math.log2(m))
+    while True:
+        v, n = 0, 0
+        while n <= bits:
+            # unif_rand() never returns 0 or 1; a 32-bit draw can only hit 0.
+            u = float(generator.random_raw()) * 2.3283064365386963e-10
+            if u <= 0.0:
+                u = 0.5 * 2.328306437080797e-10
+            v = 65536 * v + math.floor(u * 65536)
+            n += 16
+        draw = v & ((1 << bits) - 1)
+        if draw < m:
+            return draw
 
 
 def _key(label: str) -> float:
@@ -238,14 +360,11 @@ def _seed_igraph(seed: int) -> None:
 
 
 def _louvain_clustering(
-    mat: sp.spmatrix,
+    g,
     resolution: float,
     seed: int,
 ) -> np.ndarray:
-    """Louvain community detection using python-igraph."""
-    import warnings
-
-    g = _sparse_to_igraph(mat)
+    """One pass of igraph's multilevel Louvain (``optimizer="igraph"``)."""
     _seed_igraph(seed)
 
     try:
@@ -277,7 +396,7 @@ def _louvain_clustering(
 # ------------------------------------------------------------------
 
 def _leiden_clustering(
-    mat: sp.spmatrix,
+    g,
     resolution: float,
     seed: int,
     n_iterations: int,
@@ -285,7 +404,6 @@ def _leiden_clustering(
     """Leiden community detection."""
     import leidenalg
 
-    g = _sparse_to_igraph(mat)
     _seed_igraph(seed)
 
     partition = leidenalg.find_partition(
@@ -315,13 +433,9 @@ def _sparse_to_igraph(mat: sp.spmatrix):
 
     # Only upper triangle (undirected)
     mask = mat.row < mat.col
-    rows = mat.row[mask].tolist()
-    cols = mat.col[mask].tolist()
-    weights = mat.data[mask].tolist()
-
-    edges = list(zip(rows, cols))
+    edges = np.column_stack((mat.row[mask], mat.col[mask]))
     g = ig.Graph(n=n, edges=edges, directed=False)
-    g.es["weight"] = weights
+    g.es["weight"] = mat.data[mask]
     return g
 
 

@@ -531,8 +531,8 @@ pbmc <- FindClusters(
 find_neighbors(pbmc, dims=range(10), k_param=20)
 find_clusters(
     pbmc,
-    resolution  = 0.5,   # → 8 clusters (see the note below)
-    algorithm   = 1,     # 1=Louvain, 2=Leiden
+    resolution  = 0.5,   # → 9 clusters
+    algorithm   = 1,     # 1 = Louvain, 4 = Leiden
     random_seed = 0,
 )
 # pbmc.meta_data["seurat_clusters"] holds labels
@@ -542,13 +542,13 @@ find_clusters(
 </tr>
 </table>
 
-> Both use Louvain community detection via `igraph`. At `resolution = 0.5`
-> Seurat returns **9** clusters here and truecell **8** — the two runs agree
-> about 2,519 of the 2,638 cells (**ARI 0.899**), and the single cluster
-> Seurat has and truecell does not is a 32-cell dendritic-cell population whose
-> cells land, **all 32 of them**, in truecell's CD14+ Mono cluster. DCs are
-> monocyte-lineage, so this is one borderline split at this resolution, not a
-> scattered disagreement.
+> Both run Seurat's modularity optimiser: truecell's is a translation of Seurat's
+> C++, with the same ten restarts and the same random stream. At
+> `resolution = 0.5` each returns **9** clusters, numbered alike, and the two runs
+> agree about 2,562 of the 2,638 cells (**ARI 0.928**). Given the same graph they
+> would agree on every cell, so what is left comes from the graph, traced in the
+> note below. The largest difference is the CD8 T cluster, 303 cells here and 270
+> in Seurat.
 
 ### The whole sweep, not one point on it
 
@@ -559,17 +559,15 @@ vector idiom — and scores every one against R:
 
 | resolution | truecell | Seurat | ARI | concordance |
 |---:|---:|---:|---:|---:|
-| 0.4 | 9 | 9 | 0.8958 | 0.9602 |
-| **0.5** | **8** | **9** | **0.8987** | **0.9549** |
-| 0.8 | 11 | 11 | 0.8264 | 0.9174 |
-| 1.2 | 12 | 12 | 0.7995 | 0.8647 |
+| 0.4 | 9 | 9 | 0.9185 | 0.9701 |
+| **0.5** | **9** | **9** | **0.9284** | **0.9712** |
+| 0.8 | 11 | 11 | 0.9434 | 0.9746 |
+| 1.2 | 11 | 12 | 0.9253 | 0.9632 |
 
-Two things worth reading off this. **The cluster count matches exactly at 0.4,
-0.8 and 1.2** — the 8-vs-9 split described above is specific to resolution 0.5,
-not a standing property of the port. And **agreement falls as resolution rises**
-(0.90 → 0.83 → 0.80), which is what you would expect: finer partitions put more
-boundaries in play, and each is another chance for the two Louvain runs to land
-in different local optima.
+The cluster count matches at 0.4, 0.5 and 0.8, and Seurat finds one more at 1.2.
+Agreement stays between 0.92 and 0.94 across the sweep. It used to fall from
+0.90 to 0.80 as the resolution rose, while the two tools ran different
+optimisers.
 
 0.5 is given **last** on purpose. Seurat leaves the object on the last
 resolution in the sequence, so every step below — UMAP, markers, annotation, the
@@ -581,7 +579,8 @@ file documented ARI **0.938** at resolution 0.5 while measuring 0.899, across si
 documents. The number had drifted — most likely with the graph fixes in #67–#71,
 which moved cells between clusters — and with no band on it, nothing failed.
 That is the same drift the DE tutorial's `deseq2 top50` band *did* catch at the
-time (25 → 22).
+time (25 → 22). The bands were re-measured when `find_clusters` became Seurat's
+optimiser, which raised every ARI in the table above.
 >
 > Where it comes from is traceable: the two runs keep the **same 2,638
 > barcodes** and agree on the per-gene VST means to 4.8e-14 and observed
@@ -590,12 +589,11 @@ time (25 → 22).
 > itself, differs by 2.5e-2, so the disagreement is the fit and only the fit. That flips **2 of the 2,000** variable features (both at
 > ranks 1,982–2,000, and 0.03 apart in the fit), which moves the PCA slightly
 > — matched \|r\| 0.9988 over the 10 dims clustering uses — which moves 286 of
-> ~194,000 SNN edges, which moves this one boundary.
+> ~194,000 SNN edges, which moves the cells the two partitions disagree about.
 >
 > Run `Rscript tutorials/pbmc3k_verify.R` then
 > `python tutorials/pbmc3k_tutorial.py --report` to reproduce every number in
-> this note. Tutorial 2 shows the same boundary going the other way, with
-> truecell resolving a DC population that Seurat merges.
+> this note.
 
 ---
 
@@ -638,8 +636,7 @@ fig = dim_plot(pbmc, reduction="umap", label=False)
 > rotated, reflected, or positioned further apart. This is a known and well-documented
 > difference between the two libraries and does **not** indicate an error in the
 > analysis. The important thing is that the **same 9 biologically meaningful clusters**
-> are recovered in both. Cluster label numbers may also differ (Louvain assigns IDs by
-> graph traversal order) but the cell-type groupings are identical.
+> are recovered in both, numbered alike: both tools number clusters by size.
 
 ---
 
@@ -893,8 +890,6 @@ DimPlot(
 <td>
 
 ```python
-# Eight clusters here, not Seurat's nine: DC is absorbed
-# into CD14+ Mono at this resolution (see Step 11's note).
 cell_type_map = {
     "0": "Naive CD4 T",
     "1": "CD14+ Mono",
@@ -903,7 +898,8 @@ cell_type_map = {
     "4": "CD8 T",
     "5": "FCGR3A+ Mono",
     "6": "NK",
-    "7": "Platelet",
+    "7": "DC",
+    "8": "Platelet",
 }
 pbmc.rename_idents(cell_type_map)
 
@@ -924,12 +920,9 @@ fig = dim_plot(
 </tr>
 </table>
 
-> Cluster index ordering differs between R and Truecell (Louvain numbers its
-> clusters by size, and the sizes are not identical), so the cluster-to-cell-type
-> mapping uses different numeric keys. **Eight labels here against Seurat's
-> nine:** the DC population is inside CD14+ Mono at this resolution, so the last
-> cluster is the platelets — see Step 11's note. Every other type appears on both
-> sides, on cells that largely agree (ARI 0.899).
+> Both tools number clusters by size, and here the nine come out in the same
+> order on both sides, so the map is Seurat's own, key for key. The two
+> partitions agree at ARI 0.928 — see Step 11.
 
 ---
 
@@ -1073,7 +1066,7 @@ on this dataset:
 | Variable features | **1,998 of 2,000 shared**, rank Spearman 0.9999 |
 | PCA (10 dims) | matched \|r\| mean **0.9988**, min 0.9946, no reordering |
 | kNN graph | **52,760 on both** (2,638 × 20) |
-| Clusters | 8 vs 9 — **ARI 0.899**, concordance 0.955 (see Step 11) |
+| Clusters | 9 vs 9 — **ARI 0.928**, concordance 0.971 (see Step 11) |
 | Markers, where the clusters hold identical cells | **identical gene sets** (151/151, 242/242), `avg_log2FC` to 4.9e-15 and 4.6e-14 respectively |
 
 That last row is the one to read carefully. Two clusters — B cells and

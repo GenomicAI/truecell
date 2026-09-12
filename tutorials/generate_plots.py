@@ -38,20 +38,19 @@ FIGURES = Path(__file__).parent / "figures"
 FIGURES.mkdir(exist_ok=True)
 
 # Cluster number -> cell type, for the clusters *this* pipeline produces at
-# resolution 0.5. Eight, not Seurat's nine: DC is absorbed into CD14+ Mono at
-# this resolution, so the last cluster is the platelets. This must stay in step
-# with the `cell_type_map` in Step 12 of `pbmc3k_tutorial.md`, which the figures
-# below illustrate — the two are the same map written twice.
+# resolution 0.5: Seurat's nine. This must stay in step with the `cell_type_map`
+# in Step 17 of `pbmc3k_tutorial.md`, which the figures below illustrate — the
+# two are the same map written twice.
 #
 # `rename_idents` is positional, so a wrong *length* here is worse than a wrong
-# name: carrying Seurat's ninth entry shifted every label from position 7 on,
-# and the platelet cluster (14 cells, PPBP 5.85) was captioned "DC" in the
-# annotated UMAP while no cluster carried "Platelet" at all. Before that, 1<->2
-# and 3<->4 were transposed and the monocyte compartment wore T-cell names.
-# Both shipped. `test_cell_type_map_matches_the_markers` now pins the labels
-# *and* the cluster ids against the data — but it is opt-in and does not run in
-# CI, which is why the second one survived a release. Run it before changing
-# anything here:
+# name. While igraph's single Louvain pass merged DC into CD14+ Mono and the
+# pipeline resolved eight clusters, carrying Seurat's ninth entry shifted every
+# label from position 7 on: the platelet cluster (14 cells, PPBP 5.85) was
+# captioned "DC" in the annotated UMAP and no cluster carried "Platelet" at all.
+# Before that, 1<->2 and 3<->4 were transposed and the monocyte compartment wore
+# T-cell names. Both shipped. `test_cell_type_map_matches_the_markers` now pins
+# the labels *and* the cluster ids against the data, and CI's tutorials job runs
+# it. Run it before changing anything here:
 #
 #   TRUECELL_TUTORIAL_SMOKE=1 pytest tests/test_tutorial_smoke.py -k cell_type
 CELL_TYPE_MAP = {
@@ -62,18 +61,14 @@ CELL_TYPE_MAP = {
     "4": "CD8 T",
     "5": "FCGR3A+ Mono",
     "6": "NK",
-    "7": "Platelet",
+    "7": "DC",
+    "8": "Platelet",
 }
 
 # The marker each label must lead on, for the guard test. Chosen for being
 # *discriminative*, not merely canonical: IL7R is the textbook CD4 marker but is
 # expressed by both T subsets, and S100A4 peaks in monocytes, so neither
 # separates naive from memory. CCR7 and IL7R do.
-#
-# DC keeps its entry although no cluster currently carries the label: this is the
-# panel, not a description of what the pipeline resolved. FCER1A is the reason DC
-# cannot simply be re-added to the map on sight — it peaks in CD14+ Mono here
-# (0.164, against 0.000 in the platelet cluster), which is what "absorbed" means.
 CELL_TYPE_MARKER = {
     "Naive CD4 T": "CCR7",
     "CD14+ Mono": "CD14",

@@ -168,7 +168,7 @@ DESeq2 test. Every other test ignores it.
 
 **Without `sample_col`, `deseq2` is Seurat's per-cell test.** `DESeq2DETest` gives
 DESeq2 one column per cell, and so does truecell. On PBMC 3k it calls the same
-726 genes as Seurat at `p_val_adj < 0.05`, with the same top 50. Two things
+712 genes as Seurat at `p_val_adj < 0.05`, with the same top 50. Two things
 follow from DESeq2 itself:
 
 - Cells are not independent replicates, so per-cell p-values are

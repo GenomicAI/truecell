@@ -194,18 +194,43 @@ def test_an_empty_resolution_list_is_rejected(clustered):
         find_clusters(clustered, resolution=[])
 
 
-@pytest.mark.parametrize("algorithm,exc", [(3, NotImplementedError),
-                                           (9, ValueError)])
-def test_a_bad_algorithm_writes_no_columns_at_all(clustered, algorithm, exc):
-    """A rejected `algorithm` leaves the object exactly as it found it.
+@pytest.mark.parametrize("kwargs", [
+    {"algorithm": 9},
+    {"optimizer": "networkx"},
+    {"algorithm": 3, "optimizer": "igraph"},
+    {"modularity_fxn": 2, "optimizer": "igraph"},
+    {"modularity_fxn": 3},
+    {"n_start": 0},
+    {"n_iter": 0},
+    # Only the second resolution is out of range for the alternative modularity,
+    # so a check made one resolution at a time would already have written 0.4.
+    {"modularity_fxn": 2, "resolution": [0.4, 1.2]},
+])
+def test_a_rejected_argument_writes_no_columns_at_all(clustered, kwargs):
+    """A rejected argument leaves the object exactly as it found it.
 
-    Note what this does *not* establish. Moving the check from above the loop to
-    inside it passes this test unchanged — mutation testing confirmed it — because
-    the dispatch is the first statement of the loop body, so the first resolution
-    raises before anything is stored. The eager check is tidiness, not a guard
-    against a partial write, and the comment in ``clustering.py`` says so.
+    Seurat's ``FindClusters`` builds every resolution's column before it assigns
+    any to the object, so an error at any resolution changes nothing.
     """
     before = set(clustered.meta_data.columns)
-    with pytest.raises(exc):
-        find_clusters(clustered, resolution=[0.4, 0.8], algorithm=algorithm)
+    with pytest.raises(ValueError):
+        find_clusters(clustered, **{"resolution": [0.4, 0.8], **kwargs})
+    assert set(clustered.meta_data.columns) == before
+
+
+def test_a_resolution_that_fails_part_way_writes_no_columns(clustered, monkeypatch):
+    """A failure inside the second resolution's clustering leaves the first unwritten."""
+    import truecell._modularity as modularity
+
+    real = modularity.run_modularity_clustering
+
+    def fail_on_second(network, resolution, *args):
+        if resolution == 0.8:
+            raise RuntimeError("clustering failed")
+        return real(network, resolution, *args)
+
+    monkeypatch.setattr(modularity, "run_modularity_clustering", fail_on_second)
+    before = set(clustered.meta_data.columns)
+    with pytest.raises(RuntimeError):
+        find_clusters(clustered, resolution=[0.4, 0.8])
     assert set(clustered.meta_data.columns) == before
