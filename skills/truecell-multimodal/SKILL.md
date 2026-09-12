@@ -188,7 +188,7 @@ A gene with fewer than `min_de_genes` DE genes against NT is untestable, and all
 its cells are called NP. That is a stated outcome, not a failure — check how many
 guides fall into it before reading the KO rates.
 
-97.45 % per-cell call-concordant with R Seurat on the THP-1 ECCITE-seq screen.
+97.68 % per-cell call-concordant with R Seurat on the THP-1 ECCITE-seq screen.
 
 ---
 

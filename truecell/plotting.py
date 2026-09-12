@@ -1267,24 +1267,53 @@ def viz_dim_loadings(
 # 8. dim_heatmap — DimHeatmap
 # ---------------------------------------------------------------------------
 
+def _dim_heatmap_cells(scores: np.ndarray, cells: int, balanced: bool) -> np.ndarray:
+    """The cells DimHeatmap shows, in its order: ``TopCells`` through ``Top``.
+
+    Balanced takes ``round(cells / 2)`` cells from each end of the score, highest
+    first, and drops the one cell both ends reach when they meet in the middle.
+    Unbalanced takes the ``cells`` largest ``|score|``, in ascending score. R's
+    ``round`` sends a half to its even neighbour, as Python's does, so asking for
+    five cells balanced shows four.
+    """
+    scores = np.asarray(scores, dtype=float)
+    n = len(scores)
+    num = min(int(cells), n)
+    if n == 1:
+        balanced = False
+    if balanced:
+        num = round(num / 2)
+        order = np.argsort(-scores, kind="stable")       # order(data, decreasing = TRUE)
+        positive = order[:num]
+        negative = order[::-1][:num]                      # rev(tail(names, num))
+        if num and positive[-1] == negative[-1]:
+            negative = negative[:-1]
+        return np.concatenate([positive, negative[::-1]])  # DimHeatmap reverses it back
+    order = np.argsort(np.abs(scores), kind="stable")[::-1]   # rev(order(abs(data)))
+    top = order[:num]
+    return top[np.argsort(scores[top], kind="stable")]
+
+
 def dim_heatmap(
     obj,
     reduction: str = "pca",
     dims: Union[int, list[int]] = 1,
-    cells: int = 500,
+    cells: int | None = None,
     balanced: bool = True,
     ncol: Optional[int] = None,
     figsize: Optional[tuple] = None,
 ) -> "Figure":
     """Heatmap of gene loadings for selected principal components.
 
-    Shows the most extreme cells (highest / lowest scores) and the top
+    Shows cells in order of their score, highest on the left, against the top
     loading genes for each PC — mirrors R's ``DimHeatmap(pbmc, dims = 1:6)``.
 
     Parameters
     ----------
     dims     : PC index (1-based int) or list of indices
-    cells    : number of extreme cells to show per PC
+    cells    : how many cells to show per PC, picked the way DimHeatmap picks
+               them. ``None`` (the default) shows every cell, as Seurat does; the
+               PBMC 3k vignette passes 500.
     balanced : if True, take equal numbers from both extremes of the PC score
     """
     import scipy.sparse as sp
@@ -1312,15 +1341,11 @@ def dim_heatmap(
         scores = emb[:, d0]
         col_loads = loadings[:, d0]
 
-        # Select extreme cells
-        n_half = cells // 2
-        if balanced:
-            top_cells = np.argsort(scores)[-n_half:]
-            bot_cells = np.argsort(scores)[:n_half]
-            sel_cells = np.concatenate([bot_cells, top_cells])
-        else:
-            sel_cells = np.argsort(np.abs(scores))[-cells:]
-            sel_cells = sel_cells[np.argsort(scores[sel_cells])]
+        # DimHeatmap's cells, highest score on the left. `n_half` is where the
+        # high end meets the low end, for the separator below.
+        n_cells = len(scores) if cells is None else cells
+        sel_cells = _dim_heatmap_cells(scores, n_cells, balanced)
+        n_half = round(min(n_cells, len(scores)) / 2)
 
         # Select top-loading genes
         top_genes_idx = np.concatenate([

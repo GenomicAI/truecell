@@ -48,10 +48,10 @@ p-value hands you ribosomal genes.
 | 4 | [PBMC 3k — SCTransform](sctransform_vignette.md) | 3,000 PBMCs · 10x Genomics (2016) | Regularized NB normalization · Pearson residuals · `vars.to.regress` · 30-PC workflow · SCT-vs-LogNormalize. The **fitted model is compared per gene** against Seurat's `SCTModel` feature attributes — `detection_rate`/`gmean` to machine precision, intercept and theta at **Spearman 1.0000**, the 3,848 non-overdispersed genes exactly the same set, residual variance at 0.9986; both arms now agree on cluster count (12 and 11) | Advanced |
 | 5 | [Xenium — Spatial (R vs Python)](xenium_spatial_tutorial.md) | 36,602 cells · 10x Xenium mouse brain (CTX+HP) | `load_xenium` · `ImageDimPlot`/`ImageFeaturePlot` · nearest-neighbour distance · local density · `BuildNicheAssay` · `composition_test` — verified to 8 s.f. vs R Seurat | Spatial |
 | 6 | [Cell Hashing — Demultiplexing](hashing_vignette.md) | 39,842 cells · 8 HTOs · GSE108313 (human+mouse) | Hashtag assay · CLR (margin 1) · `HTODemux` ↔ `hto_demux` · `MULTIseqDemux` ↔ `multiseq_demux` · cross-species doublet ground truth — **99.81 %** call-concordant with R | Advanced |
-| 7 | [Mixscape — Pooled CRISPR Screen](mixscape_vignette.md) | 20,729 cells · 25 guides + NT · GSE153056 (THP-1 ECCITE-seq) | Perturbation signature (`CalcPerturbSig`) · KO-vs-escaper mixture (`RunMixscape`) · guide-separating LDA (`MixscapeLDA`) · `PlotPerturbScore` / `MixscapeHeatmap` — **97.45 %** per-cell call-concordant with R | Advanced |
+| 7 | [Mixscape — Pooled CRISPR Screen](mixscape_vignette.md) | 20,729 cells · 25 guides + NT · GSE153056 (THP-1 ECCITE-seq) | Perturbation signature (`CalcPerturbSig`) · KO-vs-escaper mixture (`RunMixscape`) · guide-separating LDA (`MixscapeLDA`) · `PlotPerturbScore` / `MixscapeHeatmap` — **97.68 %** per-cell call-concordant with R | Advanced |
 | 8 | [Batch Integration — Harmony/CCA/RPCA](integration_vignette.md) | 13,999 cells · CTRL/STIM · ifnb (Kang 2018) | Batch correction (`RunHarmony` ↔ `run_harmony`) · CCA/RPCA anchors (`IntegrateLayers` ↔ `integrate_layers`) · silhouette + cluster-ARI scoring — Harmony/CCA/RPCA all reach **batch-mix 0.991**; **caught eight bugs, all fixed** (a crash, an under-integration, and — found chasing what looked like the remaining implementation gap — `IntegrateLayers` silently running the v4 algorithm, a randomized-SVD PC drift in `run_pca`, and four in the neighbour graphs). The last gap standing turned out **not** to be a defect: Seurat's deeper modularity search buys 0.17 % by splitting CD14 Mono on batch, so truecell's coarser partition scores **ARI 0.92 to the annotations against Seurat's 0.74** | Advanced |
 | 9 | [Reference Mapping — Label Transfer](refmap_vignette.md) | 4,679 cells · celseq2→smartseq2 · panc8 (Baron 2016) | Cross-technology annotation transfer (`FindTransferAnchors` ↔ `find_transfer_anchors`) · `TransferData` ↔ `transfer_data` · `MapQuery`/`ProjectUMAP` ↔ `map_query`/`project_umap` — **98.71 %** per-cell label-concordant with R, both ~98.5 % accurate vs ground truth | Advanced |
-| 10 | [Cell-cycle & Module Scoring](cellcycle_vignette.md) | 20,729 cells · THP-1 · GSE153056 (Papalexi 2021) | Gene-program scoring (`AddModuleScore` ↔ `add_module_score`) · cell-cycle phase (`CellCycleScoring` ↔ `cell_cycle_scoring`) · S/G2M scores + discrete phase — **96.6 %** per-cell Phase-concordant with R, scores correlate at Pearson ≥ 0.998 | Advanced |
+| 10 | [Cell-cycle & Module Scoring](cellcycle_vignette.md) | 20,729 cells · THP-1 · GSE153056 (Papalexi 2021) | Gene-program scoring (`AddModuleScore` ↔ `add_module_score`) · cell-cycle phase (`CellCycleScoring` ↔ `cell_cycle_scoring`) · S/G2M scores + discrete phase — **95.9 %** per-cell Phase-concordant with R, scores correlate at Pearson ≥ 0.997 | Advanced |
 | 11 | [Dimensional-Reduction Extras](dimreduc_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | PC significance (`JackStraw`/`ScoreJackStraw` ↔ `jack_straw`/`score_jackstraw`) · `RunICA` ↔ `run_ica` · `RunTSNE` ↔ `run_tsne` — both tools keep **13 PCs**; ICA matched \|r\| **0.982**; **caught two JackStraw bugs, both fixed** (a too-tight null + the wrong aggregation test) | Advanced |
 | 12 | [Leverage-Score Sketching](sketch_vignette.md) | 13,999 cells · CTRL/STIM · ifnb (Kang 2018) | Scaling to atlas size (`LeverageScore` ↔ `leverage_score` · `SketchData` ↔ `sketch_data` · `ProjectData` ↔ `project_data`) · both of Seurat's regimes · uniform-sampling control · on-disk `LazyMatrix` — exact-regime Spearman **1.000000**; leverage tracks rarity at **−0.929** in both tools; **caught two bugs, both fixed** (full-rank leverage + anchor-based label transfer) | Advanced |
 | 13 | [The Object Model Itself](objects_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | The **container**, not an algorithm: `Cells`/`Features` · the v5 layered assay (`Layers`/`LayerData`/`split`/`JoinLayers`) · `Key` · `Embeddings`/`Loadings`/`Stdev` · `Graphs` · `FetchData` · `Idents`/`WhichCells`/`RenameIdents`/`subset` · `Command` — **91 of 91 anchors match exactly**, no tolerance (the two neighbour-graph anchors closed by PR #55); **caught eleven bugs, all fixed** (a split/join round trip that silently misordered columns, `FetchData` returning sparse objects instead of numbers, an inert command log) | Advanced |
@@ -464,12 +464,12 @@ python tutorials/generate_mixscape_plots.py   # Truecell figures → figures_mix
 
 | Comparison | Agreement |
 |---|---:|
-| Mixscape global class (KO/NP/NT) | **97.45 %** (528 cells differ) |
-| Mixscape full class (`<gene> KO`/`NP`) | **97.45 %** |
+| Mixscape global class (KO/NP/NT) | **97.68 %** (481 cells differ) |
+| Mixscape full class (`<gene> KO`/`NP`) | **97.68 %** |
 
 Both tools agree on all 2,386 NT cells, sort the same 14 guides to a flat-zero
-knockout rate, and rank the strong interferon-γ hits identically (`STAT1` 98.6 %,
-`JAK2` 97.8 %, `IFNGR2` 97.7 % per-cell concordant). The disagreement concentrates
+knockout rate, and rank the strong interferon-γ hits identically (`STAT1` 98.4 %,
+`JAK2` 98.3 %, `IFNGR2` 97.8 % per-cell concordant). The disagreement concentrates
 in the **weak, boundary guides** (`MYC`, `SPI1`, `BRD4`, `CUL3`) whose score sits
 close to the NT mode — a genuine method-level difference in the EM mixture and the
 per-gene DE, not a bug. No defect found.
@@ -628,13 +628,14 @@ python  tutorials/generate_cellcycle_plots.py   # Truecell figures → figures_c
 
 | Comparison | Agreement |
 |---|---:|
-| Per-cell `Phase` concordance (truecell vs Seurat) | **96.62 %** (701 cells differ) |
-| `S.Score` / `G2M.Score` correlation (Pearson) | **0.998 / 0.999** |
+| Per-cell `Phase` concordance (truecell vs Seurat) | **95.86 %** (859 cells differ) |
+| `S.Score` / `G2M.Score` correlation (Pearson) | **0.9975 / 0.9990** |
 | `IFN.Response` module score correlation (Pearson) | **0.9995** |
 
-The continuous scores correlate at Pearson ≥ 0.998 — the algorithm is faithfully
+The continuous scores correlate at Pearson ≥ 0.997 — the algorithm is faithfully
 ported; the only reason they are not bit-identical is the random control-gene set
-(NumPy vs R). **96.62 %** of cells get the same phase, with the disagreements
+(NumPy vs R). **95.86 %** of cells get the same phase, the ceiling that control draw
+sets: truecell agrees with itself across NumPy seeds 95.8 % of the time. The disagreements
 sitting on the S=0 / G2M=0 boundary where the small score wobble tips the call —
 the same boundary-sensitivity as Mixscape's weak guides. **No defect found** — the
 same "don't chase the RNG" residual as `clara` (hashing) and the MULTI-seq KDE.

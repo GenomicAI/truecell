@@ -161,17 +161,6 @@ KNOWN_DIVERGENCES: dict[tuple[str, str], str] = {
     # -- Being brought to Seurat's default by the follow-up changes of the
     #    Frontiers revision. The change that fixes one deletes its entry; one left
     #    behind fails `test_no_listed_reason_outlives_the_difference_it_explains`.
-    ("truecell.cell_cycle_scoring", "ctrl"):
-        "Seurat's NULL resolves to the size of the smaller gene set (43 for the "
-        "Tirosh S genes); truecell passes AddModuleScore's 100, and its docstring "
-        "wrongly calls that Seurat's default.",
-    ("truecell.dim_heatmap", "cells"):
-        "Seurat's NULL shows every cell, ranked by score; truecell caps it at 500.",
-    ("truecell.run_mixscape", "layer"):
-        "Seurat's slot = 'scale.data' scales the DE genes before its posterior loop; "
-        "truecell projects the unscaled data layer.",
-    ("truecell.find_spatially_variable_features", "layer"):
-        "Seurat's object method defaults to 'scale.data'; truecell reads the data layer.",
     ("truecell.find_integration_anchors", "anchor_features"):
         "Seurat's 2000 runs SelectIntegrationFeatures(nfeatures = 2000), which ranks "
         "genes by how many datasets call them variable; truecell intersects each "
@@ -414,11 +403,17 @@ def compare(reference: dict) -> tuple[list[Mismatch], dict[str, int]]:
                     merged.setdefault(name, text)
         stats["functions"] += 1
         renames = {**RENAMES, **FUNCTION_RENAMES.get(dotted, {})}
+        target = {name: renames.get(name, name.replace(".", "_").lower()) for name in merged}
         for r_name, text in merged.items():
             if r_name in ("...", "object") or r_name in IGNORED:
                 continue
-            py_name = renames.get(r_name, r_name.replace(".", "_").lower())
+            py_name = target[r_name]
             if py_name not in params:
+                continue
+            if r_name in renames and any(
+                    other not in renames and target[other] == py_name for other in merged):
+                # A renamed alias beside the formal it renames, as the deprecated
+                # `slot` sits beside `layer`: the real formal holds the default.
                 continue
             r, py = r_value(text), py_value(params[py_name].default)
             if isinstance(r, Unparsed) or isinstance(py, Unparsed):

@@ -165,7 +165,7 @@ gets blamed on the wrong function.
 |---|---|---|
 | Louvain cluster count | ±1 | Same algorithm, different local optimum. PBMC 3k: 8 vs 9 at ARI 0.938. Seurat runs 10 restarts; truecell a single multilevel pass. |
 | Variable features | ~2 of 2,000 | Boundary jitter — the swapped genes agree on standardized variance to three decimals. |
-| `add_module_score`, `jack_straw` | RNG-sized | Random control genes / permutations. 96.6 % phase concordance, Pearson ≥ 0.998. Prove differences distribution-against-distribution over matched seeds, never from a single pair. |
+| `add_module_score`, `jack_straw` | RNG-sized | Random control genes / permutations. 95.9 % phase concordance (two NumPy seeds agree 95.8 %), Pearson ≥ 0.997. Prove differences distribution-against-distribution over matched seeds, never from a single pair. |
 | JackStraw PC cutoff | \|Δ\| ≤ 2 | R seeds each replicate from its loop index and is deterministic at 13; truecell seeds from `seed` and has mode 13 over 60 seeds. |
 | `deseq2` top-50 overlap | 15–32 genes | A divergence measurement, not a parity target. Reaching 50 would mean `sample_col` had stopped being honoured. |
 | Visium spot radius | truecell = half of Seurat's | `spot_diameter_fullres` is a diameter; Seurat stores it in a `radius` slot. Here Seurat is the one that is wrong. |

@@ -329,7 +329,7 @@ def test_xenium_moransi_matches_seurats_weighting():
     cells = subset_cells(obj)
     sub = _subset_object(obj, cells)
 
-    got = find_spatially_variable_features(sub, method="moransi")["moransi"]
+    got = find_spatially_variable_features(sub, layer="data", method="moransi")["moransi"]
 
     assay = sub.assays["Xenium"]
     data = assay.layer_data("data")

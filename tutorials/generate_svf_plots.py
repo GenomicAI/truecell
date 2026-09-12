@@ -196,9 +196,9 @@ def main(data_dir=None):
     sub = _subset_object(obj, cells)
 
     exact = find_spatially_variable_features(
-        sub, method="moransi", weights="inverse_square")["moransi"]
+        sub, layer="data", method="moransi", weights="inverse_square")["moransi"]
     knn = find_spatially_variable_features(
-        sub, method="moransi", weights="knn")["moransi"]
+        sub, layer="data", method="moransi", weights="knn")["moransi"]
 
     r = _r_moransi()
     if r is not None:

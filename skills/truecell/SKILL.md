@@ -156,8 +156,8 @@ Not bugs; do not "fix" them, and do not report them as regressions.
   shared on PBMC 3k; the two that swap sit at ranks ~1916–2016 where
   standardized variances agree to three decimals.
 - **Anything with an RNG differs by its RNG and only by that.**
-  `add_module_score` draws control genes at random (96.6 % phase concordance,
-  Pearson ≥ 0.998 on the scores); `jack_straw` permutes.
+  `add_module_score` draws control genes at random (95.9 % phase concordance,
+  Pearson ≥ 0.997 on the scores); `jack_straw` permutes.
 - **truecell's neighbour search is exact; Seurat's default `annoy` is approximate.**
   When comparing, pass `nn.method = "rann"` on the R side.
 

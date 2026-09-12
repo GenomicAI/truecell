@@ -83,6 +83,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DimPlot` and `FeaturePlot` do: `PC_1`, `umap_1`, `tSNE_1`. truecell upper-cased
   the reduction's name instead, so a PCA plot read `PCA_1`, a column neither tool
   has.
+- **BREAKING: `cell_cycle_scoring` draws as many control genes as the smaller
+  gene set has, and calls phases by Seurat's rule.** `CellCycleScoring` passes
+  `ctrl = min(length(s.features), length(g2m.features))` to `AddModuleScore`;
+  truecell passed `AddModuleScore`'s own 100, and its docstring called that
+  Seurat's default. A cell is `G1` only when both scores are below zero, and two
+  scores tied for the highest are `"Undecided"`, a call truecell never made: a
+  cell whose scores were both exactly 0 was `G1` here. On THP-1 the phase split
+  moves onto Seurat's (G1 70.3 / S 16.9 / G2M 12.7 % against 70.8 / 16.5 /
+  12.8 %), and per-cell agreement falls from 96.62 % to 95.86 %. That is the
+  noise floor at 40 control genes: truecell agrees with itself across NumPy seeds
+  95.8 % of the time.
+- **`dim_heatmap` shows every cell by default, highest score on the left**, as
+  `DimHeatmap` does when `cells` is left `NULL`. truecell showed 500, lowest score
+  first. The cells, and their order, now follow SeuratObject's `Top`, checked
+  against R on ten cases including odd counts and ties.
+- **BREAKING: `run_mixscape` scales each target gene's DE genes before its
+  mixture**, as `RunMixscape`'s default `slot = "scale.data"` does. truecell
+  projected the unscaled signature. Either value of `layer` reads the signature's
+  data layer, as Seurat does, and any other value now raises. On the THP-1
+  screen, per-cell agreement with Seurat moves from 97.46 % to 97.68 % (527 to
+  481 of 20,729 cells differ).
+- **BREAKING: `find_spatially_variable_features` reads `scale.data` by
+  default**, as `FindSpatiallyVariableFeatures` does on an object, so it ranks the
+  scaled features and raises, pointing at `scale_data()` or `layer="data"`, when
+  the assay has no scale.data layer. Moran's I is unchanged when a gene is shifted
+  and rescaled, so the statistic on `data` differs only where `ScaleData` clipped
+  a value at 10. The tutorials and tests pass `layer="data"`, which is what their
+  R references compute on.
 
 ### Fixed
 
