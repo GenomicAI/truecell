@@ -81,19 +81,29 @@ imported.
 
 With pip's wheels, numba cannot load its OpenMP layer on macOS. The wheel's
 `omppool` module links a `libomp.dylib` that nothing on the library path provides,
-so numba falls back to workqueue. A conda-forge environment and an older macOS
-were not tried. The [macOS canary](https://github.com/GenomicAI/truecell/blob/main/.github/workflows/macos-canary.yml)
-runs the block every week on macOS 15 in four environments: pip, uv, conda-forge,
-and conda-forge's numba beside pip for the rest.
+so numba falls back to workqueue.
+
+A conda-forge environment and an older macOS were not tried on the M4 Pro. The
+[macOS canary](https://github.com/GenomicAI/truecell/blob/main/.github/workflows/macos-canary.yml)
+now runs the block every week on GitHub's macOS 15.7 runners (Apple M1). On its
+first run, all four environments ran the block to the end:
+
+| Environment | numba layer | OpenMP runtimes loaded |
+|---|---|---|
+| pip | workqueue | one, scikit-learn's |
+| `uv sync --locked` | workqueue | one, scikit-learn's |
+| everything from conda-forge | tbb | one, conda's |
+| numba from conda-forge, the rest with pip | omp | two, conda's and scikit-learn's |
 
 ## Conda environments
 
 numba from conda-forge is linked against conda's own OpenMP runtime
 (`llvm-openmp`), so its OpenMP layer can load. scikit-learn's pip wheel carries its
 own copy of the runtime. Install numba with conda and the rest with pip, and one
-process ends up with two OpenMP runtimes and an OpenMP layer that can load. That is
-the combination behind the scanpy reports. Pick one package manager for the
-numerical stack:
+process ends up with two OpenMP runtimes, with numba on the OpenMP layer. That is
+the combination behind the scanpy reports. It ran the home-page block to the end on
+the canary's runner, which shows that it does not always crash, not that it is
+safe. Pick one package manager for the numerical stack:
 
 - **All conda.** Install the stack from conda-forge, then truecell alone with pip:
 
@@ -106,8 +116,10 @@ numerical stack:
 
 - **No conda.** A venv with pip or uv for everything, which is what CI tests.
 
-`show_versions()` lists every OpenMP runtime it finds loaded, and warns when LLVM's
-or Intel's is loaded more than once.
+`show_versions()` shows the mix directly. Its Dependencies section names the
+installer behind each package, so `conda` beside numba and `pip` beside
+scikit-learn stands out. It also lists every OpenMP runtime it finds loaded, and
+warns when LLVM's or Intel's is loaded more than once.
 
 ## Apple Silicon: use an arm64 Python
 

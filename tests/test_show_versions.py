@@ -159,7 +159,7 @@ def test_two_copies_of_the_openmp_runtime_are_counted_by_file(tmp_path):
     assert sv._warnings(_bare_report(threadpools={"this_process": one, "fresh_process": one})) == []
     two = _bare_report(threadpools={"this_process": [], "fresh_process": [_pool(sklearn), _pool(torch)]})
     [warning] = sv._warnings(two)
-    assert warning.startswith("2 copies of the OpenMP runtime are loaded in fresh process")
+    assert warning.startswith("2 copies of the OpenMP runtime are loaded in a fresh process")
 
 
 def test_rosetta_and_free_threading_each_warn():

@@ -355,13 +355,13 @@ def _warnings(report: dict[str, Any]) -> list[str]:
         found.append(
             "This is a free-threaded Python build, which truecell does not support: "
             "truecell[analysis] could not be installed on 3.14t.")
-    for where in ("this_process", "fresh_process"):
+    for where, label in (("this_process", "this process"), ("fresh_process", "a fresh process")):
         copies = _llvm_openmp_copies(report["threadpools"][where])
         if len(copies) > 1:
             found.append(
-                f"{len(copies)} copies of the OpenMP runtime are loaded in "
-                f"{where.replace('_', ' ')}: {', '.join(copies)}. Two in one process is "
-                "the known cause of segmentation faults in numba-parallel code on Apple "
+                f"{len(copies)} copies of the OpenMP runtime are loaded in {label}: "
+                f"{', '.join(copies)}. Two in one process is the configuration behind the "
+                "segmentation faults scanpy users reported in numba-parallel code on Apple "
                 "Silicon.")
     numba = report["numba"]
     if numba is not None and numba["fresh_process_error"] is not None:

@@ -77,7 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   block weekly on macOS 15 under `-X faulthandler`, in four environments: pip,
   `uv sync --locked`, conda-forge, and conda-forge's numba beside pip.
   `tools/run_docs_snippet.py` reads the block out of `docs/index.md`, so the canary
-  runs what the site shows, and a crash's traceback names the line on the page.
+  runs what the site shows, and a crash's traceback names the line on the page. On
+  its first run all four environments ran the block to the end. In the mixed one,
+  numba ran on the OpenMP layer beside a second copy of the runtime.
 
 ### Changed
 
