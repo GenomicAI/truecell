@@ -189,6 +189,79 @@ jobs:
             exit 1
           fi
 
+  wheel-tutorials:
+    name: Run the PBMC 3k tutorials against the built wheel
+    # A reviewer installs a release and runs the tutorials from a checkout, so the
+    # scripts have to work against truecell from site-packages. Every other job
+    # here has the checkout on sys.path, because `uv sync` installs the project
+    # editable. That is how `pbmc3k_de_tutorial.py` shipped importing
+    # `tutorials.bands` without putting the checkout root on sys.path: fine in an
+    # editable install, `ModuleNotFoundError` against the 1.2.0 wheel.
+    # `tests/test_tutorial_bootstrap.py` reads every tutorial for that; this job
+    # runs two of them the way a reviewer would.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Build the wheel
+        run: uv build --wheel
+
+      - name: Install the wheel into a fresh venv, at the lock's versions
+        # Constrained by `uv.lock`, so a failure here is the wheel's and not a
+        # new upstream release's; `freshdeps` is the job for those.
+        run: |
+          uv export --frozen --all-extras --no-emit-project --no-hashes \
+            --format requirements-txt > "$RUNNER_TEMP/constraints.txt"
+          uv venv --python 3.12 "$RUNNER_TEMP/venv"
+          uv pip install --python "$RUNNER_TEMP/venv/bin/python" \
+            -c "$RUNNER_TEMP/constraints.txt" "$(ls dist/truecell-*.whl)[analysis,deseq2]"
+
+      - name: Copy the tutorials out of the checkout
+        # Without the `truecell/` source tree beside them, so only the installed
+        # wheel can answer `import truecell`.
+        run: |
+          mkdir "$RUNNER_TEMP/run"
+          git archive HEAD tutorials | tar -x -C "$RUNNER_TEMP/run"
+          test ! -e "$RUNNER_TEMP/run/truecell"
+
+      - name: Cache the PBMC 3k dataset
+        uses: actions/cache@v4
+        with:
+          path: ~/.truecell_data/pbmc3k
+          # The `tutorials` job's key. Bump both together.
+          key: truecell-data-pbmc3k-v1
+
+      - name: Fetch the dataset if the cache missed
+        working-directory: ${{ runner.temp }}/run
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" -c "from truecell.datasets import pbmc3k; pbmc3k()"
+          test -f ~/.truecell_data/pbmc3k/filtered_gene_bc_matrices/hg19/matrix.mtx
+
+      - name: Check that truecell is the installed wheel
+        working-directory: ${{ runner.temp }}/run
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" -c '
+          import sysconfig, truecell
+          site = sysconfig.get_paths()["purelib"]
+          assert truecell.__file__.startswith(site), truecell.__file__
+          print("truecell", truecell.__version__, "from", truecell.__file__)
+          '
+
+      - name: Run pbmc3k_tutorial.py
+        working-directory: ${{ runner.temp }}/run
+        run: '"$RUNNER_TEMP/venv/bin/python" tutorials/pbmc3k_tutorial.py'
+
+      - name: Run pbmc3k_de_tutorial.py
+        working-directory: ${{ runner.temp }}/run
+        run: '"$RUNNER_TEMP/venv/bin/python" tutorials/pbmc3k_de_tutorial.py'
+
   freshdeps:
     # The interpolation is load-bearing: an explicit `name:` overrides the
     # default matrix suffix, so without it both legs would report under one

@@ -74,6 +74,11 @@ uv venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 uv pip install -e ".[analysis]"
 ```
 
+The scripts don't need the editable install. From a checkout of a release's tag
+they also run against that release installed from PyPI (add the `deseq2` extra for
+the DE tutorial), and CI runs the two PBMC 3k tutorials that way against every
+change.
+
 Each tutorial has a **Python script** that runs the analysis and prints validation output,
 and a **figure-generation script** that writes plots to a `figures_*/` subfolder.
 

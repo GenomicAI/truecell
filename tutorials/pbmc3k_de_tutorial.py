@@ -114,6 +114,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -126,6 +127,13 @@ from truecell.markers import find_markers
 from truecell.neighbors import find_neighbors
 from truecell.preprocessing import find_variable_features, normalize_data, scale_data
 from truecell.reduction import run_pca
+
+# A script's own directory is on sys.path, not the checkout root, so without this
+# `tutorials.bands` resolves only under an editable install.
+_ROOT = Path(__file__).parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 from tutorials.bands import (
     Band, check_bands, check_shared_groups, render_verdicts,
 )

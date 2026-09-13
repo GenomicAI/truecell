@@ -255,6 +255,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `as_anndata` then refused the object `from_anndata` had just built.
 - **The `ImportError` from `as_anndata` and `from_anndata` names the right extra**,
   `truecell[anndata]`, where it said `seurat-object[anndata]`.
+- **The DE tutorial runs against an installed truecell.** `pbmc3k_de_tutorial.py`
+  imported `tutorials.bands` without first putting the checkout root on `sys.path`,
+  so it worked only from an editable install. Against the 1.2.0 wheel, which is a
+  reviewer's setup, it raised `ModuleNotFoundError`. It now sets up the path as the
+  other tutorials do, and `tests/test_tutorial_bootstrap.py` reads every tutorial for
+  the same mistake. A new CI job, `wheel-tutorials`, runs `pbmc3k_tutorial.py` and
+  `pbmc3k_de_tutorial.py` against the built wheel in a fresh environment, with
+  `tutorials/` copied out of the checkout so that only the wheel can answer
+  `import truecell`.
 
 ## [1.2.0] - 2026-08-10
 

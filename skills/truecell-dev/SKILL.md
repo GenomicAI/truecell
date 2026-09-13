@@ -80,6 +80,15 @@ installs the wheel **clean into `/tmp`** and asserts `truecell.__version__` matc
 wheel is complete, whether a plain `pip install truecell` works without the
 optional scientific stack, and whether the metadata version is right.
 
+Two jobs run tutorials on the real PBMC 3k data. `tutorials` runs the pbmc3k smoke
+tests from the editable install, and a skip fails it. `wheel-tutorials` installs the
+built wheel into a fresh venv pinned to `uv.lock`, copies `tutorials/` out of the
+checkout with `git archive`, and runs `pbmc3k_tutorial.py` and
+`pbmc3k_de_tutorial.py` there, so only the wheel can answer `import truecell`. It
+exists because the 1.2.0 DE tutorial imported `tutorials.bands` without a
+`sys.path` bootstrap, which works only from an editable install.
+`tests/test_tutorial_bootstrap.py` reads every tutorial for that mistake.
+
 `docs.yml` builds with `--strict` and deploys to Pages.
 
 `main` is protected. A PR needs four passing checks: `test (3.12)`,
