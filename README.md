@@ -87,6 +87,10 @@ ships manylinux wheels only through cp313, and the alternatives are a source
 build needing BLAS or a resolver backtrack that pulls in torch. Everything else
 in the dependency set already has 3.14 wheels, so this is one package away.
 
+If truecell crashes (a segmentation fault, or a Jupyter kernel that dies), the
+[Troubleshooting](https://genomicai.github.io/truecell/troubleshooting/) page covers
+the known causes, and `truecell.show_versions()` prints what a bug report needs.
+
 > **`pip install truecell` is current again.** The newest release is **0.9.0**
 > (2026-07-27), and it closes the gap the previous note here warned about:
 > reference mapping, sketching, `LazyMatrix`, cell hashing, Mixscape,

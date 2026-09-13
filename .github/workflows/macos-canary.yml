@@ -1,0 +1,136 @@
+name: macOS canary
+
+# A reviewer ran the Python block on the documentation home page on an Apple M3
+# Pro, and Python died with a segmentation fault in `run_umap`. On an M4 Pro the
+# block ran to the end every way it was tried: pip on 3.12, 3.13 and 3.14, uv,
+# torch installed and imported first, numba's OpenMP layer forced on. Two
+# likely triggers were never tried: an older macOS, and a conda-forge
+# environment, where numba can load its OpenMP threading layer, above all next
+# to pip wheels that carry their own OpenMP runtime.
+#
+# This runs that block on macOS 15 arm64 (macos-14 is deprecated) in four
+# environments, each under `-X faulthandler`, so a native crash fails the leg
+# with a traceback that names the line of docs/index.md that was running.
+# `show_versions()` records each environment's threading layer and OpenMP
+# runtimes, before the block runs and again from inside the process after it.
+#
+# Not on every pull request: nothing here tests truecell's own code that the
+# Linux jobs miss, and macOS runners are slow to start. It runs weekly, on
+# demand, and on a pull request that changes something it runs.
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/macos-canary.yml
+      - tools/run_docs_snippet.py
+      - truecell/_show_versions.py
+      - docs/index.md
+
+jobs:
+  snippet:
+    # Interpolated so each leg reports under its own name; see `freshdeps` in ci.yml.
+    name: Docs snippet on macOS arm64 (${{ matrix.environment }})
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      # Which environments crash is the diagnosis, so every leg runs to the end.
+      fail-fast: false
+      matrix:
+        environment: [pip, uv-locked, conda-forge, conda-numba-pip-rest]
+    defaults:
+      run:
+        # A login shell, so the conda legs run inside their activated environment.
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        if: matrix.environment == 'pip' || matrix.environment == 'uv-locked'
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install with pip into a fresh venv
+        # `pip install "truecell[analysis]"` as a user runs it, except from this
+        # checkout: pip resolves every dependency itself, and uv supplies only
+        # the interpreter.
+        if: matrix.environment == 'pip'
+        run: |
+          uv python install 3.12
+          uv venv --seed --python 3.12 "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install ".[analysis]"
+          echo "PY=$RUNNER_TEMP/venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Install from uv.lock
+        if: matrix.environment == 'uv-locked'
+        run: |
+          uv python install 3.12
+          uv sync --locked --extra analysis --python 3.12
+          echo "PY=$GITHUB_WORKSPACE/.venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Set up conda-forge
+        if: startsWith(matrix.environment, 'conda')
+        uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          python-version: "3.12"
+          channels: conda-forge
+          conda-remove-defaults: "true"
+          activate-environment: canary
+
+      - name: Install the whole stack from conda-forge, and truecell with pip
+        # What the troubleshooting page recommends for conda users: one package
+        # manager for the numerical stack, so one OpenMP runtime, conda's.
+        if: matrix.environment == 'conda-forge'
+        run: |
+          conda install --yes numpy scipy pandas packaging numba llvmlite scikit-learn \
+            umap-learn pynndescent statsmodels python-igraph leidenalg matplotlib-base \
+            seaborn scikit-misc threadpoolctl
+          python -m pip install --no-deps .
+          echo "PY=$CONDA_PREFIX/bin/python" >> "$GITHUB_ENV"
+
+      - name: Install numba from conda-forge, and everything else with pip
+        # The mix the troubleshooting page warns against: numba linked to
+        # conda's libomp, so its OpenMP layer can load, beside pip's
+        # scikit-learn wheel with its own copy of the runtime.
+        if: matrix.environment == 'conda-numba-pip-rest'
+        run: |
+          conda install --yes numba llvmlite
+          python -m pip install ".[analysis]"
+          echo "PY=$CONDA_PREFIX/bin/python" >> "$GITHUB_ENV"
+
+      - name: List the conda packages
+        if: startsWith(matrix.environment, 'conda')
+        run: conda list
+
+      - name: show_versions, before the snippet
+        # From outside the checkout, so its `truecell/` directory cannot stand
+        # in for the installed package.
+        working-directory: ${{ runner.temp }}
+        run: '"$PY" -c "import truecell; truecell.show_versions()"'
+
+      - name: Cache the PBMC 3k dataset
+        uses: actions/cache@v4
+        with:
+          path: ~/.truecell_data/pbmc3k
+          # ci.yml's key. Bump them together.
+          key: truecell-data-pbmc3k-v1
+
+      - name: Fetch the dataset if the cache missed
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$PY" -c "from truecell.datasets import pbmc3k; pbmc3k()"
+          test -f ~/.truecell_data/pbmc3k/filtered_gene_bc_matrices/hg19/matrix.mtx
+
+      - name: Run the home-page snippet under faulthandler
+        # `python tools/run_docs_snippet.py` puts tools/ on sys.path, not the
+        # checkout root, so the conda and pip legs import the installed truecell.
+        # The show_versions it prints afterwards names the path.
+        run: |
+          set +e
+          "$PY" -X faulthandler tools/run_docs_snippet.py --show-versions
+          status=$?
+          if [ "$status" -gt 128 ]; then
+            echo "::error::the snippet died on signal $((status - 128)); the faulthandler traceback above names the line of docs/index.md it was running"
+          fi
+          exit "$status"

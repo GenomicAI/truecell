@@ -57,6 +57,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each ring's area centroid, or its first vertex when the ring has no area. It is
   within 5.1e-16 of SeuratObject 5.4.0 on 40 random polygons and exact on the rings
   with no area. `as_anndata` uses it for an image that has only a segmentation.
+- **`truecell.show_versions()`, for crash reports.** A reviewer's segmentation fault
+  in `run_umap` arrived with nothing to narrow it down, and did not reproduce.
+  - It prints where the running truecell lives and how it was installed, and the
+    platform, including Rosetta 2 and free-threaded builds.
+  - It lists the stack's versions and the installer behind each, numba's threading
+    layer, the OpenMP and BLAS runtimes `threadpoolctl` finds loaded, and the
+    environment variables that change them.
+  - It warns when LLVM's OpenMP runtime is loaded twice, and on Rosetta 2 and
+    free-threaded builds.
+  - numba is examined in child processes, so the call cannot pick a threading layer
+    in the session it reports on, or crash it.
+- **A Troubleshooting page.** It covers `-X faulthandler`,
+  `NUMBA_THREADING_LAYER=workqueue`, and keeping conda's and pip's OpenMP runtimes
+  apart. It also covers why an x86_64 Python on Apple Silicon cannot install
+  `[analysis]` (numba has published no Intel macOS wheels since 0.63), and
+  free-threaded 3.14t.
+- **A macOS arm64 canary.** `.github/workflows/macos-canary.yml` runs the home-page
+  block weekly on macOS 15 under `-X faulthandler`, in four environments: pip,
+  `uv sync --locked`, conda-forge, and conda-forge's numba beside pip.
+  `tools/run_docs_snippet.py` reads the block out of `docs/index.md`, so the canary
+  runs what the site shows, and a crash's traceback names the line on the page.
 
 ### Changed
 

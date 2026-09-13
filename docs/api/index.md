@@ -39,6 +39,7 @@ the reason this reference exists rather than a signature dump.
 | `DimPlot`, `FeaturePlot`, `VlnPlot`, `DoHeatmap` | `dim_plot`, `feature_plot`, `vln_plot`, `do_heatmap` | [Plotting](plotting.md) |
 | `Cells`, `Features`, `Idents`, `FetchData`, `LayerData` | `cells`, `features`, `idents`, `fetch_data`, `layer_data` | [Generics](generics.md) |
 | `Read10X`, `SeuratData::` | `read_10x`, `truecell.datasets` | [Loading data](io.md) |
+| `sessionInfo()` (base R) | `show_versions` | [Diagnostics](diagnostics.md) |
 
 ## Reading the signatures
 

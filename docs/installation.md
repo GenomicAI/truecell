@@ -32,6 +32,10 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv pip install "truecell[analysis]"
 ```
 
+On an Apple Silicon Mac, install into an arm64 Python. numba, which `[analysis]`
+needs, publishes no Intel macOS wheels. If truecell crashes, see
+[Troubleshooting](troubleshooting.md).
+
 ## From source
 
 The PyPI release is **0.9.0**, which as of 2026-07-27 tracks `main` closely —
