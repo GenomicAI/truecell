@@ -209,14 +209,19 @@ def n_leading_significant(pvals, alpha: float = ALPHA) -> int:
 
 
 def _corr_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Column-wise Pearson correlation between two (n × k) matrices."""
+    """Column-wise Pearson correlation between two (n × k) matrices.
+
+    Clipped to [-1, 1], as ``np.corrcoef`` clips. The dot product of two
+    standardised columns can round one ULP past 1: on an Apple M5 Pro a run
+    compared with itself read 1.0000000000000002, which failed a band bounded at 1.
+    """
     a = a - a.mean(axis=0, keepdims=True)
     b = b - b.mean(axis=0, keepdims=True)
     sa = a.std(axis=0, ddof=0, keepdims=True)
     sb = b.std(axis=0, ddof=0, keepdims=True)
     sa[sa == 0] = 1.0                       # a constant component correlates with nothing
     sb[sb == 0] = 1.0
-    return (a / sa).T @ (b / sb) / a.shape[0]
+    return np.clip((a / sa).T @ (b / sb) / a.shape[0], -1.0, 1.0)
 
 
 def matched_component_correlation(a, b) -> dict:

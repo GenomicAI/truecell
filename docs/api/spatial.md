@@ -19,6 +19,24 @@ version was the bug. Like `FindSpatiallyVariableFeatures` on an object, it reads
 
 ## Loading
 
+!!! note "What each loader has been checked against"
+    Each loader builds the object Seurat's reader builds from the same files: the
+    same cells under the same names, the same features, and one image under
+    Seurat's name for it.
+
+    | Loader | Seurat | Checked on |
+    |---|---|---|
+    | `load_visium` | `Load10X_Spatial` | 10x's Visium mouse-brain slide ([vignette](../tutorials/visium_vignette.md)) |
+    | `load_xenium` | `LoadXenium` | 10x's Xenium mouse brain, Onboard Analysis 1.0.1 ([vignette](../tutorials/svf_vignette.md)); synthetic bundles in the 1.x and 2.0+ layouts, `cells.parquet` included |
+    | `load_cosmx` | `LoadNanostring` | a synthetic bundle in CosMx's layout only |
+    | `load_merscope` | `LoadVizgen` | a synthetic bundle in MERSCOPE's layout only |
+
+    The synthetic comparisons are `tests/test_loaders_vs_seurat.py`. They pin how
+    each layout is read, but cannot show that a platform's current software still
+    writes it, so `load_cosmx`, `load_merscope` and Xenium's 2.0+ layout have not
+    been compared with R on a real run. The imaging loaders read centroids only:
+    Seurat's also load cell polygons and transcripts into the image.
+
 ::: truecell.spatial.loaders.load_xenium
 
 ::: truecell.spatial.loaders.load_visium

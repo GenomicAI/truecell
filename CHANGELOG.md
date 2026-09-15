@@ -216,6 +216,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   categorical.** Other labels still give the order of first appearance. `from_anndata`
   relies on this to rebuild `obj.images` in the order `as_anndata` recorded, even when
   a later image's cells come first.
+- **BREAKING: the imaging loaders build what Seurat's readers build from the same
+  files.** `load_cosmx`, `load_merscope` and `load_xenium` were read against the
+  source of Seurat 5.5.1's `LoadNanostring`, `LoadVizgen` and `LoadXenium`, then
+  checked on synthetic bundles in each platform's layout, with the cases those
+  readers treat specially planted in them (`tests/test_loaders_vs_seurat.py`).
+  - `load_cosmx` names cells `<cell_ID>_<fov>`, where it wrote `<fov>_<cell_ID>`, so
+    one name picked out different cells in the two tools. It drops the `cell_ID` 0
+    row each FOV carries for transcripts outside any cell, and cells with no counts.
+    On the test bundle 1.2.0 made 12 cells where Seurat makes 8.
+  - All three build one image holding every cell, named by a new `fov` argument that
+    defaults to `"fov"`. `load_cosmx` and `load_merscope` built one image per FOV, and
+    `load_xenium` one named `"xenium"`, so a ported script's `obj.images["fov"]` raised
+    `KeyError`. `fov_column="fov"` still builds one image per FOV.
+  - `load_merscope` drops the features matching `LoadVizgen`'s case-sensitive
+    `^Blank-`, where it dropped every name starting with "blank" in any case, and
+    takes cell ids from the leading column of each file, as `ReadVizgen` does.
+  - `load_cosmx` and `load_merscope` find their files by `ReadNanostring`'s and
+    `ReadVizgen`'s patterns, so a run's `Lung5_Rep1_exprMat_file.csv` needs no name.
+  - The centroid radius spans every row of the coordinate table, as
+    `CreateCentroids` computes it before Seurat keeps the object's cells.
+  - `load_xenium` fills `segmentation_method` with `"cell"` when the cells table has
+    none, as `LoadXenium` does, and decodes a `cell_id` stored as bytes itself, as
+    `ReadXenium` does, rather than leaving it to pandas.
+
+  The loaders still read centroids only; Seurat's also load cell polygons and
+  transcripts. `load_cosmx`, `load_merscope` and Xenium's 2.0+ layout have not been
+  compared with R on a real run, and the API page now says which loader was checked
+  on what. `pyarrow` joins the `dev` extra, so the tests read `cells.parquet`.
 
 ### Fixed
 
@@ -287,6 +315,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `pbmc3k_de_tutorial.py` against the built wheel in a fresh environment, with
   `tutorials/` copied out of the checkout so that only the wheel can answer
   `import truecell`.
+- **Per-FOV images from `load_cosmx` and `load_merscope` were named `1.0`, `2.0`, …**
+  whenever the coordinate table had no row for one of the object's cells, as for the
+  `cell_ID` 0 rows every CosMx run carries. Looking the cells up filled the gap with
+  NaN, which turned the integer FOV column into floats. `fov_column=` names them `1`,
+  `2`, … now.
+- **The DE tutorial compares against R's exact values.** `compare()` read `avg_log2FC`
+  and `p_val` from `write.csv`'s 15 significant digits and used the hex-float table
+  only for `p_val_adj`, so the fold-change bound it printed, 6.2e-15, measured R's
+  formatter. Read from the hex tables it is 1.8e-15, one unit in the last place of a
+  double. Of the other numbers only the all-genes p-value Spearman moves, in the fifth
+  or sixth decimal place (`deseq2` 0.999251 to 0.999237), and every band holds.
+- **The benchmark harness runs on Linux.** `machine()` reads `/proc/cpuinfo` and
+  `sysconf` where there is no `sysctl`. The Seurat arm runs the `Rscript` on `PATH`
+  rather than `/usr/local/bin/Rscript`, and the truecell arm the Python running the
+  harness rather than the checkout's `.venv`; `TRUECELL_BENCH_RSCRIPT` and
+  `TRUECELL_BENCH_PYTHON` point either elsewhere. `bench_seurat.R` reads the THP-1
+  counts through `gzip -dc`, not macOS's `gzcat`. Every result file now records the
+  BLAS and LAPACK each arm linked. `run_benchmarks.py report` no longer stops at
+  `tutorial_scripts.json`, and the Xenium bench takes its 2,000-cell subset in object
+  order: through 1.2.0's `subset`, its `sorted()` cell names gave Moran's I values for
+  the wrong cells, though not wrong timings.
+- **Stale documentation.** The README, the docs home and installation pages, the main
+  skill and the API map named 0.9.0 as the current release, and five vignettes named the
+  version they were first written against; they now point to PyPI and the changelog.
+  Numbers that had moved are re-measured in the `uv sync --locked` environment: PBMC 3k's
+  PCA matched |r| is 0.9986 (min 0.9905; the docs said 0.9988 and 0.9946), its clusters
+  9 against 9 at ARI 0.928 with identical marker sets on three clusters, and the
+  spatial-statistics tutorial matches 39 of 39 anchors, not 38.
+- **The API map's signatures are checked against the code.** Five entries in
+  `skills/truecell/reference/api-map.md` had fallen behind it (`run_tsne`, `glm_pca`,
+  `find_clusters`, `aggregate_expression` and the loaders).
+  `tests/test_api_map_signatures.py` now compares every signature there with the
+  function's, parameter for parameter and default for default.
+- **The dimensional-reduction tutorial's correlations stay within [-1, 1].** Its
+  `_corr_matrix` took dot products of standardised columns, which rounding can put one
+  ULP past 1. On an Apple M5 Pro under macOS 27 a run compared with itself read
+  1.0000000000000002, failing a band bounded at 1 in `tests/test_dimreduc_tutorial.py`,
+  on `main` too. It now clips as `np.corrcoef` does.
 
 ## [1.2.0] - 2026-08-10
 

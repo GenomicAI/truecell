@@ -10,7 +10,7 @@ section so it can be shared.
 > (the same section featured in
 > [Seurat's spatial vignette](https://satijalab.org/seurat/articles/spatial_vignette_2)).
 > **36,602 cells × 248 genes**, single FOV. Auto-downloads (~20 MB).  
-> **R reference:** Seurat 5.5.1 · **Python:** Truecell v0.9.0
+> **R reference:** Seurat 5.5.1 · **Python:** Truecell
 
 This tutorial exercises the spatial Seurat-parity layer added to Truecell:
 `load_xenium` · `get_tissue_coordinates` · `image_dim_plot` ·
@@ -100,7 +100,7 @@ obj = load_xenium(path, assay="Xenium")
 # 248 genes × 36,602 cells — keeps only "Gene Expression"
 # features (like Seurat); pass keep_controls=True to retain
 # the Negative-Control / Blank codewords.
-print(obj.image_names())     # ['xenium']  — centroids populated
+print(obj.image_names())     # ['fov']  — centroids populated, LoadXenium's name
 ```
 
 </td>

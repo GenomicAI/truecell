@@ -37,6 +37,13 @@ python tutorials/benchmark/compare_sweeps.py results_refblas results
 python tutorials/benchmark/compare_sweeps.py results_predensefix results --arm truecell
 ```
 
+The truecell arm runs under the Python that runs `run_benchmarks.py`, and the
+Seurat arm under the first `Rscript` on `PATH`, on macOS or Linux. To time another
+environment, such as a venv with truecell installed from a wheel, set
+`TRUECELL_BENCH_PYTHON` and `TRUECELL_BENCH_RSCRIPT`; `sweep.sh` reads the first
+too. Every result file records the host under `machine` and the BLAS each arm
+linked under `blas`.
+
 Two earlier sweeps are kept alongside the current one, each because a claim in
 the report rests on being able to diff against it:
 

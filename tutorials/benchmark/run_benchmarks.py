@@ -20,16 +20,25 @@ Usage
 Results land in ``tutorials/benchmark/results/<bench>.<arm>.<n>.json``. The
 ``report`` subcommand reads whatever is there and writes ``PERFORMANCE.md``.
 
+The truecell arm runs under the Python running this script, and the Seurat arm
+under the first ``Rscript`` on ``PATH``. ``TRUECELL_BENCH_PYTHON`` and
+``TRUECELL_BENCH_RSCRIPT`` point either somewhere else, such as a venv with
+truecell installed from a wheel.
+
 Notes on fairness
 -----------------
 * The **first** repeat of every (bench, arm) pair is a warm-up and is dropped:
   R's lazy package loading and umap-learn's numba JIT both cost seconds the
   first time and nothing afterwards, and neither is what the benchmark is
   asking about. ``--keep-warmup`` keeps it if you want to see that cost.
-* Thread counts are pinned with ``--threads``. R's shipped BLAS is
-  single-threaded reference BLAS; numpy here is on Accelerate, which is not.
-  Running the truecell arm a second time at ``--threads 1`` is what separates
-  "faster implementation" from "more cores".
+* Thread counts are pinned with ``--threads``. Running the truecell arm a
+  second time at ``--threads 1`` is what separates "faster implementation"
+  from "more cores".
+* Every result file records the BLAS each arm's interpreter links, under
+  ``"blas"``, because every PCA, scaling and SVD step inherits it. CRAN's macOS
+  R ships a single-threaded reference BLAS unless it is switched to Accelerate,
+  and NumPy's wheels bring their own, so one bench can differ between two
+  machines for reasons neither project controls.
 """
 from __future__ import annotations
 
@@ -37,6 +46,7 @@ import argparse
 import json
 import os
 import platform
+import shutil
 import statistics
 import subprocess
 import sys
@@ -136,15 +146,108 @@ class Sampler(threading.Thread):
 
 
 # ---------------------------------------------------------------------------
-# Running one child
+# The two interpreters
 # ---------------------------------------------------------------------------
 
+def python_executable() -> str:
+    """The Python the truecell arm runs under: this one, unless overridden.
+
+    It used to be ``.venv/bin/python`` under the checkout, which only a
+    ``uv sync`` clone has; an environment with truecell installed from a wheel
+    needed a symlink planted there.
+    """
+    return os.environ.get("TRUECELL_BENCH_PYTHON") or sys.executable
+
+
+def rscript_executable() -> str:
+    """The Rscript the Seurat arm runs under: the override, else the one on PATH.
+
+    It used to be ``/usr/local/bin/Rscript``, where CRAN's macOS installer puts
+    it and nothing on Linux does.
+    """
+    found = os.environ.get("TRUECELL_BENCH_RSCRIPT") or shutil.which("Rscript")
+    if not found:
+        raise SystemExit("Rscript is not on PATH. Set TRUECELL_BENCH_RSCRIPT to "
+                         "the Rscript the Seurat arm should run under.")
+    return found
+
+
 ARMS = {
-    "truecell": lambda: [str(ROOT / ".venv" / "bin" / "python"),
-                         str(HERE / "bench_truecell.py")],
-    "seurat": lambda: ["/usr/local/bin/Rscript", str(HERE / "bench_seurat.R")],
+    "truecell": lambda: [python_executable(), str(HERE / "bench_truecell.py")],
+    "seurat": lambda: [rscript_executable(), str(HERE / "bench_seurat.R")],
 }
 
+
+def child_env(threads: int | None) -> dict[str, str]:
+    """This process's environment, with every thread pool pinned if asked."""
+    env = dict(os.environ)
+    if threads is not None:
+        for var in THREAD_VARS:
+            env[var] = str(threads)
+    return env
+
+
+# What NumPy was built against, and the pools threadpoolctl can see once NumPy
+# is loaded. threadpoolctl reports OpenBLAS and MKL with a version and a thread
+# count, but not Accelerate, which is why NumPy's own record comes first.
+_PYTHON_BLAS = """\
+import json
+import numpy
+out = {"numpy": numpy.__version__, "blas": None, "lapack": None, "threadpools": None}
+try:
+    deps = numpy.show_config(mode="dicts")["Build Dependencies"]
+    out["blas"], out["lapack"] = deps["blas"].get("name"), deps["lapack"].get("name")
+except Exception:
+    pass
+try:
+    from threadpoolctl import threadpool_info
+except ImportError:
+    pass
+else:
+    keys = ("user_api", "internal_api", "version", "num_threads", "filepath")
+    out["threadpools"] = [{k: pool.get(k) for k in keys} for pool in threadpool_info()]
+print(json.dumps(out))
+"""
+
+_R_BLAS = 'cat(R.version.string, extSoftVersion()[["BLAS"]], La_library(), sep = "\\n")'
+
+
+def arm_blas(arm: str, env: dict[str, str] | None = None) -> dict:
+    """The BLAS and LAPACK an arm's interpreter links, asked of that interpreter.
+
+    ``env`` should be the environment the arm runs in, so the thread counts
+    threadpoolctl reports are the pinned ones.
+    """
+    if arm == "truecell":
+        cmd = [python_executable(), "-c", _PYTHON_BLAS]
+    else:
+        cmd = [rscript_executable(), "-e", _R_BLAS]
+    try:
+        done = subprocess.run(cmd, capture_output=True, text=True, timeout=300,
+                              env=env, check=False)
+        lines = done.stdout.strip().splitlines()
+        if arm == "truecell":
+            return json.loads(lines[-1])
+        version, blas, lapack = lines[-3:]
+        return {"r": version, "blas": blas, "lapack": lapack}
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError) as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
+
+
+def blas_label(blas: dict | None) -> str:
+    """One line for a result file's ``blas`` record."""
+    if not blas:
+        return "BLAS not recorded"
+    if "error" in blas:
+        return f"BLAS unknown ({blas['error']})"
+    if "numpy" in blas:
+        return f"NumPy {blas['numpy']} on {blas['blas']}"
+    return f"{blas['r']} on {Path(blas['blas']).name}"
+
+
+# ---------------------------------------------------------------------------
+# Running one child
+# ---------------------------------------------------------------------------
 
 def run_one(bench: str, arm: str, rep: int, threads: int | None) -> dict:
     steps_path = HERE / f".steps.{arm}.{bench}.{rep}.jsonl"
@@ -153,10 +256,7 @@ def run_one(bench: str, arm: str, rep: int, threads: int | None) -> dict:
     LOGS.mkdir(exist_ok=True)
     log_path = LOGS / f"{bench}.{arm}.{rep}.log"
 
-    env = dict(os.environ)
-    if threads is not None:
-        for var in THREAD_VARS:
-            env[var] = str(threads)
+    env = child_env(threads)
     env["TRUECELL_BENCH_STEPS"] = str(steps_path)
 
     cmd = ARMS[arm]() + ["--bench", bench, "--steps", str(steps_path)]
@@ -199,17 +299,53 @@ def run_one(bench: str, arm: str, rep: int, threads: int | None) -> dict:
     }
 
 
-def machine() -> dict:
-    def sysctl(key: str) -> str:
+def _sysctl(key: str) -> str:
+    try:
+        return subprocess.run(["sysctl", "-n", key], capture_output=True, text=True,
+                              timeout=10, check=False).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _cpu_model() -> str:
+    if sys.platform == "darwin":
+        return _sysctl("machdep.cpu.brand_string") or "?"
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("model name"):
+                return line.partition(":")[2].strip()
+    except OSError:
+        pass
+    # An arm64 kernel's cpuinfo has implementer and part codes but no model
+    # name; lscpu translates them.
+    try:
+        out = subprocess.run(["lscpu"], capture_output=True, text=True, timeout=10,
+                             check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        out = ""
+    for line in out.splitlines():
+        if line.startswith("Model name:"):
+            return line.partition(":")[2].strip()
+    return platform.processor() or "?"
+
+
+def _memory_gb() -> float:
+    if sys.platform == "darwin":
+        total = int(_sysctl("hw.memsize") or 0)
+    else:
         try:
-            return subprocess.run(["sysctl", "-n", key], capture_output=True,
-                                  text=True).stdout.strip()
-        except OSError:
-            return "?"
+            total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        except (AttributeError, OSError, ValueError):
+            total = 0
+    return round(total / 1e9, 1)
+
+
+def machine() -> dict:
+    """CPU, logical cores and memory, from sysctl on macOS and /proc on Linux."""
     return {
-        "cpu": sysctl("machdep.cpu.brand_string"),
-        "cores": sysctl("hw.ncpu"),
-        "memory_gb": round(int(sysctl("hw.memsize") or 0) / 1e9, 1),
+        "cpu": _cpu_model(),
+        "cores": str(os.cpu_count() or "?"),
+        "memory_gb": _memory_gb(),
         "platform": platform.platform(),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
@@ -246,7 +382,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                 suffix = "" if args.threads is None else f".t{args.threads}"
                 out = RESULTS / f"{bench}.{arm}{suffix}.json"
                 out.write_text(json.dumps(
-                    {"machine": machine(), "runs": kept}, indent=2))
+                    {"machine": machine(), "blas": arm_blas(arm, child_env(args.threads)),
+                     "runs": kept}, indent=2))
                 print(f"  -> {out.relative_to(ROOT)}")
     return 1 if failures else 0
 
@@ -287,6 +424,7 @@ def summarise(path: Path) -> dict:
         "baseline_rss_mb": statistics.median(
             r["baseline_rss_mb"] for r in doc["runs"]),
         "machine": doc["machine"],
+        "blas": doc.get("blas"),
     }
 
 
@@ -296,10 +434,13 @@ def cmd_report(args: argparse.Namespace) -> int:
         print("No results in", RESULTS, "- run some benchmarks first.")
         return 1
     for f in files:
+        if len(f.stem.split(".")) < 2:
+            continue  # tutorial_scripts.json — a different shape, see make_report
         s = summarise(f)
         print(f"\n=== {f.stem}  ({s['n_repeats']} repeats, "
               f"wall {s['wall_seconds']:.1f}s, "
-              f"peak {s['process_peak_rss_mb']:.0f} MB) ===")
+              f"peak {s['process_peak_rss_mb']:.0f} MB, "
+              f"{blas_label(s['blas'])}) ===")
         for name, v in s["steps"].items():
             flag = "" if v["anchors_agree"] else "  [anchor varies across repeats]"
             print(f"  {name:24s} {v['seconds']:8.2f}s  "
@@ -378,7 +519,8 @@ def cmd_scripts(args: argparse.Namespace) -> int:
     # every tutorial not named on this invocation. Re-running one row of the
     # table has to stay a safe thing to do.
     dest = RESULTS / "tutorial_scripts.json"
-    out = {"machine": machine(), "tutorials": {}}
+    out = {"machine": machine(), "blas": {arm: arm_blas(arm) for arm in ARMS},
+           "tutorials": {}}
     if dest.exists():
         out["tutorials"] = json.loads(dest.read_text()).get("tutorials", {})
     failures = 0
@@ -390,9 +532,8 @@ def cmd_scripts(args: argparse.Namespace) -> int:
         py, r = TUTORIALS[name]
         pair = {}
         for arm, cmd in (
-            ("truecell", [str(ROOT / ".venv" / "bin" / "python"),
-                          str(TUTORIAL_DIR / py)]),
-            ("seurat", ["/usr/local/bin/Rscript", str(TUTORIAL_DIR / r)]),
+            ("truecell", [python_executable(), str(TUTORIAL_DIR / py)]),
+            ("seurat", [rscript_executable(), str(TUTORIAL_DIR / r)]),
         ):
             print(f"  {name:12s} {arm:9s} ...", end="", flush=True)
             res = run_script(cmd, LOGS / f"tutorial.{name}.{arm}.log")

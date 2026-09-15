@@ -13,7 +13,10 @@
 # work rather than merely the same named step.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-PY=.venv/bin/python
+# The checkout's .venv unless TRUECELL_BENCH_PYTHON names another interpreter,
+# such as a venv with truecell installed from a wheel. run_benchmarks.py runs
+# the truecell arm under the same one.
+PY="${TRUECELL_BENCH_PYTHON:-.venv/bin/python}"
 RUN="$PY tutorials/benchmark/run_benchmarks.py"
 
 rm -rf tutorials/benchmark/results tutorials/benchmark/logs

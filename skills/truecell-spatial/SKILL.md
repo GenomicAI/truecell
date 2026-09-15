@@ -14,15 +14,24 @@ with one extra container: `obj.images`, holding an `FOV` (imaging-based) or a
 ```python
 import truecell
 
-obj = truecell.load_xenium(path, assay="Xenium", keep_controls=False)
+obj = truecell.load_xenium(path, assay="Xenium", fov="fov", keep_controls=False)
 obj = truecell.load_visium(path, assay="Spatial", image=True,
                          image_resolution="lowres", filter_by_tissue=True)
-obj = truecell.load_cosmx(path, assay="Nanostring", fov_column="fov")
-obj = truecell.load_merscope(path, assay="Vizgen", keep_controls=False)
+obj = truecell.load_cosmx(path, assay="Nanostring", fov="fov")
+obj = truecell.load_merscope(path, assay="Vizgen", fov="fov", keep_controls=False)
 ```
 
 `keep_controls=False` drops the negative-control / blank probes — keep them only
 when auditing the run's background.
+
+Each loader builds the object Seurat's reader builds from the same files: the same
+cells under the same names, the same features, and one image named by `fov`,
+Seurat's argument. So a CosMx cell is `<cell_ID>_<fov>`, the `cell_ID` 0
+background rows and empty cells are gone, and `obj.images["fov"]` is R's
+`obj[["fov"]]`. `fov_column="fov"` gives one image per field of view instead.
+The imaging loaders read centroids only, not the polygons or transcripts Seurat
+also loads. `load_visium` and `load_xenium` have been checked against R on real
+slides; `load_cosmx` and `load_merscope` only on synthetic bundles in each layout.
 
 Test data:
 
@@ -187,6 +196,6 @@ the recipes, checked through zarr.
 ## Reference
 
 - [Xenium spatial](https://genomicai.github.io/truecell/tutorials/xenium_spatial_tutorial/) — verified to 8 s.f. against R Seurat.
-- [Spatial statistics & the container](https://genomicai.github.io/truecell/tutorials/svf_vignette/) — 38 of 39 anchors exact.
+- [Spatial statistics & the container](https://genomicai.github.io/truecell/tutorials/svf_vignette/) — 39 of 39 anchors exact.
 - [Visium](https://genomicai.github.io/truecell/tutorials/visium_vignette/) — 24 of 24 anchors, and the radius finding.
 - [AnnData, Scanpy and SpatialData](https://genomicai.github.io/truecell/interop/) — what `as_anndata` carries, checked against `scanpy.read_visium`, and the SpatialData recipes.

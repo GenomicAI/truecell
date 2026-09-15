@@ -1,13 +1,25 @@
-"""Spatial technology loaders — Xenium / Visium / CosMx.
+"""Spatial technology loaders — Xenium / Visium / CosMx / MERSCOPE.
 
-Mirror Seurat's ``LoadXenium`` / ``Load10X_Spatial`` / ``LoadNanostring``: read a
-platform's on-disk output into a Truecell object with the expression assay AND a
-populated ``seurat.images`` (per-FOV centroids), so the spatial accessors and
-``truecell.spatial.analysis`` functions work immediately.
+Mirror Seurat's ``LoadXenium`` / ``Load10X_Spatial`` / ``LoadNanostring`` /
+``LoadVizgen``: read a platform's on-disk output into a Truecell object with the
+expression assay AND a populated ``seurat.images`` (per-FOV centroids), so the
+spatial accessors and ``truecell.spatial.analysis`` functions work immediately.
+
+What each has been checked against:
+
+* ``load_visium``: ``Load10X_Spatial`` on 10x's Visium mouse-brain slide.
+* ``load_xenium``: ``LoadXenium`` on 10x's Xenium mouse brain (Xenium Onboard
+  Analysis 1.0.1), and on synthetic bundles in the XOA 1.x and 2.0+ layouts,
+  ``cells.parquet`` included.
+* ``load_cosmx`` and ``load_merscope``: ``LoadNanostring`` and ``LoadVizgen`` on
+  synthetic bundles in each platform's layout only.
+
+The synthetic comparisons are ``tests/test_loaders_vs_seurat.py``.
 """
 from __future__ import annotations
 
 import gzip
+import re
 from pathlib import Path
 from typing import Optional, Union
 
@@ -16,7 +28,8 @@ import pandas as pd
 import scipy.sparse as sp
 
 from ..io import read_10x
-from .fov import create_fovs
+from .centroids import _auto_radius
+from .fov import create_fov, create_fovs
 
 
 # ---------------------------------------------------------------------------
@@ -59,17 +72,18 @@ def _first_existing(base: Path, names: list[str]) -> Optional[Path]:
     return None
 
 
-def _cell_id_column(df: pd.DataFrame) -> str:
-    """Name of the cell-identifier column.
+def _file_like_r(directory: Path, pattern: str) -> Optional[Path]:
+    """The file an R reader's ``list.files(pattern = )`` lookup picks.
 
-    MERSCOPE tables key on an unnamed leading index column in some exports and on
-    an explicit ``cell``/``EntityID`` column in others; fall back to the first
-    column, which is the cell id in every Vizgen layout.
+    ``ReadNanostring`` and ``ReadVizgen`` search every file name in the directory
+    for a regular expression and take the first match in decreasing order, which
+    is how a run's ``Lung5_Rep1_exprMat_file.csv`` is found without being named.
     """
-    for c in ("cell", "cell_id", "cell_ID", "EntityID"):
-        if c in df.columns:
-            return c
-    return str(df.columns[0])
+    if not directory.is_dir():
+        return None
+    matches = sorted((p for p in directory.iterdir()
+                      if p.is_file() and re.search(pattern, p.name)), reverse=True)
+    return matches[0] if matches else None
 
 
 def _build_spatial_object(
@@ -82,12 +96,17 @@ def _build_spatial_object(
     fov: Optional[Union[str, np.ndarray]] = None,
     meta_data: Optional[pd.DataFrame] = None,
     image_name: Optional[str] = None,
+    radius: Optional[float] = None,
 ):
     """Assemble a Truecell object + images from expression + coordinate parts.
 
     ``image_name`` names the single FOV when the run is not split into several.
-    It defaults to the lowercased assay name; Visium passes ``"slice1"`` so the
-    key matches ``Load10X_Spatial``'s.
+    It defaults to the lowercased assay name; the loaders pass the name Seurat's
+    reader gives it. ``radius`` is that FOV's centroid radius. Seurat's readers
+    build the centroids from every row of the coordinate table and only then
+    keep the object's cells, so its automatic radius spans the whole table; the
+    imaging loaders pass that. ``None`` takes the automatic radius of the cells
+    placed, as Visium's plain FOV always has.
     """
     from ..truecell import create_truecell_object
 
@@ -96,12 +115,20 @@ def _build_spatial_object(
         feature_names=feature_names, cell_names=cell_names,
     )
     kept = obj.cell_names()
-    coords = coords.set_index("cell").reindex(kept)
-    coords["cell"] = kept
+    # The object's cells, in its order, selected rather than reindexed: a reindex
+    # fills the cells a table lacks with NaN, which turned an integer FOV column
+    # into floats and named the per-FOV images "1.0", "2.0", ...
+    present = set(coords["cell"])
+    coords = coords.set_index("cell").loc[[c for c in kept if c in present]]
+    coords["cell"] = coords.index.to_numpy()
     coords = coords.dropna(subset=["x", "y"])
     fov_labels = coords[fov].to_numpy() if isinstance(fov, str) and fov in coords else None
-    obj.images = create_fovs(coords[["x", "y", "cell"]], fov=fov_labels, assay=assay,
-                             default_name=image_name or assay.lower())
+    if fov_labels is None:
+        name = image_name or assay.lower()
+        obj.images = {name: create_fov(coords[["x", "y", "cell"]], type_="centroids",
+                                       radius=radius, assay=assay, key=f"{name}_")}
+    else:
+        obj.images = create_fovs(coords[["x", "y", "cell"]], fov=fov_labels, assay=assay)
     if meta_data is not None:
         md = meta_data.reindex(kept)
         for c in md.columns:
@@ -117,6 +144,7 @@ def _build_spatial_object(
 def load_xenium(
     path: Union[str, Path],
     assay: str = "Xenium",
+    fov: str = "fov",
     fov_column: Optional[str] = None,
     project: str = "Xenium",
     keep_controls: bool = False,
@@ -128,12 +156,29 @@ def load_xenium(
       * ``cells.parquet`` or ``cells.csv[.gz]`` — with ``cell_id``,
         ``x_centroid``, ``y_centroid`` (and optionally ``fov`` / transcript QC)
 
-    By default only ``Gene Expression`` features are kept in the assay (matching
-    Seurat's ``LoadXenium``, which routes Negative Control / Blank codewords to
-    separate assays); set ``keep_controls=True`` to retain every feature row.
+    Builds what Seurat's ``LoadXenium(molecule.coordinates = FALSE)`` builds from
+    the same files:
 
-    ``fov_column``, if given and present in the cells table, splits the object
-    into one image per FOV; otherwise a single image is created.
+    * the assay holds the ``Gene Expression`` features. Seurat routes the control
+      and codeword features to separate assays; ``load_xenium`` drops them, and
+      ``keep_controls=True`` keeps every row in the one assay instead;
+    * ``cells.parquet`` is read when pandas has a parquet engine, as
+      ``ReadXenium`` reads it when ``arrow`` is installed, and ``cells.csv.gz``
+      otherwise. A ``cell_id`` stored as bytes is decoded, as ``ReadXenium``
+      decodes it;
+    * one image, named ``fov`` (``LoadXenium``'s argument, with its default),
+      holds the centroids;
+    * ``segmentation_method`` comes from the cells table, or is ``"cell"`` when
+      the table has none, as ``LoadXenium`` fills it.
+
+    truecell also carries the cells table's other columns into ``meta_data``.
+    ``fov_column``, if given and present in the cells table, splits the cells into
+    one image per value instead, named by the value.
+
+    Checked against ``LoadXenium`` on 10x's Xenium Onboard Analysis 1.0.1 mouse
+    brain, and on synthetic bundles in the XOA 1.x and 2.0+ layouts.
+    ``LoadXenium`` can also read ``cell_feature_matrix.h5``; ``load_xenium``
+    needs the MTX directory.
     """
     path = Path(path)
     mtx_dir = path / "cell_feature_matrix"
@@ -171,13 +216,18 @@ def load_xenium(
     cdf = cdf.rename(columns={k: v for k, v in rename.items() if k in cdf.columns})
     if not {"cell", "x", "y"} <= set(cdf.columns):
         raise ValueError("cells table must contain cell_id, x_centroid, y_centroid.")
-    cdf["cell"] = cdf["cell"].astype(str)
+    # A cell_id column stored as bytes comes back from pandas as `bytes`, which
+    # str() would turn into "b'aaabinlp-1'" and match no barcode.
+    cdf["cell"] = [c.decode() if isinstance(c, bytes) else str(c) for c in cdf["cell"]]
+    if "segmentation_method" not in cdf.columns:
+        cdf["segmentation_method"] = "cell"
 
-    fov = fov_column if (fov_column and fov_column in cdf.columns) else None
-    coords = cdf[["cell", "x", "y"] + ([fov] if fov else [])]
+    split = fov_column if (fov_column and fov_column in cdf.columns) else None
+    coords = cdf[["cell", "x", "y"] + ([split] if split else [])]
     meta = cdf.set_index("cell").drop(columns=["x", "y"], errors="ignore")
     return _build_spatial_object(counts, feats, [str(c) for c in cells], coords,
-                                 assay, project, fov=fov, meta_data=meta)
+                                 assay, project, fov=split, meta_data=meta,
+                                 image_name=fov, radius=_auto_radius(coords))
 
 
 # ---------------------------------------------------------------------------
@@ -280,48 +330,81 @@ def load_visium(
 # CosMx / Nanostring
 # ---------------------------------------------------------------------------
 
+def _cosmx_cell_names(df: pd.DataFrame) -> np.ndarray:
+    """``ReadNanostring``'s cell names, ``paste0(cell_ID, "_", fov)``."""
+    return (df["cell_ID"].astype(str) + "_" + df["fov"].astype(str)).to_numpy()
+
+
 def load_cosmx(
     path: Union[str, Path],
     expr_file: Optional[str] = None,
     meta_file: Optional[str] = None,
     assay: str = "Nanostring",
-    fov_column: str = "fov",
+    fov: str = "fov",
+    fov_column: Optional[str] = None,
     project: str = "CosMx",
 ):
     """Load NanoString CosMx output (exprMat + metadata CSVs) into a Truecell object.
 
-    ``expr_file`` is a cell×gene CSV (rows = cells, first columns cell/fov ids);
-    ``meta_file`` carries ``CenterX_global_px`` / ``CenterY_global_px`` and a FOV
-    column. If names are omitted, ``*exprMat_file.csv`` / ``*metadata_file.csv``
-    are auto-detected in ``path``.
+    Builds what Seurat's ``LoadNanostring`` builds from the same files, for the
+    expression matrix and the cell centroids:
+
+    * cells are named ``<cell_ID>_<fov>``, as ``ReadNanostring`` names them;
+    * the ``cell_ID`` 0 row each FOV carries, for transcripts outside any cell, is
+      dropped, and so is every cell with no counts;
+    * every column but ``fov`` and ``cell_ID`` is a feature, the negative probes
+      included;
+    * one image, named ``fov`` (``LoadNanostring``'s argument), holds each cell's
+      ``CenterX_global_px`` / ``CenterY_global_px``, for the cells in the object.
+
+    ``LoadNanostring`` also loads the cell polygons (``*-polygons.csv``) and the
+    transcript coordinates (``*_tx_file.csv``) into that image; ``load_cosmx``
+    reads neither. truecell carries the metadata file's columns into
+    ``meta_data``, which Seurat does not. ``fov_column`` splits the cells into one
+    image per value of that metadata column instead, named by the value.
+
+    ``expr_file`` / ``meta_file`` default to the files ``ReadNanostring`` finds in
+    ``path``: the last name, in sorted order, matching ``*_exprMat_file.csv`` and
+    ``*_metadata_file.csv``.
+
+    Checked against ``LoadNanostring`` (Seurat 5.5.1) on a synthetic bundle in
+    CosMx's file layout; not compared with R on a real run.
     """
     path = Path(path)
-    expr = Path(expr_file) if expr_file else next(iter(path.glob("*exprMat_file.csv")), None)
-    meta = Path(meta_file) if meta_file else next(iter(path.glob("*metadata_file.csv")), None)
+    expr = (Path(expr_file) if expr_file
+            else _file_like_r(path, r"[_a-zA-Z0-9]*_exprMat_file.csv"))
+    meta = (Path(meta_file) if meta_file
+            else _file_like_r(path, r"[_a-zA-Z0-9]*_metadata_file.csv"))
     if expr is None or meta is None:
-        raise FileNotFoundError("Could not locate exprMat_file.csv / metadata_file.csv.")
+        raise FileNotFoundError(
+            f"Could not locate *_exprMat_file.csv / *_metadata_file.csv in {path}.")
 
     edf = pd.read_csv(expr)
     mdf = pd.read_csv(meta)
-    id_cols = [c for c in ("fov", "cell_ID", "cell_id", "cell") if c in edf.columns]
-    gene_cols = [c for c in edf.columns if c not in id_cols]
+    for label, df in (("exprMat", edf), ("metadata", mdf)):
+        missing = [c for c in ("fov", "cell_ID") if c not in df.columns]
+        if missing:
+            raise ValueError(f"The CosMx {label} file has no {' or '.join(missing)} column.")
 
-    def _cid(df):
-        fovc = fov_column if fov_column in df.columns else id_cols[0]
-        cidc = next((c for c in ("cell_ID", "cell_id", "cell") if c in df.columns), None)
-        return (df[fovc].astype(str) + "_" + df[cidc].astype(str)).to_numpy()
-
-    cell_ids = _cid(edf)
+    edf = edf[edf["cell_ID"] != 0]
+    gene_cols = [c for c in edf.columns if c not in ("fov", "cell_ID")]
     counts = sp.csc_matrix(edf[gene_cols].to_numpy(dtype=float).T)   # genes × cells
+    cell_ids = _cosmx_cell_names(edf)
+    has_counts = np.asarray(counts.sum(axis=0)).ravel() != 0
+    counts, cell_ids = counts[:, has_counts], cell_ids[has_counts]
 
     mdf = mdf.copy()
-    mdf["cell"] = _cid(mdf)
+    mdf["cell"] = _cosmx_cell_names(mdf)
     mcoord = mdf.rename(columns={"CenterX_global_px": "x", "CenterY_global_px": "y"})
-    coords = mcoord[["cell", "x", "y"] + ([fov_column] if fov_column in mcoord else [])]
+    if not {"x", "y"} <= set(mcoord.columns):
+        raise ValueError("The CosMx metadata file has no CenterX_global_px / "
+                         "CenterY_global_px columns.")
+    split = fov_column if (fov_column and fov_column in mcoord.columns) else None
+    coords = mcoord[["cell", "x", "y"] + ([split] if split else [])]
     return _build_spatial_object(counts, gene_cols, list(cell_ids), coords,
-                                 assay, project,
-                                 fov=fov_column if fov_column in coords else None,
-                                 meta_data=mdf.set_index("cell"))
+                                 assay, project, fov=split,
+                                 meta_data=mdf.set_index("cell"),
+                                 image_name=fov, radius=_auto_radius(coords))
 
 
 # ---------------------------------------------------------------------------
@@ -333,28 +416,48 @@ def load_merscope(
     expr_file: Optional[str] = None,
     meta_file: Optional[str] = None,
     assay: str = "Vizgen",
-    fov_column: str = "fov",
+    fov: str = "fov",
+    fov_column: Optional[str] = None,
     project: str = "MERSCOPE",
     keep_controls: bool = False,
 ):
     """Load a Vizgen MERSCOPE output into a Truecell object with images.
 
-    Mirrors Seurat's ``LoadVizgen``. Expects, in ``path``:
+    Expects, in ``path``:
       * ``cell_by_gene.csv`` — cell × gene counts (leading column = cell id)
       * ``cell_metadata.csv`` — with ``center_x`` / ``center_y`` (and usually
         ``fov``, ``volume``)
 
-    Blank/control barcodes (``Blank-*`` columns) are dropped by default, matching
-    ``LoadVizgen``; set ``keep_controls=True`` to retain them.
+    Builds what Seurat's ``LoadVizgen`` builds from the same files, for the
+    expression matrix and the cell centroids:
 
-    ``fov_column``, if present in the metadata, splits the object into one image
-    per FOV; otherwise a single image is created.
+    * cell ids are the leading column of both files, as ``ReadVizgen`` reads them;
+    * features matching ``^Blank-``, the blank barcodes, are dropped as
+      ``LoadVizgen`` drops them. The match is case-sensitive, so ``blank-3``
+      stays; ``keep_controls=True`` keeps them all;
+    * cells with no counts stay, as they do in ``LoadVizgen``;
+    * one image, named ``fov`` (``LoadVizgen``'s argument), holds the
+      ``center_x`` / ``center_y`` centroids of the cells in the object.
+
+    ``LoadVizgen`` also loads the cell boundaries (``cell_boundaries/*.hdf5``) and
+    the transcripts of one z-plane into that image, and drops from the image any
+    cell without a boundary; ``load_merscope`` reads neither and keeps those
+    cells. truecell carries the metadata file's columns into ``meta_data``, which
+    Seurat does not. ``fov_column`` splits the cells into one image per value of
+    that metadata column instead, named by the value.
+
+    ``expr_file`` / ``meta_file`` default to the files ``ReadVizgen`` finds in
+    ``path``: the last name, in sorted order, matching ``cell_by_gene*.csv`` and
+    ``cell_metadata*.csv``.
+
+    Checked against ``LoadVizgen`` (Seurat 5.5.1) on a synthetic bundle in
+    MERSCOPE's file layout; not compared with R on a real run.
     """
     path = Path(path)
-    expr = Path(expr_file) if expr_file else _first_existing(
-        path, ["cell_by_gene.csv", "cell_by_gene.csv.gz"])
-    meta = Path(meta_file) if meta_file else _first_existing(
-        path, ["cell_metadata.csv", "cell_metadata.csv.gz"])
+    expr = (Path(expr_file) if expr_file
+            else _file_like_r(path, r"cell_by_gene[_a-zA-Z0-9]*.csv"))
+    meta = (Path(meta_file) if meta_file
+            else _file_like_r(path, r"cell_metadata[_a-zA-Z0-9]*.csv"))
     if expr is None or meta is None:
         raise FileNotFoundError(
             f"Could not locate cell_by_gene.csv / cell_metadata.csv in {path}."
@@ -363,22 +466,23 @@ def load_merscope(
     edf = pd.read_csv(expr)
     mdf = pd.read_csv(meta)
 
-    ecid = _cell_id_column(edf)
-    gene_cols = [c for c in edf.columns if c != ecid]
+    gene_cols = [str(c) for c in edf.columns[1:]]
     if not keep_controls:
-        gene_cols = [g for g in gene_cols if not str(g).lower().startswith("blank")]
+        gene_cols = [g for g in gene_cols if not re.match(r"Blank-", g)]
     if not gene_cols:
         raise ValueError(f"No gene columns found in {expr}.")
-    cell_ids = edf[ecid].astype(str).to_numpy()
+    cell_ids = edf.iloc[:, 0].astype(str).to_numpy()
     counts = sp.csc_matrix(edf[gene_cols].to_numpy(dtype=float).T)   # genes × cells
 
     mdf = mdf.copy()
-    mdf["cell"] = mdf[_cell_id_column(mdf)].astype(str)
+    id_column = mdf.columns[0]
+    mdf["cell"] = mdf[id_column].astype(str)
     mcoord = mdf.rename(columns={"center_x": "x", "center_y": "y"})
     if not {"x", "y"} <= set(mcoord.columns):
         raise ValueError("cell_metadata must contain center_x / center_y columns.")
-    fov = fov_column if fov_column in mcoord.columns else None
-    coords = mcoord[["cell", "x", "y"] + ([fov] if fov else [])]
+    split = fov_column if (fov_column and fov_column in mcoord.columns) else None
+    coords = mcoord[["cell", "x", "y"] + ([split] if split else [])]
+    meta_data = mdf.set_index("cell").drop(columns=[id_column], errors="ignore")
     return _build_spatial_object(counts, gene_cols, list(cell_ids), coords,
-                                 assay, project, fov=fov,
-                                 meta_data=mdf.set_index("cell"))
+                                 assay, project, fov=split, meta_data=meta_data,
+                                 image_name=fov, radius=_auto_radius(coords))

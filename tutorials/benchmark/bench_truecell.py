@@ -321,12 +321,17 @@ def bench_spatial(bench: str, log: StepLog) -> None:
         normalize_data(obj, scale_factor=10000)
         rec["anchor"] = len(obj.cell_names())
 
-    # A deterministic subset, written for the R arm. Sorted then evenly spaced
-    # rather than random: it has to be reproducible from either language, and
-    # spacing it keeps the subset spread over the slide instead of clipping a
-    # corner, which would flatter Moran's I on both sides equally but make the
-    # statistic meaningless.
-    all_cells = sorted(obj.cell_names())
+    # A deterministic subset, written for the R arm to read back: every k-th
+    # cell in the object's own order. Spacing it spreads the subset over the
+    # slide instead of clipping a corner, which would flatter Moran's I on both
+    # sides equally but make the statistic meaningless.
+    #
+    # Object order, not `sorted()`, which this used to take. With Xenium's
+    # integer cell ids string order is not object order, and truecell 1.2.0's
+    # `subset` did not reorder the cells it was given, so the Moran's I values
+    # this step computed then belonged to the wrong cells. The timings were
+    # unaffected: the same sizes and the same algorithm.
+    all_cells = list(obj.cell_names())
     step_by = max(1, len(all_cells) // n_subset)
     cells = all_cells[::step_by][:n_subset]
     out = Path(__file__).resolve().parent / "results" / "xenium_cells.txt"

@@ -38,12 +38,9 @@ needs, publishes no Intel macOS wheels. If truecell crashes, see
 
 ## From source
 
-The PyPI release is **0.9.0**, which as of 2026-07-27 tracks `main` closely —
-reference mapping, sketching, `LazyMatrix`, cell hashing, Mixscape,
-`run_spca`/`glm_pca`, pseudobulk DE and the MERSCOPE/Visium work are all in it.
-A source checkout is still how to get anything that lands on `main` afterward,
-before the next release; [the changelog](CHANGELOG.md) is the authority on
-which is which.
+A source checkout gets you `main`, including anything merged since the latest
+[PyPI release](https://pypi.org/project/truecell/). [The changelog](CHANGELOG.md)
+lists that work under **Unreleased**.
 
 ```bash
 git clone https://github.com/GenomicAI/truecell.git

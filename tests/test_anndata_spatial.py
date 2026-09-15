@@ -110,7 +110,7 @@ def _write_visium(root, integer_pixels=False):
     return truecell.load_visium(root), positions
 
 
-def _write_cosmx(root):
+def _write_cosmx(root, **load):
     genes = ["CD3D", "MS4A1", "LYZ"]
     fov = [1, 1, 2, 2, 2, 1, 3, 3]
     expr = pd.DataFrame({"fov": fov, "cell_ID": [1, 2, 1, 2, 3, 3, 1, 2]})
@@ -122,10 +122,10 @@ def _write_cosmx(root):
     meta = expr[["fov", "cell_ID"]].assign(CenterX_global_px=rng.uniform(0, 5e4, len(fov)),
                                            CenterY_global_px=rng.uniform(0, 5e4, len(fov)))
     meta.to_csv(root / "run_metadata_file.csv", index=False)
-    return truecell.load_cosmx(root)
+    return truecell.load_cosmx(root, **load)
 
 
-def _write_merscope(root):
+def _write_merscope(root, **load):
     genes = ["Gad1", "Sst", "Blank-1"]
     cells = [str(1000 + i) for i in range(9)]
     by_gene = pd.DataFrame({"cell": cells})
@@ -138,16 +138,19 @@ def _write_merscope(root):
                   "center_x": rng.uniform(0, 9000, len(cells)),
                   "center_y": rng.uniform(0, 9000, len(cells))}).to_csv(
         root / "cell_metadata.csv", index=False)
-    return truecell.load_merscope(root)
+    return truecell.load_merscope(root, **load)
 
 
+# CosMx and MERSCOPE with one image per FOV, the layout these round trips were
+# written for. By default both loaders build one image, as Seurat's do, and that
+# layout's trip is the `fov_key` test further down.
 PLATFORMS = {
     "xenium": lambda root: _write_xenium(root, fovs=False),
     "xenium_fovs": lambda root: _write_xenium(root, fovs=True),
     "visium": lambda root: _write_visium(root)[0],
     "visium_integer_pixels": lambda root: _write_visium(root, integer_pixels=True)[0],
-    "cosmx": _write_cosmx,
-    "merscope": _write_merscope,
+    "cosmx": lambda root: _write_cosmx(root, fov_column="fov"),
+    "merscope": lambda root: _write_merscope(root, fov_column="fov"),
 }
 
 
@@ -365,12 +368,13 @@ def test_a_cell_no_image_places_is_nan_and_stays_out_of_the_images(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_an_existing_fov_column_that_names_the_images_becomes_their_categorical(tmp_path):
-    """MERSCOPE's metadata carries its own `fov` (0, 1, 2), which the images are named
-    after. It is written, without a warning, as the categorical in image order that
-    Squidpy's `library_key` wants. Left as it was, a column of strings would reach an
-    h5ad as a categorical with its categories sorted, and the images would come back
-    in that order: the `xenium_fovs` round trip above caught exactly that."""
-    obj = _write_merscope(tmp_path / "merscope")
+    """MERSCOPE's metadata carries its own `fov` (0, 1, 2), which `fov_column="fov"`
+    names the images after. It is written, without a warning, as the categorical in
+    image order that Squidpy's `library_key` wants. Left as it was, a column of strings
+    would reach an h5ad as a categorical with its categories sorted, and the images
+    would come back in that order: the `xenium_fovs` round trip above caught exactly
+    that."""
+    obj = _write_merscope(tmp_path / "merscope", fov_column="fov")
     assert obj.meta_data["fov"].dtype.kind == "i"
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -394,6 +398,26 @@ def test_an_existing_fov_column_that_names_something_else_is_kept_with_a_warning
         adata = as_anndata(obj, fov_key="image")
     assert adata.obs["image"].tolist() == ["slide"] * 6
     assert from_anndata(adata, fov_key="image").image_names() == ["slide"]
+
+
+@pytest.mark.parametrize("platform", ["cosmx", "merscope"])
+def test_one_loaded_image_beside_the_platform_fov_column_comes_back_under_fov_key(
+        tmp_path, platform):
+    """By default the CosMx and MERSCOPE loaders build one image, as Seurat's do, and
+    keep the platform's own `fov` column in meta_data. That column does not name the
+    image, so `as_anndata` keeps it and warns, and `fov_key=` writes the image's name
+    beside it: the object comes back with its one image and its `fov` column."""
+    obj = {"cosmx": _write_cosmx, "merscope": _write_merscope}[platform](tmp_path / platform)
+    assert obj.image_names() == ["fov"]
+    with pytest.warns(UserWarning, match="does not name the images"):
+        as_anndata(obj)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        adata = as_anndata(obj, fov_key="image")
+    back = from_anndata(_h5ad(adata, tmp_path), assay=obj.active_assay, fov_key="image")
+    _assert_same_space(back, obj)
+    assert back.meta_data["fov"].astype(str).tolist() == obj.meta_data["fov"].astype(str).tolist()
 
 
 # ---------------------------------------------------------------------------

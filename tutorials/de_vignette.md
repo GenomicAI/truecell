@@ -36,13 +36,13 @@ difference would look exactly like a DE difference.
 
 | Metric | Result |
 |---|---|
-| **`avg_log2FC` vs Seurat**, all 13,714 shared genes | **max abs diff 6.22e-15** |
+| **`avg_log2FC` vs Seurat**, all 13,714 shared genes | **max abs diff 1.78e-15** |
 | **Tests reproducing Seurat's top 50 genes** | **8 of 8** p-value tests (`roc` scores AUC, not p) |
 | `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999977 · 0.999996 · 0.999981 |
 | `mast` — Spearman (all genes / detected >5%) | 0.9464 / **0.9993** |
 | `negbinom` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999994** |
 | `poisson` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999989** |
-| `deseq2` — Spearman (all genes / detected >5%) | 0.9993 / **0.9999991**, and the same 712 genes at `p_val_adj < 0.05` |
+| `deseq2` — Spearman (all genes / detected >5%) | 0.9992 / **0.9999991**, and the same 712 genes at `p_val_adj < 0.05` |
 | `roc` — max abs AUC difference | 5.0e-04, which is Seurat's own 3-dp rounding |
 | *Before the fix* — genes returned at `logfc_threshold=0.25` | truecell **2,299** vs Seurat **11,907** (Jaccard 0.193) |
 
@@ -57,7 +57,7 @@ difference would look exactly like a DE difference.
 The ninth test, added after the four waves closed. `poisson` is the other branch
 of Seurat's `GLMDETest` — `glm(family = "poisson")` on the counts layer, Wald
 p-value off the group coefficient — and it ports cleanly: **50/50** on the top
-50, `avg_log2FC` to **6.2e-15**, Spearman **0.9999989** on genes detected above
+50, `avg_log2FC` to **1.8e-15**, Spearman **0.9999989** on genes detected above
 5 %, and not one gene on which the two tools disagree about `p_val_adj < 0.05`.
 
 **The residual is Seurat's, which has now happened three times in this port.**
@@ -129,10 +129,10 @@ layer, as for every other test.
 | Per cell, on clusters 0 and 1 | |
 |---|---|
 | Top 50 | **50/50** |
-| p-value Spearman, all genes / detected >5 % | 0.999251 / **0.9999991** |
+| p-value Spearman, all genes / detected >5 % | 0.999237 / **0.9999991** |
 | Genes at `p_val_adj < 0.05` | **712** in both, the same genes; one differs at 0.01 |
 | Seurat's NA p-values (Cook's outliers and empty genes) | 593, each p = 1 in truecell |
-| `avg_log2FC` | 6.2e-15 |
+| `avg_log2FC` | 1.8e-15 |
 
 The largest single-gene gap is CD14, 4.2 decades: 4.2e-150 in truecell against
 2.5e-154 in Seurat. That far into the tail a small shift in the Wald z moves p by
@@ -147,7 +147,7 @@ the vignette calls `FindMarkers`, without `sample_col`:
 |---|---|---|
 | Genes tested | 8,170 for CD14 monocytes against Seurat's 13,188 | identical in all 11 cell types |
 | DEG Jaccard at `p_val_adj < 0.05` | 0.41–0.66 | **0.947–1.000**, median 0.993 |
-| `avg_log2FC` | DESeq2's `log2FoldChange` | Seurat's, to 6.2e-15 |
+| `avg_log2FC` | DESeq2's `log2FoldChange` | Seurat's, to 1.8e-15 |
 
 This is where the flat-likelihood row of the table above was found. R's own DESeq2,
 with the trend evaluated at each gene as truecell evaluates it, agrees with
@@ -374,18 +374,23 @@ every correlation reported here, since neither carries a rank.
 
 | Test | Genes | max \|Δlog2FC\| | p Spearman (all) | p Spearman (detected >5 %) | Top 50 |
 |---|---|---|---|---|---|
-| `wilcox` | 13,714 | 6.2e-15 | **1.000000** | 1.0000 | 50/50 |
-| `t` | 13,714 | 6.2e-15 | 0.999977 | 1.0000 | 50/50 |
-| `bimod` | 13,714 | 6.2e-15 | 0.999996 | 1.0000 | 50/50 |
-| `LR` | 13,714 | 6.2e-15 | 0.999981 | 1.0000 | 50/50 |
-| `negbinom` | 11,387 | 6.2e-15 | 0.999567 | **1.0000** | 50/50 |
-| `roc` | 13,714 | 6.2e-15 | *AUC 5.0e-04* | — | — |
-| `mast` | 13,714 | 6.2e-15 | 0.946410 | **0.9993** | 50/50 |
-| `deseq2` | 13,714 | 6.2e-15 | 0.999251 | **1.0000** | 50/50 |
+| `wilcox` | 13,714 | 1.8e-15 | **1.000000** | 1.0000 | 50/50 |
+| `t` | 13,714 | 1.8e-15 | 0.999977 | 1.0000 | 50/50 |
+| `bimod` | 13,714 | 1.8e-15 | 0.999996 | 1.0000 | 50/50 |
+| `LR` | 13,714 | 1.8e-15 | 0.999981 | 1.0000 | 50/50 |
+| `negbinom` | 11,387 | 1.8e-15 | 0.999566 | **1.0000** | 50/50 |
+| `roc` | 13,714 | 1.8e-15 | *AUC 5.0e-04* | — | — |
+| `mast` | 13,714 | 1.8e-15 | 0.946410 | **0.9993** | 50/50 |
+| `deseq2` | 13,714 | 1.8e-15 | 0.999237 | **1.0000** | 50/50 |
 
 > Re-measured when `find_clusters` became Seurat's own optimiser, which changed
 > the two clusters from 692 and 515 cells to 703 and 480. The notes below were
 > written on the earlier clusters.
+
+> R's side of every column is read from the hex-float tables `pbmc3k_de_verify.R`
+> writes, not its 15-digit CSVs. That took the fold-change bound from 6.2e-15, which
+> was R's formatter, to 1.8e-15, and moved `negbinom`'s all-gene Spearman in the
+> sixth decimal place and `deseq2`'s in the fifth.
 
 > 13,714 rather than the 13,712 an earlier version of this table showed: two
 > genes, `Y-RNA` and `RP11-442N24--B.1`, used to be spelled with underscores on

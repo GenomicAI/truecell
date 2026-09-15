@@ -59,6 +59,10 @@ dev = [
     "mypy",
     "build",
     "twine",
+    # load_xenium prefers cells.parquet when pandas can read it, and
+    # tests/test_loaders_vs_seurat.py checks that path against LoadXenium.
+    # Without an engine in the test environment that path would never run.
+    "pyarrow>=16",
 ]
 # The documentation site. In `all` on purpose: tests/test_docs.py builds the
 # site with --strict, which is the only check that catches a broken

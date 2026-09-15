@@ -1,0 +1,154 @@
+{
+  "seurat": "5.5.1",
+  "seurat_object": "5.4.0",
+  "cosmx": {
+    "assay": "Nanostring",
+    "assays": ["Nanostring"],
+    "assay_features": {
+      "Nanostring": ["CD3D", "MS4A1", "LYZ", "HLA-DRA", "NegPrb1", "NegPrb2"]
+    },
+    "cells": ["1_1", "2_1", "1_2", "2_2", "12_2", "1_3", "2_3", "3_3"],
+    "features": ["CD3D", "MS4A1", "LYZ", "HLA-DRA", "NegPrb1", "NegPrb2"],
+    "counts": [
+      [6, 5, 4, 2, 4, 3, 5, 3],
+      [4, 8, 4, 3, 9, 7, 8, 7],
+      [2, 5, 6, 2, 7, 4, 6, 7],
+      [5, 4, 3, 4, 5, 8, 7, 2],
+      [4, 5, 3, 5, 4, 4, 4, 11],
+      [0, 0, 0, 0, 0, 0, 0, 0]
+    ],
+    "n_count": [21, 27, 20, 16, 29, 26, 30, 30],
+    "n_feature": [5, 5, 5, 5, 5, 5, 5, 5],
+    "meta_columns": ["orig.ident", "nCount_Nanostring", "nFeature_Nanostring"],
+    "segmentation_method": null,
+    "images": ["fov"],
+    "image_cells": ["1_1", "2_1", "1_2", "2_2", "12_2", "1_3", "2_3"],
+    "boundaries": ["centroids", "segmentation"],
+    "default_boundary": "centroids",
+    "centroid_cells": ["1_1", "2_1", "1_2", "2_2", "12_2", "1_3", "2_3"],
+    "centroid_x": [1152.75, 821.125, 9078.75, 7168.125, 10220.875, 2750.625, 2519],
+    "centroid_y": [856.125, 2415.125, 2962.75, 2354.625, 3054.25, 5597, 4606.625],
+    "centroid_radius": 70.703125
+  },
+  "merscope": {
+    "assay": "Vizgen",
+    "assays": ["Vizgen"],
+    "assay_features": {
+      "Vizgen": ["Gad1", "Sst", "Slc17a7", "Pvalb-2", "blank-3", "BlankLike"]
+    },
+    "cells": ["3141592653589", "2718281828459", "1618033988749", "1414213562373", "1732050807568", "2236067977499", "2645751311064"],
+    "features": ["Gad1", "Sst", "Slc17a7", "Pvalb-2", "blank-3", "BlankLike"],
+    "counts": [
+      [2, 3, 3, 0, 6, 5, 5],
+      [3, 4, 5, 0, 4, 3, 8],
+      [4, 1, 5, 0, 3, 6, 5],
+      [5, 4, 2, 0, 3, 3, 4],
+      [2, 6, 1, 0, 5, 2, 6],
+      [5, 3, 2, 0, 3, 3, 5]
+    ],
+    "n_count": [21, 21, 18, 0, 24, 22, 33],
+    "n_feature": [6, 6, 6, 0, 6, 6, 6],
+    "meta_columns": ["orig.ident", "nCount_Vizgen", "nFeature_Vizgen"],
+    "segmentation_method": null,
+    "images": ["fov"],
+    "image_cells": ["3141592653589", "2718281828459", "1618033988749", "1414213562373", "1732050807568", "2236067977499"],
+    "boundaries": ["centroids", "segmentation"],
+    "default_boundary": "centroids",
+    "centroid_cells": ["3141592653589", "2718281828459", "1618033988749", "1414213562373", "1732050807568", "2236067977499"],
+    "centroid_x": [5320.625, 7922.375, 4588.75, 6655.125, 2802.375, 4270],
+    "centroid_y": [3267, 8507.875, 6745.25, 1060.5, 5822.25, 8090.75],
+    "centroid_radius": 66.935625000000002
+  },
+  "xenium_csv": {
+    "assay": "Xenium",
+    "assays": ["Xenium", "BlankCodeword", "ControlCodeword", "ControlProbe"],
+    "assay_features": {
+      "Xenium": ["Acta2", "Slc17a7", "Gad1", "Sell-v2"],
+      "BlankCodeword": ["BLANK-0006"],
+      "ControlCodeword": ["NegControlCodeword-0500"],
+      "ControlProbe": ["NegControlProbe-00004"]
+    },
+    "cells": ["1", "2", "3", "4", "5", "6"],
+    "features": ["Acta2", "Slc17a7", "Gad1", "Sell-v2"],
+    "counts": [
+      [1, 2, 3, 1, 2, 3],
+      [1, 0, 3, 1, 1, 3],
+      [4, 5, 1, 1, 1, 4],
+      [1, 2, 2, 0, 3, 2]
+    ],
+    "n_count": [7, 9, 9, 3, 7, 12],
+    "n_feature": [4, 3, 4, 3, 4, 4],
+    "meta_columns": ["orig.ident", "nCount_Xenium", "nFeature_Xenium", "segmentation_method", "nCount_BlankCodeword", "nFeature_BlankCodeword", "nCount_ControlCodeword", "nFeature_ControlCodeword", "nCount_ControlProbe", "nFeature_ControlProbe"],
+    "segmentation_method": ["cell", "cell", "cell", "cell", "cell", "cell"],
+    "images": ["fov"],
+    "image_cells": ["1", "2", "3", "4", "5", "6"],
+    "boundaries": ["centroids"],
+    "default_boundary": "centroids",
+    "centroid_cells": ["1", "2", "3", "4", "5", "6"],
+    "centroid_x": [4836.875, 3624.5, 6068.125, 3168.625, 5390.5, 4034],
+    "centroid_y": [2338.625, 2827.375, 4397.25, 4185.25, 4977.125, 833.125],
+    "centroid_radius": 35.217500000000001
+  },
+  "xenium_parquet": {
+    "assay": "Xenium",
+    "assays": ["Xenium", "BlankCodeword", "ControlCodeword", "ControlProbe", "GenomicControl"],
+    "assay_features": {
+      "Xenium": ["Acta2", "Slc17a7", "Gad1", "Sell-v2"],
+      "BlankCodeword": ["UnassignedCodeword-0001"],
+      "ControlCodeword": ["NegControlCodeword-0500"],
+      "ControlProbe": ["NegControlProbe-00004"],
+      "GenomicControl": ["GenomicControl-00001"]
+    },
+    "cells": ["aaabinlp-1", "aaacaemi-1", "aaadbhjo-1", "aaagnpkm-1", "aaahmhhj-1", "aaaiccfk-1"],
+    "features": ["Acta2", "Slc17a7", "Gad1", "Sell-v2"],
+    "counts": [
+      [1, 2, 3, 1, 2, 3],
+      [1, 0, 3, 1, 1, 3],
+      [4, 5, 1, 1, 1, 4],
+      [1, 2, 2, 0, 3, 2]
+    ],
+    "n_count": [7, 9, 9, 3, 7, 12],
+    "n_feature": [4, 3, 4, 3, 4, 4],
+    "meta_columns": ["orig.ident", "nCount_Xenium", "nFeature_Xenium", "segmentation_method", "nCount_BlankCodeword", "nFeature_BlankCodeword", "nCount_ControlCodeword", "nFeature_ControlCodeword", "nCount_ControlProbe", "nFeature_ControlProbe", "nCount_GenomicControl", "nFeature_GenomicControl"],
+    "segmentation_method": ["Boundary Stain", "Interior Stain", "Imaging Based Nuclear Expansion", "Boundary Stain", "Interior Stain", "Imaging Based Nuclear Expansion"],
+    "images": ["fov"],
+    "image_cells": ["aaabinlp-1", "aaacaemi-1", "aaadbhjo-1", "aaagnpkm-1", "aaahmhhj-1", "aaaiccfk-1"],
+    "boundaries": ["centroids"],
+    "default_boundary": "centroids",
+    "centroid_cells": ["aaabinlp-1", "aaacaemi-1", "aaadbhjo-1", "aaagnpkm-1", "aaahmhhj-1", "aaaiccfk-1"],
+    "centroid_x": [5124.875, 1670.625, 6010.75, 574.625, 6732.125, 4774.875],
+    "centroid_y": [2537.375, 1043.5, 4231.75, 1113.875, 3302.625, 1695.625],
+    "centroid_radius": 46.728749999999998
+  },
+  "xenium_parquet_binary": {
+    "assay": "Xenium",
+    "assays": ["Xenium", "BlankCodeword", "ControlCodeword", "ControlProbe", "GenomicControl"],
+    "assay_features": {
+      "Xenium": ["Acta2", "Slc17a7", "Gad1", "Sell-v2"],
+      "BlankCodeword": ["UnassignedCodeword-0001"],
+      "ControlCodeword": ["NegControlCodeword-0500"],
+      "ControlProbe": ["NegControlProbe-00004"],
+      "GenomicControl": ["GenomicControl-00001"]
+    },
+    "cells": ["aaabinlp-1", "aaacaemi-1", "aaadbhjo-1", "aaagnpkm-1", "aaahmhhj-1", "aaaiccfk-1"],
+    "features": ["Acta2", "Slc17a7", "Gad1", "Sell-v2"],
+    "counts": [
+      [1, 2, 3, 1, 2, 3],
+      [1, 0, 3, 1, 1, 3],
+      [4, 5, 1, 1, 1, 4],
+      [1, 2, 2, 0, 3, 2]
+    ],
+    "n_count": [7, 9, 9, 3, 7, 12],
+    "n_feature": [4, 3, 4, 3, 4, 4],
+    "meta_columns": ["orig.ident", "nCount_Xenium", "nFeature_Xenium", "segmentation_method", "nCount_BlankCodeword", "nFeature_BlankCodeword", "nCount_ControlCodeword", "nFeature_ControlCodeword", "nCount_ControlProbe", "nFeature_ControlProbe", "nCount_GenomicControl", "nFeature_GenomicControl"],
+    "segmentation_method": ["Boundary Stain", "Interior Stain", "Imaging Based Nuclear Expansion", "Boundary Stain", "Interior Stain", "Imaging Based Nuclear Expansion"],
+    "images": ["fov"],
+    "image_cells": ["aaabinlp-1", "aaacaemi-1", "aaadbhjo-1", "aaagnpkm-1", "aaahmhhj-1", "aaaiccfk-1"],
+    "boundaries": ["centroids"],
+    "default_boundary": "centroids",
+    "centroid_cells": ["aaabinlp-1", "aaacaemi-1", "aaadbhjo-1", "aaagnpkm-1", "aaahmhhj-1", "aaaiccfk-1"],
+    "centroid_x": [5124.875, 1670.625, 6010.75, 574.625, 6732.125, 4774.875],
+    "centroid_y": [2537.375, 1043.5, 4231.75, 1113.875, 3302.625, 1695.625],
+    "centroid_radius": 46.728749999999998
+  }
+}
