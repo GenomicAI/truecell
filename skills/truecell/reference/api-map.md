@@ -309,6 +309,16 @@ All 17 return a `matplotlib.figure.Figure`.
 `spatial_dim_plot` · `spatial_feature_plot` · `plot_perturb_score` ·
 `mixscape_heatmap`
 
+## Diagnostics
+
+```python
+show_versions(as_dict=False) -> None   # prints; as_dict=True returns the report instead
+```
+
+R's `sessionInfo()`, for a crash report: the platform (Rosetta 2, free-threaded),
+the stack's versions and installers, numba's threading layer, and the OpenMP and
+BLAS runtimes loaded. Its numba checks run in child processes.
+
 ## Generics (`truecell.generics.*`, not top-level)
 
 `cells` · `features` · `idents` · `set_ident` · `stash_ident` · `rename_idents` ·

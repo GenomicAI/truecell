@@ -36,8 +36,8 @@ tests in.
 | `tests/` | ~70 test modules. |
 | `tutorials/` | 18 vignettes + their Python and R scripts + `figures_*/`. Also the R-comparison apparatus. |
 | `docs/` | MkDocs site. `docs/tutorials` is a **symlink** to `../tutorials`. |
-| `tools/` | Build-time helpers: `griffe_sphinx_roles.py`, `mkdocs_html_relpaths.py`. Plus `find_dead_args.py` — an AST sweep for parameters never read in their own function body; run it before trusting a signature. Every hit needs triage (dispatch adapters and protocol methods are legitimately unused). |
-| `.github/workflows/` | `ci.yml`, `docs.yml`. |
+| `tools/` | Build-time helpers: `griffe_sphinx_roles.py`, `mkdocs_html_relpaths.py`. Plus `find_dead_args.py` — an AST sweep for parameters never read in their own function body; run it before trusting a signature. Every hit needs triage (dispatch adapters and protocol methods are legitimately unused). And `run_docs_snippet.py`, which runs the Python block on `docs/index.md` as published, for the macOS canary. |
+| `.github/workflows/` | `ci.yml`, `docs.yml`, `macos-canary.yml`. |
 
 ## The checks
 
@@ -88,6 +88,17 @@ checkout with `git archive`, and runs `pbmc3k_tutorial.py` and
 exists because the 1.2.0 DE tutorial imported `tutorials.bands` without a
 `sys.path` bootstrap, which works only from an editable install.
 `tests/test_tutorial_bootstrap.py` reads every tutorial for that mistake.
+
+`macos-canary.yml` runs the Python block on `docs/index.md` on macOS 15 arm64,
+under `-X faulthandler`, in four environments: pip, `uv sync --locked`,
+conda-forge, and conda-forge's numba with pip for everything else. It runs
+weekly, on demand, and on a pull request that changes what it runs; it is not a
+required check. `tools/run_docs_snippet.py` reads the block out of the page, so
+the canary always runs what the site shows. It exists because a reviewer's run
+of that block died in `run_umap` with a segmentation fault that no configuration
+tried locally reproduced. When it fails, read `show_versions()` in the leg's log
+before the traceback: the threading layer and the OpenMP runtimes are the
+likeliest difference between a red leg and a green one.
 
 `docs.yml` builds with `--strict` and deploys to Pages.
 

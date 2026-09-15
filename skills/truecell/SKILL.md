@@ -146,6 +146,16 @@ Where results land: `pbmc.meta_data` (per-cell columns), `pbmc.reductions`
   `Assay5` / `DimReduc` / `Graph` containers, the generics, subsetting, layers,
   AnnData interop.
 
+## When it crashes
+
+A segmentation fault, or a Jupyter kernel that dies, is compiled code failing.
+The one reported so far was in `run_umap`, which runs numba code on parallel
+threads. Rerun the script with `python -X faulthandler` to get the Python line,
+and put `truecell.show_versions()`'s output in the report. It records numba's
+threading layer and the OpenMP runtimes loaded, and warns about known causes.
+The workaround to try first is `NUMBA_THREADING_LAYER=workqueue`, set before
+anything imports numba. Details: <https://genomicai.github.io/truecell/troubleshooting/>.
+
 ## Known, deliberate differences from Seurat
 
 Not bugs; do not "fix" them, and do not report them as regressions.

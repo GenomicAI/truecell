@@ -202,6 +202,7 @@ nav:
       - quickstart.md
       - interop.md
       - fidelity.md
+      - troubleshooting.md
   - Tutorials:
       - tutorials/README.md
       - Foundations:
@@ -245,6 +246,7 @@ nav:
       - api/plotting.md
       - api/generics.md
       - api/io.md
+      - api/diagnostics.md
   - Project:
       - CHANGELOG.md
       - ROADMAP.md

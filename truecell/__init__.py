@@ -99,6 +99,7 @@ from .plotting import (
     plot_perturb_score,
     mixscape_heatmap,
 )
+from ._show_versions import show_versions
 
 try:
     __version__ = _metadata_version("truecell")
@@ -230,5 +231,7 @@ __all__ = [
     "spatial_feature_plot",
     "plot_perturb_score",
     "mixscape_heatmap",
+    # Diagnostics
+    "show_versions",
     "__version__",
 ]
