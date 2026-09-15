@@ -91,13 +91,11 @@ If truecell crashes (a segmentation fault, or a Jupyter kernel that dies), the
 [Troubleshooting](https://genomicai.github.io/truecell/troubleshooting/) page covers
 the known causes, and `truecell.show_versions()` prints what a bug report needs.
 
-> **`pip install truecell` is current again.** The newest release is **0.9.0**
-> (2026-07-27), and it closes the gap the previous note here warned about:
-> reference mapping, sketching, `LazyMatrix`, cell hashing, Mixscape,
-> `run_spca`/`glm_pca`, pseudobulk DE, and the MERSCOPE/Visium additions are all
-> in it. [`CHANGELOG.md`](https://github.com/GenomicAI/truecell/blob/main/CHANGELOG.md)
-> is still the authority on exactly what shipped when a gap like that opens up
-> again — a milestone landing on `main` does not mean it has been released.
+> **Releases and `main`.** [PyPI](https://pypi.org/project/truecell/) has the
+> latest release, and this README follows `main`.
+> [`CHANGELOG.md`](https://github.com/GenomicAI/truecell/blob/main/CHANGELOG.md)
+> says what shipped in each release, and lists what is on `main` only under
+> **Unreleased**.
 
 ### From PyPI — the released core
 

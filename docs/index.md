@@ -90,11 +90,8 @@ genuinely differ.
 
 </div>
 
-!!! info "`pip install truecell` is current"
-    The newest release is **0.9.0**, which closed a long-standing gap: reference
-    mapping, sketching, `LazyMatrix`, cell hashing, Mixscape, `run_spca`/
-    `glm_pca`, pseudobulk DE and the MERSCOPE/Visium additions had all sat on
-    `main` since 0.2.0 with no release to match. They're all in `pip install
-    truecell` now. These docs are built from `main`, so the next gap — if one
-    opens — will show up here first; [the changelog](CHANGELOG.md) is the
-    authority on exactly what shipped when.
+!!! info "These docs follow `main`"
+    The site is built from `main`, so it can describe work no release has yet.
+    [PyPI](https://pypi.org/project/truecell/) has the latest release, and
+    [the changelog](CHANGELOG.md) says what shipped in each one: anything under
+    **Unreleased** is on `main` only.

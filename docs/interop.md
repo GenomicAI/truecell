@@ -77,10 +77,21 @@ truecell.spatial_feature_plot(obj, feature="Hpca")
 
 AnnData has nowhere to put cell polygons or transcript molecules, so those stay
 behind. So does a second image of cells another image already placed, such as a crop,
-and a radius set by hand, which comes back as the automatic one. Everything else
-survives: objects from `load_xenium`, `load_visium`, `load_cosmx` and `load_merscope`
-return from an `.h5ad` file with their coordinates bit-identical, cells and images in
-order, and Visium's image and scale factors unchanged.
+and a radius other than the automatic one for the cells placed, which comes back as
+the automatic one. Everything else survives: objects from `load_xenium`, `load_visium`,
+`load_cosmx` and `load_merscope` return from an `.h5ad` file with their coordinates
+bit-identical, cells and images in order, and Visium's image and scale factors
+unchanged.
+
+CosMx and MERSCOPE objects need one extra argument. Their loaders build one image, as
+Seurat's do, and keep the platform's own `fov` column in `meta_data`, which does not
+name that image. `as_anndata` keeps the column under `obs["fov"]` and warns, so pass
+`fov_key="image"`, or any free name, to both calls:
+
+```python
+adata = as_anndata(truecell.load_cosmx(path), fov_key="image")
+obj = from_anndata(adata, assay="Nanostring", fov_key="image")
+```
 
 ## SpatialData
 

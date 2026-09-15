@@ -7,7 +7,7 @@ description: Use when writing, reading, debugging or reviewing Python single-cel
 
 `truecell` is a Python port of [Seurat](https://satijalab.org/seurat/) v5 — the same
 data structures and the same algorithms, checked against R Seurat 5.5.1 test by
-test. Version **0.9.0**, Python **3.12+**, MIT.
+test. Python **3.12+**, MIT; `truecell.__version__` is the installed release.
 
 - Docs: <https://genomicai.github.io/truecell/> · Repo: <https://github.com/GenomicAI/truecell>
 - 105 public names, all exported from the package root **except the generics**

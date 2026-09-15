@@ -54,11 +54,9 @@ point of this file:
   prefixing, no fetch — so changing a default to fix a display string was not
   worth the churn.
 
-Result: **38 of 39 anchors match Seurat exactly.** The one that does not is the
-shape of ``get_tissue_coordinates`` — R returns ``x, y, cell`` as three columns,
-truecell returns ``x, y`` and carries the cell as the index. Same information, and
-the object-level accessor already materialises ``cell`` as a column; adding a
-second copy alongside the index would only give the two a way to disagree.
+Result: **39 of 39 anchors match Seurat exactly.** The last to match was the
+shape of ``get_tissue_coordinates``: truecell carried the cell only as the index
+until the frame gained the ``cell`` column R returns.
 
 Conventions
 -----------

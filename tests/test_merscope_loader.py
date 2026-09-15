@@ -1,4 +1,8 @@
-"""Tests for load_merscope (Vizgen MERSCOPE / Seurat's LoadVizgen)."""
+"""Tests for load_merscope (Vizgen MERSCOPE / Seurat's LoadVizgen).
+
+`test_loaders_vs_seurat.py` pins the layout against what `LoadVizgen` builds;
+these cover the options and the errors.
+"""
 import numpy as np
 import pandas as pd
 import pytest
@@ -41,8 +45,8 @@ def test_load_merscope(tmp_path):
     assert obj.project_name == "MERSCOPE"
     assert set(obj.feature_names()) == {"Gad1", "Slc17a7", "Sox9"}  # blanks dropped
     assert obj.cell_names() == cells
-    # One image per FOV, with every cell placed.
-    assert obj.image_names() == ["A", "B"]
+    # One image, under the name LoadVizgen's `fov` argument gives it, every cell placed.
+    assert obj.image_names() == ["fov"]
     coords = obj.get_tissue_coordinates()
     assert len(coords) == 6
     np.testing.assert_allclose(
@@ -50,6 +54,13 @@ def test_load_merscope(tmp_path):
     )
     # Non-coordinate metadata carried over.
     assert "volume" in obj.meta_data.columns
+
+
+def test_load_merscope_splits_by_fov_column_when_asked(tmp_path):
+    _write_merscope(tmp_path)
+    obj = load_merscope(tmp_path, fov_column="fov")
+    assert obj.image_names() == ["A", "B"]
+    assert len(obj.get_tissue_coordinates()) == 6
 
 
 def test_load_merscope_keeps_blanks_when_asked(tmp_path):
@@ -71,6 +82,7 @@ def test_load_merscope_unnamed_cell_id_column(tmp_path):
     obj = load_merscope(tmp_path)
     assert len(obj.cell_names()) == 6
     assert set(obj.feature_names()) == {"Gad1", "Slc17a7", "Sox9"}
+    assert "Unnamed: 0" not in obj.meta_data.columns
 
 
 def test_load_merscope_missing_files_raise(tmp_path):

@@ -8,7 +8,7 @@ lymphoid compartment is isolated and re-analysed from scratch to separate naive
 CD4, memory CD4, CD8, and NK populations that the global clustering merges.
 
 > **Dataset:** 8k PBMCs from a Healthy Donor — 10x Genomics (GRCh38, v2)
-> **Python:** Truecell v0.2.0
+> **Python:** Truecell
 > **Methodology:** Satija et al. 2015 · Butler et al. 2018 · Hao et al. 2021
 
 > **Scope note.** This tutorial stays within the single-assay **RNA

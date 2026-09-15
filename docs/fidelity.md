@@ -158,7 +158,8 @@ non-zero outside one. Two rules make them worth having:
 | `roc` max ∆AUC | ≤ 5e-4 | Half a unit in Seurat's third decimal. Measured 4.9986e-4 — bands are inclusive by design, and this one sits on its boundary. |
 
 `max |Δlog2FC|` is one band over every test, `deseq2` included: all of them
-report Seurat's fold change on the same matrix, so all of them agree to 6.2e-15.
+report Seurat's fold change on the same matrix, so all of them agree to 1.8e-15,
+one unit in the last place of a double, read against R's hex-float tables.
 
 ## The reference has to be the one the handoff asked for
 

@@ -33,7 +33,7 @@ the Truecell equivalent and both outputs are shown side by side.
 
 | Metric | Result |
 |---|---|
-| **Anchors matching Seurat exactly** | **38 / 39** |
+| **Anchors matching Seurat exactly** | **39 / 39** |
 | **Moran's I per gene vs R** (248 genes, 2,000 cells) | **max abs diff 1.6e-14**, Pearson 1.0000000000 |
 | Moran's I — Seurat's top 10 recovered | **10 / 10**, in the same order |
 | *Before the fix* — kNN weighting vs R | Pearson 0.986, but **7/10** top genes and a median **1.23×** bias |
@@ -41,8 +41,8 @@ the Truecell equivalent and both outputs are shown side by side.
 | `Segmentation` ring vertices (square, per cell) | **5** vs 5 |
 | Full-slide Moran's I, R's exact weights | **5.3 s, 0.95 GB** — Seurat needs a **10.7 GB** dense matrix |
 
-The one anchor that does not match is `GetTissueCoordinates`' shape, and it is a
-difference in how the two languages carry a row label rather than in the data.
+The last anchor to match was `GetTissueCoordinates`' shape: truecell carried the
+cell only as the row label until its frame gained the `cell` column R returns.
 
 ---
 
@@ -112,8 +112,8 @@ Radius(fov[["centroids"]])  # 42.82543
 <td>
 
 ```python
-list(obj.images)            # ['xenium']
-fov = obj.images["xenium"]
+list(obj.images)            # ['fov']
+fov = obj.images["fov"]
 list(fov.boundaries)        # ['centroids']
 fov.default_boundary()      # 'centroids'
 fov.radius()                # None
@@ -124,10 +124,10 @@ fov.boundaries["centroids"].radius()   # 42.82543
 </tr>
 </table>
 
-The FOV's *name* differs because it is a parameter with different defaults —
-`LoadXenium(fov = "fov")` against `load_xenium`'s `"xenium"` — and truecell does not
-currently expose a way to choose it, so R code indexing `obj[["fov"]]` needs
-adjusting. Everything about the FOV other than what it is filed under is the same.
+The FOV is filed under the same name as well: `load_xenium` takes `LoadXenium`'s
+`fov` argument with the same default, so R code indexing `obj[["fov"]]` carries
+over as `obj.images["fov"]`. Until the loaders were checked against Seurat's
+readers it was always `"xenium"`, with no way to choose.
 
 `Radius()` on the FOV is empty in **both** tools — that is R's design, and the
 number lives on the boundary underneath. Getting that right matters more than it
@@ -367,15 +367,13 @@ gives `RNA_`); truecell hardcodes `fov_`. It appears in `__repr__` and nowhere
 else — no lookup, no prefixing, no `FetchData` path — so changing a default to
 correct a display string was not worth the churn. Recorded rather than fixed.
 
-### The anchor that does not match
+### The anchor that used to differ
 
-`GetTissueCoordinates` returns **three** columns in R (`x`, `y`, `cell`) and
-**two** in truecell, which carries the cell as the DataFrame index. The information
-is identical; only the container differs, and truecell's object-level
-`get_tissue_coordinates()` already materialises `cell` as a column. Adding a
-duplicate column that mirrors the index would give the two ways to drift apart.
-Left as it is, and reported here rather than quietly excluded from the table —
-39 anchors, 38 matching.
+`GetTissueCoordinates` returns **three** columns in R (`x`, `y`, `cell`). truecell
+returned two and carried the cell only as the DataFrame index, and that was the
+one anchor that did not match. `get_tissue_coordinates()` on a `Centroids`,
+`Segmentation` or FOV now returns the `cell` column too, the frame R returns, so
+all 39 anchors match.
 
 ---
 
@@ -383,10 +381,10 @@ Left as it is, and reported here rather than quietly excluded from the table —
 
 | Section | Anchors | Matching | Tolerance |
 |---|---|---|---|
-| `container` — cells, features, boundaries, radius, coordinate frame | 22 | 21 | exact except 3 float anchors |
+| `container` — cells, features, boundaries, radius, coordinate frame | 22 | 22 | exact except 3 float anchors |
 | `toy` — the constructors on 4 cells and 2 squares | 10 | 10 | exact except `auto_radius` |
 | `moransi` — top genes, I values, ranking digest | 7 | 7 | exact except 3 float anchors |
-| **Total** | **39** | **38** | |
+| **Total** | **39** | **39** | |
 
 Thirty-two of the thirty-nine anchors are compared with **no tolerance at all** —
 names, orders, counts, digests, boundary sets, vertex counts. The seven floating

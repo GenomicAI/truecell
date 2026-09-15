@@ -1,8 +1,8 @@
 # truecell API map
 
 Every public function, with its real signature and its Seurat equivalent.
-Signatures are from `truecell` 0.9.0. `seurat` / `obj` as the first parameter means
-a `Truecell` object.
+The signatures are the code's: `tests/test_docs.py` checks each one against it.
+`seurat` / `obj` as the first parameter means a `Truecell` object.
 
 **Read the return column.** `None` means the function mutates in place — see
 contract 1 in the parent skill.
@@ -24,7 +24,8 @@ create_truecell_object(counts, assay="RNA", min_cells=0, min_features=0,
                      meta_data=None, use_v5=True) -> Truecell
 create_assay_object(counts=None, data=None, min_cells=0, min_features=0,
                     feature_names=None, cell_names=None, key="rna_") -> Assay
-create_assay5_object(...same...) -> Assay5
+create_assay5_object(counts=None, data=None, min_cells=0, min_features=0,
+                     feature_names=None, cell_names=None, key="rna_") -> Assay5
 log_truecell_command(object_, func_name, params=None, assay=None, reduction=None) -> TruecellCommand
 as_graph(x, cell_names=None, assay_used=None, weighted=True) -> Graph
 ```
@@ -44,9 +45,10 @@ from truecell.datasets import pbmc3k, pbmc8k, cbmc_citeseq, pbmc_hashing, thp1_e
                             ifnb, panc8, xenium_mouse_brain, visium_mouse_brain
 pbmc3k(data_dir=None, force_download=False) -> (counts, genes, cells)
 cbmc_citeseq(data_dir=None, force_download=False, species_prefix="HUMAN_")
-xenium_mouse_brain(...) -> Path     # loaders that return a directory
-visium_mouse_brain(...) -> Path
-ifnb(data_dir=None); panc8(data_dir=None)   # need `Rscript tutorials/export_seuratdata.R <name>` once
+xenium_mouse_brain(data_dir=None, force_download=False) -> Path   # a directory, for the loaders
+visium_mouse_brain(data_dir=None, force_download=False) -> Path
+ifnb(data_dir=None)     # ifnb and panc8 need `Rscript tutorials/export_seuratdata.R <name>` once
+panc8(data_dir=None)
 ```
 
 Everything caches to `~/.truecell_data/` (~770 MB for the full set).
@@ -109,16 +111,19 @@ sctransform(seurat, assay=None, new_assay_name="SCT", n_cells=5000, n_genes=2000
 ```python
 run_pca(seurat, n_pcs=50, features=None, assay=None, reduction_name="pca",
         reduction_key="PC_", seed=42, layer="scale.data") -> None
-run_ica(seurat, nics=50, ..., reduction_name="ica", reduction_key="IC_", max_iter=200) -> None
-run_spca(seurat, graph, npcs=50, ..., reduction_name="spca") -> None     # graph is required
+run_ica(seurat, nics=50, features=None, assay=None, reduction_name="ica",
+        reduction_key="IC_", seed=42, layer="scale.data", max_iter=200) -> None
+run_spca(seurat, graph, npcs=50, features=None, assay=None, reduction_name="spca",
+         reduction_key="SPC_", seed=42, layer="scale.data") -> None     # graph is required
 run_tsne(seurat, dims=None, reduction="pca", n_components=2, perplexity=30.0,
-         reduction_name="tsne", seed=42, assay=None) -> None
+         reduction_name="tsne", reduction_key="tSNE_", seed=42, assay=None) -> None
 run_umap(seurat, dims=None, reduction="pca", graph=None, n_components=2,
          n_neighbors=30, min_dist=0.3, metric="cosine", reduction_name="umap",
          reduction_key=None, seed=42, assay=None) -> None    # key None: "umap" -> "umap_"
 glm_pca(seurat, n_components=10, features=None, assay=None, reduction_name="glmpca",
-        family="poisson", layer="counts", max_iter=100, tol=1e-4, penalty=1.0,
-        learning_rate=0.1, theta=100.0, optimize_theta=True, seed=42) -> None
+        reduction_key="GLMPC_", family="poisson", layer="counts", max_iter=100,
+        tol=1e-4, penalty=1.0, learning_rate=0.1, theta=100.0, optimize_theta=True,
+        seed=42) -> None
 jack_straw(seurat, reduction="pca", dims=20, num_replicate=100, prop_freq=0.01,
            layer="scale.data", seed=42) -> JackStrawData
 score_jackstraw(seurat, reduction="pca", dims=None, score_thresh=1e-5) -> np.ndarray
@@ -143,7 +148,7 @@ for the graphs. Indices are 0-based where R's `Indices()` are 1-based.
 ```python
 find_clusters(seurat, resolution=0.8, algorithm=1, graph_name=None, random_seed=0,
               n_iter=10, group_singletons=True, cluster_name=None, modularity_fxn=1,
-              n_start=10, optimizer="seurat") -> None
+              n_start=10, optimizer="seurat", n_iterations=None) -> None
 find_multi_modal_neighbors(seurat, reduction_list=("pca", "apca"), dims_list=None,
                            k_nn=20, l2_norm=True, knn_graph_name="wknn",
                            snn_graph_name="wsnn", knn_range=200, prune_snn=1/15,
@@ -175,7 +180,8 @@ find_conserved_markers(seurat, ident_1, grouping_var, ident_2=None, assay=None,
                        layer=None, test_use="wilcox", only_pos=False, min_pct=0.01,
                        logfc_threshold=0.1, features=None) -> pd.DataFrame
 aggregate_expression(seurat, group_by="ident", assays=None, features=None,
-                     layer="counts", return_object=False)
+                     layer="counts", return_object=False,
+                     normalization_method="LogNormalize", scale_factor=10000.0)
 ```
 
 `test_use`: `wilcox` · `t` · `bimod` · `LR` · `negbinom` · `poisson` · `mast` · `deseq2` · `roc`.
@@ -253,13 +259,14 @@ mixscape_lda(seurat, labels="gene", nt_class="NT", assay="PRTB", de_assay="RNA",
 ## Spatial → `truecell-spatial`
 
 ```python
-load_xenium(path, assay="Xenium", fov_column=None, project="Xenium", keep_controls=False)
+load_xenium(path, assay="Xenium", fov="fov", fov_column=None, project="Xenium",
+            keep_controls=False)
 load_visium(path, assay="Spatial", project="Visium", image=True,
             image_resolution="lowres", filter_by_tissue=True, slice_name="slice1")
-load_cosmx(path, expr_file=None, meta_file=None, assay="Nanostring",
-           fov_column="fov", project="CosMx")
-load_merscope(path, expr_file=None, meta_file=None, assay="Vizgen",
-              fov_column="fov", project="MERSCOPE", keep_controls=False)
+load_cosmx(path, expr_file=None, meta_file=None, assay="Nanostring", fov="fov",
+           fov_column=None, project="CosMx")
+load_merscope(path, expr_file=None, meta_file=None, assay="Vizgen", fov="fov",
+              fov_column=None, project="MERSCOPE", keep_controls=False)
 
 create_centroids(coords, nsides=0, radius=None, theta=None, assay="", key="centroids_")
 create_segmentation(coords, assay="", key="segmentation_")
@@ -278,6 +285,10 @@ find_spatially_variable_features(seurat, features=None, method="moransi", k=10,
                                  image=None, r_metric=5.0, bandwidth=1.0) -> pd.DataFrame
 composition_test(seurat, group_by, split_by, reference=None) -> pd.DataFrame
 ```
+
+The loaders' `fov` names the one image they build, as Seurat's `fov` argument does
+(`load_visium` calls it `slice_name`); `fov_column` splits the cells into one image
+per value of that column instead.
 
 Spatial classes: `SpatialImage`, `Centroids`, `Segmentation`, `Molecules`, `FOV`,
 `VisiumV2`, `ScaleFactors`.

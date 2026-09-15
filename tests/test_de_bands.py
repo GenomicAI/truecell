@@ -20,21 +20,23 @@ from tutorials.bands import check_bands  # noqa: E402
 
 
 def _clean_table() -> pd.DataFrame:
-    """The concordance table as it reads on a good run, measured 2026-09-12.
+    """The concordance table as it reads on a good run, measured 2026-09-15.
 
     Re-measured once `find_clusters` ran Seurat's own optimiser, which changed the
-    two clusters the tutorial tests to 703 and 480 cells, from 692 and 515.
+    two clusters the tutorial tests to 703 and 480 cells, from 692 and 515, and
+    again once `compare` read R's values from the hex tables: the fold-change
+    bound went from 6.22e-15, R's 15-digit CSV, to 1.78e-15.
     """
     rows = {
-        "wilcox":   (50, 1.000000, 6.22e-15, np.nan),
-        "t":        (50, 1.000000, 6.22e-15, np.nan),
-        "bimod":    (50, 1.000000, 6.22e-15, np.nan),
-        "LR":       (50, 1.000000, 6.22e-15, np.nan),
-        "negbinom": (50, 0.999999, 6.22e-15, np.nan),
-        "poisson":  (50, 0.999999, 6.22e-15, np.nan),
-        "roc":      (np.nan, np.nan, 6.22e-15, 5.0e-4),
-        "mast":     (50, 0.999285, 6.22e-15, np.nan),
-        "deseq2":   (50, 0.999999, 6.22e-15, np.nan),
+        "wilcox":   (50, 1.000000, 1.78e-15, np.nan),
+        "t":        (50, 1.000000, 1.78e-15, np.nan),
+        "bimod":    (50, 1.000000, 1.78e-15, np.nan),
+        "LR":       (50, 1.000000, 1.78e-15, np.nan),
+        "negbinom": (50, 0.999999, 1.78e-15, np.nan),
+        "poisson":  (50, 0.999999, 1.78e-15, np.nan),
+        "roc":      (np.nan, np.nan, 1.78e-15, 5.0e-4),
+        "mast":     (50, 0.999285, 1.78e-15, np.nan),
+        "deseq2":   (50, 0.999999, 1.78e-15, np.nan),
     }
     return pd.DataFrame(
         [{"test": k, f"top{de.TOP_N}_overlap": v[0], "p_spearman_expressed": v[1],
@@ -113,7 +115,7 @@ def test_the_fold_change_band_covers_every_test():
     one in any other test.
     """
     measured = de.measure_bands(_clean_table())
-    assert measured["max |dlog2FC| (parity tests)"] == pytest.approx(6.22e-15, rel=1e-9, abs=0)
+    assert measured["max |dlog2FC| (parity tests)"] == pytest.approx(1.78e-15, rel=1e-9, abs=0)
 
     for test in ("mast", "deseq2"):
         table = _clean_table()
@@ -142,6 +144,34 @@ def test_an_auc_exactly_at_seurat_s_rounding_passes_the_band():
     table = _clean_table()
     table.loc["roc", "auc_max_abs_diff"] = res["auc_max_abs_diff"]
     assert "roc max |dAUC|" not in _holds(table)
+
+
+def test_compare_reads_r_s_values_from_the_hex_table():
+    """R's 15-digit CSV cannot say whether two doubles are the same one.
+
+    ``0.1 + 0.2`` is one ULP above ``0.3``, which is what ``write.csv`` prints for
+    it. Read through the CSV that looks like a disagreement; the hex table, which
+    carries the bits, shows the two tools agree exactly.
+    """
+    genes = ["A", "B", "C"]
+    py = pd.DataFrame({"p_val": [(0.1 + 0.2) * 1e-3, 0.5, 0.9],
+                       "avg_log2FC": [0.1 + 0.2, -1.0, 2.0],
+                       "pct.1": [0.5, 0.4, 0.3], "pct.2": [0.3, 0.2, 0.1],
+                       "p_val_adj": [1.0, 1.0, 1.0]}, index=genes)
+    csv = py.copy()
+    for column in ("p_val", "avg_log2FC"):
+        csv[column] = [float(f"{v:.15g}") for v in py[column]]
+    assert csv.loc["A", "avg_log2FC"] != py.loc["A", "avg_log2FC"]
+
+    through_csv = de.compare(py, csv, "wilcox")
+    assert through_csv["r_values"] == "csv_15_digits"
+    assert through_csv["log2fc_max_abs_diff"] > 0
+    assert through_csv["p_max_log10_ratio"] > 0
+
+    through_hex = de.compare(py, csv, "wilcox", exact=py.copy())
+    assert through_hex["r_values"] == "hex"
+    assert through_hex["log2fc_max_abs_diff"] == 0
+    assert through_hex["p_max_log10_ratio"] == 0
 
 
 def test_a_missing_column_fails_rather_than_disappearing():

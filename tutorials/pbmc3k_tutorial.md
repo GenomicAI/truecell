@@ -8,7 +8,7 @@ shown side by side so R users can follow along directly.
 
 > **Dataset:** 3k PBMCs from a Healthy Donor — 10x Genomics (2016)  
 > **R reference:** Seurat v5 · Hao et al. 2024  
-> **Python:** Truecell v0.1.0
+> **Python:** Truecell
 
 ---
 
@@ -588,8 +588,9 @@ optimiser, which raised every ARI in the table above.
 > fit that differs by up to 2.6e-2 relative — and `variance.expected`, the fit
 > itself, differs by 2.5e-2, so the disagreement is the fit and only the fit. That flips **2 of the 2,000** variable features (both at
 > ranks 1,982–2,000, and 0.03 apart in the fit), which moves the PCA slightly
-> — matched \|r\| 0.9988 over the 10 dims clustering uses — which moves 286 of
-> ~194,000 SNN edges, which moves the cells the two partitions disagree about.
+> — matched \|r\| 0.9986 over the 10 dims clustering uses — which leaves the two
+> SNN graphs 328 entries apart (194,226 against 194,554), which moves the cells
+> the two partitions disagree about.
 >
 > Run `Rscript tutorials/pbmc3k_verify.R` then
 > `python tutorials/pbmc3k_tutorial.py --report` to reproduce every number in
@@ -1064,15 +1065,15 @@ on this dataset:
 | Cells surviving QC | **the same 2,638 barcodes**; nCount and nFeature exact, percent.mt to 5.3e-15 |
 | VST per gene (13,714) | mean 4.8e-14 · variance 1.6e-11 · `variance.expected` 2.5e-2 · `variance.standardized` 2.6e-2, all relative |
 | Variable features | **1,998 of 2,000 shared**, rank Spearman 0.9999 |
-| PCA (10 dims) | matched \|r\| mean **0.9988**, min 0.9946, no reordering |
+| PCA (10 dims) | matched \|r\| mean **0.9986**, min 0.9905, no reordering |
 | kNN graph | **52,760 on both** (2,638 × 20) |
 | Clusters | 9 vs 9 — **ARI 0.928**, concordance 0.971 (see Step 11) |
-| Markers, where the clusters hold identical cells | **identical gene sets** (151/151, 242/242), `avg_log2FC` to 4.9e-15 and 4.6e-14 respectively |
+| Markers, where the clusters hold identical cells | **identical gene sets** (151/151, 927/927 and 242/242), `avg_log2FC` to 4.9e-15, 5.3e-15 and 4.6e-14 respectively |
 
-That last row is the one to read carefully. Two clusters — B cells and
-Platelets — came out with exactly the same membership on both sides, and on
-those two the differential expression agrees gene for gene and to machine
-precision. So the marker differences elsewhere are downstream of the
+That last row is the one to read carefully. Three clusters — B cells, dendritic
+cells and platelets — came out with exactly the same membership on both sides,
+and on those three the differential expression agrees gene for gene and to
+machine precision. So the marker differences elsewhere are downstream of the
 clustering, not of the DE code.
 
 Two notes on reading the report's marker table:

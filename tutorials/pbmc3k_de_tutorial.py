@@ -32,7 +32,7 @@ tests now, 703 and 480 cells, except where a passage says otherwise.
    Telling: where both groups actually express the gene the two formulas nearly
    agree (Spearman 0.990) — the error is concentrated in sparse, marker-like
    genes, which is precisely what differential expression is looking for. After
-   the fix, **6.2e-15 across all 13,714 genes**.
+   the fix, **1.8e-15 across all 13,714 genes**.
 
 2. **``negbinom`` was a different test.** Seurat's ``GLMDETest`` fits
    ``MASS::glm.nb`` — dispersion estimated by **maximum likelihood** — and reads
@@ -50,7 +50,7 @@ Added later: ``poisson``
 ------------------------
 The ninth test, and the other half of Seurat's ``GLMDETest`` — ``glm(family =
 "poisson")`` on the counts layer, Wald p-value off the group coefficient. It
-lands at **50/50 on the top 50**, ``avg_log2FC`` exact to 6.2e-15, p-value
+lands at **50/50 on the top 50**, ``avg_log2FC`` exact to 1.8e-15, p-value
 Spearman **0.9999989** on genes detected above 5 %, and **zero** disagreements
 on which genes clear ``p_val_adj < 0.05``.
 
@@ -210,7 +210,9 @@ BANDS: dict[str, Band] = {
         0, LOG2FC_TOLERANCE,
         "avg_log2FC is arithmetic on the shared matrix with no statistics in "
         "it, and every test reports Seurat's definition, deseq2 included, so "
-        "all must agree to floating point: 6.2e-15 measured.", fmt=".2e"),
+        "all must agree to floating point: 1.8e-15 measured against R's hex "
+        "tables, one unit in the last place of a double. Through R's 15-digit "
+        "CSV it read 6.2e-15, which was the formatter.", fmt=".2e"),
     "roc max |dAUC|": Band(
         0, AUC_TOLERANCE,
         "Seurat rounds myAUC to three decimals inside DifferentialAUC, so this "
@@ -342,14 +344,26 @@ def compare_adjusted_p(py: pd.DataFrame, r: pd.DataFrame, shared,
 
 def compare(py: pd.DataFrame, r: pd.DataFrame, test: str,
             exact: pd.DataFrame | None = None) -> dict:
-    """One test's agreement with Seurat, on the genes both scored."""
+    """One test's agreement with Seurat, on the genes both scored.
+
+    R's values come from the hex table ``exact`` for every column it has.
+    ``write.csv`` keeps 15 significant digits, so ``r`` can only say that two
+    values agree to about that; the hex table says whether they are the same
+    double. Read through the CSV, the fold-change bound below reported R's
+    formatter rather than either tool.
+    """
     from scipy.stats import kendalltau, spearmanr
 
     shared = py.index.intersection(r.index)
-    res: dict = {"n_python": len(py), "n_r": len(r), "n_shared": len(shared)}
+    res: dict = {"n_python": len(py), "n_r": len(r), "n_shared": len(shared),
+                 "r_values": "hex" if exact is not None else "csv_15_digits"}
+
+    def r_values(column: str) -> pd.Series:
+        source = exact if exact is not None and column in exact.columns else r
+        return source.loc[shared, column]
 
     if "avg_log2FC" in py and "avg_log2FC" in r:
-        d = np.abs(py.loc[shared, "avg_log2FC"] - r.loc[shared, "avg_log2FC"])
+        d = np.abs(py.loc[shared, "avg_log2FC"] - r_values("avg_log2FC"))
         res["log2fc_max_abs_diff"] = float(d.max())
         res["log2fc_exact"] = bool(d.max() <= LOG2FC_TOLERANCE)
 
@@ -358,7 +372,7 @@ def compare(py: pd.DataFrame, r: pd.DataFrame, test: str,
         # perfect and blows up the max; a handful of swapped mid-table genes
         # leaves the max tiny and moves the ranks. Someone ranking markers by
         # fold change is reading the second.
-        x, y = py.loc[shared, "avg_log2FC"], r.loc[shared, "avg_log2FC"]
+        x, y = py.loc[shared, "avg_log2FC"], r_values("avg_log2FC")
         m = x.notna() & y.notna()
         if m.sum() > 2:
             res["log2fc_spearman"] = float(spearmanr(x[m], y[m])[0])
@@ -371,7 +385,7 @@ def compare(py: pd.DataFrame, r: pd.DataFrame, test: str,
     res.update(compare_adjusted_p(py, r, shared, exact))
 
     if test == "roc":
-        d = np.abs(py.loc[shared, "myAUC"] - r.loc[shared, "myAUC"])
+        d = np.abs(py.loc[shared, "myAUC"] - r_values("myAUC"))
         # Half a unit in the third decimal is the most Seurat's rounding can move
         # an AUC, but the subtraction lands a few ULPs either side of it:
         # 0.488 - 0.4875 is 0.0005000000000000004. Rounding at 1e-12 keeps the
@@ -381,7 +395,7 @@ def compare(py: pd.DataFrame, r: pd.DataFrame, test: str,
         res["auc_within_seurat_rounding"] = bool(worst <= AUC_TOLERANCE)
         return res
 
-    pp, pr = py.loc[shared, "p_val"], r.loc[shared, "p_val"]
+    pp, pr = py.loc[shared, "p_val"], r_values("p_val")
     # R writes NaN where a test could not be run and 0 where it underflowed;
     # neither carries a rank, so both are excluded rather than imputed.
     ok = pp.notna() & pr.notna() & (pp > 0) & (pr > 0)

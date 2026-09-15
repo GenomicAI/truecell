@@ -86,8 +86,10 @@ load_counts <- function(bench) {
     # tutorial reads it and the only way R gets through it in reasonable time;
     # the Python arm reads the same file. The cost of the format itself lands
     # in `read_counts` on both sides.
+    # `gzip -dc`, not `gzcat`: that is the macOS name, Linux has only `zcat`,
+    # and `gzip -dc` is the same command on both.
     d <- file.path(DATA_ROOT, "thp1_eccite")
-    dt <- data.table::fread(cmd = paste("gzcat",
+    dt <- data.table::fread(cmd = paste("gzip -dc",
         shQuote(file.path(d, "GSM4633614_ECCITE_cDNA_counts.tsv.gz"))),
         showProgress = FALSE)
     genes <- dt[[1]]
