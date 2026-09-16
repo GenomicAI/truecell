@@ -84,8 +84,8 @@ fig = truecell.feature_plot(obj, ["CD3", "CD4", "CD8", "CD19"], assay="ADT",
                           reduction="umap", min_cutoff="q05", max_cutoff="q95", ncol=4)
 ```
 
-Verified against Seurat: CLR to 4.2e-15, WNN modality weights at Pearson 0.9847,
-cell-type labels 99.29 % concordant.
+Verified against Seurat: CLR to 4.9e-15, WNN modality weights at Pearson 0.9838,
+cell-type labels 98.72 % concordant.
 
 ---
 

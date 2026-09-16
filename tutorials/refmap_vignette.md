@@ -239,13 +239,13 @@ a `predicted.id` from the same reference label set — the concordance is a plai
 | tool | accuracy vs truth ↑ | mean score |
 |------|---:|---:|
 | **truecell** | **0.9862** | 0.9879 |
-| **Seurat R** | **0.9879** | 0.9875 |
+| **Seurat R** | **0.9875** | 0.9883 |
 
-> **Label concordance — same `predicted.id` per cell: 0.9883 (2,366 / 2,394 query cells).**
+> **Label concordance — same `predicted.id` per cell: 0.9887 (2,367 / 2,394 query cells).**
 
-**truecell and Seurat annotate the query almost identically.** 2,366 of 2,394 query
-cells (98.83%) receive the *same* label from both tools, and each tool is ~98.6%
-accurate against the held-out truth — truecell 0.9862, Seurat 0.9879, a 0.2-point
+**truecell and Seurat annotate the query almost identically.** 2,367 of 2,394 query
+cells (98.87%) receive the *same* label from both tools, and each tool is ~98.7%
+accurate against the held-out truth — truecell 0.9862, Seurat 0.9875, a 0.1-point
 gap that is entirely the rare-type tail where a few cells tip between neighbours.
 The two tools even fail *together*: both recover epsilon poorly, both nearly
 perfect on the abundant types. This is the confirmation the initiative was built

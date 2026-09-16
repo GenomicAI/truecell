@@ -158,7 +158,8 @@ js = truecell.jack_straw(obj, dims=20, num_replicate=100)   # permutation test
 scores = truecell.score_jackstraw(obj)
 ```
 
-On PBMC 3k both tools keep **13 PCs**. JackStraw's cutoff moves with the seed —
+On PBMC 3k Seurat keeps **13 PCs** and truecell, at its default seed, 14. JackStraw's
+cutoff moves with the seed —
 truecell lands on 12/13/14/15 across 60 seeds with mode 13 — so treat |Δ| ≤ 2 as
 agreement, not as a discrepancy to chase.
 

@@ -37,7 +37,7 @@ obj = obj.rename_idents(...)                            # or set from a metadata
 
 Nine tests, all of them Seurat's. The eight that return a p-value were verified
 to reproduce Seurat's **top 50 genes exactly** on a shared cluster assignment,
-with `avg_log2FC` agreeing to 7.1e-15.
+with `avg_log2FC` agreeing to 1.8e-15.
 
 | `test_use` | What it is | Reach for it when |
 |---|---|---|

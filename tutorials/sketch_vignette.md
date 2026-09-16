@@ -31,14 +31,14 @@ paired with the Truecell equivalent and both outputs are shown side by side.
 
 | Metric | Result |
 |---|---|
-| **Leverage, exact regime** — per-cell Spearman vs R | **1.000000** (max abs diff 3.4e-6) |
-| Leverage, exact regime — top-200 / top-1000 cells shared | **100 %** / 99.9 % |
+| **Leverage, exact regime** — per-cell Spearman vs R | **1.000000** (max abs diff 4.0e-6) |
+| Leverage, exact regime — top-200 / top-1000 cells shared | **100 %** / **100 %** |
 | Leverage, sketched regime — Spearman vs R | 0.946 (differing RNGs) |
-| **Does leverage track rarity?** Spearman(mean leverage, type size) | **truecell −0.929 · R −0.929** |
-| Rarest type (Eryth, n = 55) mean leverage vs overall | **2.89×** |
-| `project_data` labels — per-cell agreement with R | **94.9 %** (98.1 % on a shared sketch) |
-| `project_data` accuracy vs held-out annotations | **truecell 0.9050 · R 0.9050** |
-| Lazy on-disk matrix — leverage vs in-memory | identical (2.3e-16) |
+| **Does leverage track rarity?** Spearman(mean leverage, type size) | **truecell −0.918 · R −0.918** |
+| Rarest type (Eryth, n = 55) mean leverage vs overall | **2.80×** |
+| `project_data` labels — per-cell agreement with R | **94.6 %** (99.2 % on a shared sketch) |
+| `project_data` accuracy vs held-out annotations | **truecell 0.9074 · R 0.9029** |
+| Lazy on-disk matrix — leverage vs in-memory | identical (9.4e-16) |
 
 ---
 
@@ -128,7 +128,7 @@ ifnb <- LeverageScore(ifnb, features = hvg,
 s <- ifnb[["leverage.score"]][, 1]
 c(sum = sum(s), cv = sd(s) / mean(s))
 #>      sum       cv
-#> 50.00000  0.35060
+#> 50.00000  0.35021
 ```
 
 </td>
@@ -137,8 +137,8 @@ c(sum = sum(s), cv = sd(s) / mean(s))
 ```python
 s = truecell.leverage_score(
     obj, features=hvg, nsketch=10_000, seed=123)
-s.sum(), s.std() / s.mean()
-#> (50.000000, 0.350600)
+s.sum(), s.std(ddof=1) / s.mean()      # ddof=1 is R's sd()
+#> (50.000000, 0.350205)
 ```
 
 </td>
@@ -151,10 +151,10 @@ The exact regime is a per-cell match:
 
 | regime | Spearman | Pearson | top-200 shared | max abs diff |
 |---|---|---|---|---|
-| exact | **1.000000** | 1.000000 | **100 %** | 3.4e-6 |
-| sketched | 0.946 | 0.923 | 61.5 % | 21.6 |
+| exact | **1.000000** | 1.000000 | **100 %** | 4.0e-6 |
+| sketched | 0.946 | 0.924 | 58.0 % | 22.3 |
 
-The exact panel is a clean diagonal — 3.4e-6 is *below* R's own run-to-run noise,
+The exact panel is a clean diagonal — 4.0e-6 is *below* R's own run-to-run noise,
 because `irlba` starts from a random vector and Seurat never seeds it (two R runs
 with the same `seed` argument differ by 1.3e-4). The sketched panel scatters
 symmetrically about the diagonal, which is what two different RNGs drawing the
@@ -173,22 +173,22 @@ cells (CD14 Mono) down to 55 (Eryth), so it is directly measurable.
 | cell type | n | mean leverage / overall |
 |---|---|---|
 | CD14 Mono | 4362 | 0.97× |
-| CD4 Naive T | 2504 | 0.76× |
+| CD4 Naive T | 2504 | 0.75× |
 | CD4 Memory T | 1762 | 0.85× |
 | CD16 Mono | 1044 | 1.06× |
 | B | 978 | 0.99× |
-| CD8 T | 814 | 1.04× |
+| CD8 T | 814 | 1.05× |
 | T activated | 633 | 1.30× |
 | NK | 619 | 1.28× |
 | DC | 472 | 1.30× |
-| B Activated | 388 | 1.24× |
-| Mk | 236 | 1.32× |
-| pDC | 132 | 1.92× |
-| **Eryth** | **55** | **2.89×** |
+| B Activated | 388 | 1.23× |
+| Mk | 236 | 1.34× |
+| pDC | 132 | 1.91× |
+| **Eryth** | **55** | **2.80×** |
 
-**Spearman(mean leverage, type size) = −0.929 in both tools.** A near-monotone
+**Spearman(mean leverage, type size) = −0.918 in both tools.** A near-monotone
 inverse relationship with abundance — exactly the claim. It is also *not* a
-sequencing-depth statistic in disguise: Spearman against `nCount_RNA` is +0.014.
+sequencing-depth statistic in disguise: Spearman against `nCount_RNA` is +0.017.
 
 ![rarity](figures_sketch/py_04_rarity.png)
 
@@ -204,15 +204,16 @@ accident, so "the sketch has rare cells" means nothing without it.
 
 | cell type | n | leverage | uniform |
 |---|---|---|---|
-| CD14 Mono | 4362 | 0.94× | 1.01× |
-| CD4 Naive T | 2504 | 0.78× | 0.94× |
-| B Activated | 388 | 1.64× | 0.97× |
-| Mk | 236 | 1.66× | 0.62× |
-| pDC | 132 | **2.39×** | 0.85× |
-| Eryth | 55 | 1.65× | 0.76× |
+| CD14 Mono | 4362 | 0.87× | 1.01× |
+| CD4 Naive T | 2504 | 0.86× | 0.94× |
+| B Activated | 388 | 1.37× | 0.97× |
+| Mk | 236 | 1.57× | 0.62× |
+| pDC | 132 | **2.28×** | 0.85× |
+| Eryth | 55 | 1.15× | 0.76× |
 
 The leverage bars climb with rarity; the uniform bars scatter around 1.0 without
-trend. That is the method working.
+trend. That is the method working. Eryth's 1.15× is 9 cells in a single draw, a
+count on which one seed says little (see [the residuals](#the-residuals)).
 
 ---
 
@@ -234,7 +235,7 @@ sk <- ProjectData(
   full.reduction = "pca.full",
   umap.model = "umap", dims = 1:30,
   refdata = list(projected.celltype = "seurat_annotations"))
-#> label accuracy = 0.9050
+#> label accuracy = 0.9029
 ```
 
 </td>
@@ -247,7 +248,7 @@ project_data(
     umap_reduction="umap",
     full_umap_reduction="ref.umap",
     refdata={"projected.celltype": CELLTYPE})
-#> label accuracy = 0.9050
+#> label accuracy = 0.9074
 ```
 
 </td>
@@ -258,10 +259,10 @@ project_data(
 
 | | truecell | R |
 |---|---|---|
-| accuracy, all cells | **0.9050** | **0.9050** |
-| accuracy, cells *not* in the sketch | 0.8984 | — |
-| per-cell agreement, each tool's own sketch | 94.9 % | 94.9 % |
-| per-cell agreement, both on **R's** sketch cells | **98.1 %** | **98.1 %** |
+| accuracy, all cells | **0.9074** | **0.9029** |
+| accuracy, cells *not* in the sketch | 0.9035 | 0.8972 |
+| per-cell agreement, each tool's own sketch | 94.6 % | 94.6 % |
+| per-cell agreement, both on **R's** sketch cells | **99.2 %** | **99.2 %** |
 
 Analysing 14 % of the cells and projecting recovers 90 % of the annotations on
 the 86 % never analysed.
@@ -276,7 +277,7 @@ checks the one property that matters, reported separately so it is not mistaken
 for an R comparison:
 
 ```python
-#> lazy matrix round-trip: identical=True, max|diff|=2.3e-16
+#> lazy matrix round-trip: identical=True, max|diff|=9.4e-16
 ```
 
 Going through disk does not change the answer.
@@ -329,6 +330,9 @@ different.
 | accuracy (R's sketch cells) | 0.9321 | **0.9031** | 0.9050 |
 | per-cell agreement (R's sketch cells) | — | **98.1 %** | — |
 | accuracy (own sketch, end to end) | 0.9363 | **0.9050** | 0.9050 |
+
+These are the numbers from when the fix landed; the current ones are in the
+`project_data` section above.
 
 Matching Seurat made the headline number **worse**. A regression here would look
 like an improvement, so the test guarding it checks the mechanism — that no
@@ -385,8 +389,8 @@ sketch, that is Poisson noise on a small count.
 **The two regimes against each other.** Seurat's sketched approximation tracks
 its *own* exact scores at Spearman only **0.31**. The JL projection is a large
 approximation and Seurat leaves it unscaled, so the sketched scores are not even
-on the same scale. Truecell reproduces that gap at 0.31 too (R 0.309, truecell
-0.307), which is the useful evidence that the sketched path is faithful.
+on the same scale. Truecell reproduces that gap at 0.30 (R 0.308, truecell
+0.304), which is the useful evidence that the sketched path is faithful.
 **Compare scores within one regime, never across the two.**
 
 ---

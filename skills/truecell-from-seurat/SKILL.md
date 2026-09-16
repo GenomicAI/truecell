@@ -167,8 +167,8 @@ gets blamed on the wrong function.
 | Visium spot radius | truecell = half of Seurat's | `spot_diameter_fullres` is a diameter; Seurat stores it in a `radius` slot. Here Seurat is the one that is wrong. |
 | R's `clara` | arm64 vs x86_64 | R's own function is architecture-dependent. truecell targets IEEE/x86_64 semantics on purpose. |
 
-**And these should match, so investigate if they don't:** `avg_log2FC` (7.1e-15),
-CLR (4.2e-15), Moran's I (1.6e-14), the object-model accessors (91 of 91 anchors
+**And these should match, so investigate if they don't:** `avg_log2FC` (1.8e-15),
+CLR (4.9e-15), Moran's I (1.6e-14), the object-model accessors (91 of 91 anchors
 exact), eight of the nine DE tests reproducing Seurat's top 50 exactly (`roc` is
 AUC-scored).
 

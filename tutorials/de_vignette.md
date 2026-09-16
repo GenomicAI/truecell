@@ -38,9 +38,9 @@ difference would look exactly like a DE difference.
 |---|---|
 | **`avg_log2FC` vs Seurat**, all 13,714 shared genes | **max abs diff 1.78e-15** |
 | **Tests reproducing Seurat's top 50 genes** | **8 of 8** p-value tests (`roc` scores AUC, not p) |
-| `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999977 · 0.999996 · 0.999981 |
+| `wilcox` · `t` · `bimod` · `LR` — p-value Spearman | **1.000000** · 0.999977 · 0.999996 · 0.999977 |
 | `mast` — Spearman (all genes / detected >5%) | 0.9464 / **0.9993** |
-| `negbinom` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999994** |
+| `negbinom` — Spearman (all genes / detected >5%) | 0.9995 / **0.9999995** |
 | `poisson` — Spearman (all genes / detected >5%) | 0.9996 / **0.9999989** |
 | `deseq2` — Spearman (all genes / detected >5%) | 0.9992 / **0.9999991**, and the same 712 genes at `p_val_adj < 0.05` |
 | `roc` — max abs AUC difference | 5.0e-04, which is Seurat's own 3-dp rounding |
@@ -129,7 +129,7 @@ layer, as for every other test.
 | Per cell, on clusters 0 and 1 | |
 |---|---|
 | Top 50 | **50/50** |
-| p-value Spearman, all genes / detected >5 % | 0.999237 / **0.9999991** |
+| p-value Spearman, all genes / detected >5 % | 0.999241 / **0.9999991** |
 | Genes at `p_val_adj < 0.05` | **712** in both, the same genes; one differs at 0.01 |
 | Seurat's NA p-values (Cook's outliers and empty genes) | 593, each p = 1 in truecell |
 | `avg_log2FC` | 1.8e-15 |
@@ -377,11 +377,12 @@ every correlation reported here, since neither carries a rank.
 | `wilcox` | 13,714 | 1.8e-15 | **1.000000** | 1.0000 | 50/50 |
 | `t` | 13,714 | 1.8e-15 | 0.999977 | 1.0000 | 50/50 |
 | `bimod` | 13,714 | 1.8e-15 | 0.999996 | 1.0000 | 50/50 |
-| `LR` | 13,714 | 1.8e-15 | 0.999981 | 1.0000 | 50/50 |
-| `negbinom` | 11,387 | 1.8e-15 | 0.999566 | **1.0000** | 50/50 |
+| `LR` | 13,714 | 1.8e-15 | 0.999977 | 1.0000 | 50/50 |
+| `negbinom` | 11,387 | 1.8e-15 | 0.999544 | **1.0000** | 50/50 |
+| `poisson` | 11,387 | 1.8e-15 | 0.999623 | **1.0000** | 50/50 |
 | `roc` | 13,714 | 1.8e-15 | *AUC 5.0e-04* | — | — |
-| `mast` | 13,714 | 1.8e-15 | 0.946410 | **0.9993** | 50/50 |
-| `deseq2` | 13,714 | 1.8e-15 | 0.999237 | **1.0000** | 50/50 |
+| `mast` | 13,714 | 1.8e-15 | 0.946414 | **0.9993** | 50/50 |
+| `deseq2` | 13,714 | 1.8e-15 | 0.999241 | **1.0000** | 50/50 |
 
 > Re-measured when `find_clusters` became Seurat's own optimiser, which changed
 > the two clusters from 692 and 515 cells to 703 and 480. The notes below were
@@ -410,6 +411,11 @@ every correlation reported here, since neither carries a rank.
 > through a misparsing float reader. The change is at the ULP level and no band
 > moved, but the table is the measured one, not the previous one.
 
+> Re-measured before this release with both sides re-run together, which moved
+> the all-gene Spearman of `LR`, `negbinom`, `mast` and `deseq2` in the fifth or
+> sixth decimal place. `poisson`'s rows, which this table and the next one had
+> left out, are added.
+
 `deseq2`'s row moved when it began running Seurat's per-cell test; see
 *Changed later* near the top.
 
@@ -426,7 +432,8 @@ out that the max-difference bound and a set overlap answer neither question.
 | `t` | **1.000000** | **1.000000** | 50/50 | 1.0000 | **1.0000** | 0 |
 | `bimod` | **1.000000** | **1.000000** | 50/50 | 0.9996 | 0.9999 | 2 |
 | `LR` | **1.000000** | **1.000000** | 50/50 | 0.9909 | **1.0000** | 0 |
-| `negbinom` | **1.000000** | **1.000000** | 50/50 | 0.9808 | **1.0000** | 0 |
+| `negbinom` | **1.000000** | **1.000000** | 50/50 | 0.9809 | **1.0000** | 0 |
+| `poisson` | **1.000000** | **1.000000** | 50/50 | 0.8538 | **1.0000** | 0 |
 | `roc` | **1.000000** | **1.000000** | 50/50 | — | — | — |
 | `mast` | **1.000000** | **1.000000** | 50/50 | 0.8556 | 0.9973 | 37 |
 | `deseq2` | **1.000000** | **1.000000** | 50/50 | 0.9415 | **1.0000** | 0 |
@@ -435,7 +442,7 @@ Rank correlation is reported *alongside* the max-difference bound rather than
 instead of it, because the two fail differently. A uniform scale error leaves
 every rank perfect and blows up the max; a handful of swapped mid-table genes
 leaves the max tiny and moves the ranks. Here both are clean: fold-change order
-is preserved exactly for all eight tests.
+is preserved exactly for all nine tests.
 
 **Do identical adjusted p-values occur?** Mostly not, and the reason is worth
 stating rather than the rate. The *correction* is identical — both tools compute
@@ -443,7 +450,8 @@ stating rather than the rate. The *correction* is identical — both tools compu
 p-values feeding it differ by up to **0.61 % relative** on `wilcox`, a real
 difference between SciPy's Wilcoxon and Seurat's, so the product rarely lands on
 the same double. What survives that is what matters: the ordering is exact, and
-**every gene** falls on the same side of 0.05 for `wilcox`, `t`, `LR`, `negbinom` and `deseq2`.
+**every gene** falls on the same side of 0.05 for `wilcox`, `t`, `LR`, `negbinom`, `poisson`
+and `deseq2`.
 
 Two traps in measuring this, both of which had to be fixed before the numbers
 above meant anything:
@@ -475,9 +483,9 @@ if one falls outside:
 
 | band | range | why |
 |---|---|---|
-| top 50, the eight p-value tests | **= 50** | Same statistic, same cells. One dropped gene is a regression. At `deseq2`'s cut the 50th and 51st genes sit 4.99 decades apart in truecell and 4.92 in Seurat, and no gene within three ranks of it differs by more than 0.04. |
+| top 50, the eight p-value tests | **= 50** | Same statistic, same cells. One dropped gene is a regression. At `deseq2`'s cut the 50th and 51st genes sit 5.0 decades apart in truecell and 4.9 in Seurat, and no gene within three ranks of it differs by more than 0.05. |
 | p Spearman >5 %, `wilcox`/`t`/`bimod`/`LR` | **≥ 0.9999** | Measured at 1.0 to nine decimal places. |
-| p Spearman >5 %, `negbinom` | **≥ 0.9999** | glm.nb's own estimator: 0.9999994. It was 0.9217, and set at ≥ 0.88, while `negbinom` ran statsmodels' fit. |
+| p Spearman >5 %, `negbinom` | **≥ 0.9999** | glm.nb's own estimator: 0.9999995. It was 0.9217, and set at ≥ 0.88, while `negbinom` ran statsmodels' fit. |
 | p Spearman >5 %, `mast` | **≥ 0.99** | A hand-rolled hurdle model, not the MAST package: 0.9993. |
 | p Spearman >5 %, `deseq2` | **≥ 0.9999** | DESeq2's Wald test on the same cells: 0.9999991. |
 | max \|Δlog2FC\|, every test | **≤ 1e-12** | Arithmetic on the shared matrix, and every test, `deseq2` included, reports Seurat's fold change. |

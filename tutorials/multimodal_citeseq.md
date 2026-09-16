@@ -483,10 +483,10 @@ against a live Seurat 5.5.1 run:
 
 | Quantity | Agreement |
 |---|---|
-| **ADT CLR** — per-protein mean · sd · min · max | max abs diff **4.2e-15** (no RNG anywhere in it) |
-| **WNN modality weight**, per cell on 8,617 shared barcodes | Pearson **0.9847** · Spearman 0.9816 · median abs diff **0.0152** |
-| Mean ADT weight, whole panel | 0.5539 against 0.5556 — relative 3.0e-03 |
-| Cell-type label, per cell | **99.07%** concordant (8,537 / 8,617) |
+| **ADT CLR** — per-protein mean · sd · min · max | max abs diff **4.9e-15** (no RNG anywhere in it) |
+| **WNN modality weight**, per cell on 8,617 shared barcodes | Pearson **0.9838** · Spearman 0.9812 · median abs diff **0.0161** |
+| Mean ADT weight, whole panel | 0.5539 against 0.5556 — relative 3.1e-03 |
+| Cell-type label, per cell | **98.72%** concordant (8,507 / 8,617) |
 | WNN clusters · cells · genes · proteins | 21 · 8,617 · 20,379 · 13 — all identical |
 | RNA clusters | 15 against Seurat's 16: truecell's graph folds Seurat's 69-cell DC/Mono cluster into CD14+ Mono |
 
@@ -508,8 +508,9 @@ erythroid's 600-cell mean and visibly moved progenitor's 150-cell one. That is
 a small-population effect on an annotation threshold, not a modality-weighting
 difference — and it is the kind of thing a per-cell-type summary table can never
 distinguish, which is why the handoff is keyed by barcode. With Seurat's
-optimiser on both sides that boundary now lands alike: 184 progenitor cells each
-and 568 and 566 erythroid, and truecell's own progenitor label reads 0.283.
+optimiser on both sides the progenitor side of that boundary lands alike, 184
+cells each, and truecell's own progenitor label reads 0.283 against Seurat's 0.282.
+Erythroid is 568 cells against 593.
 
 The residual cause is the graph each tool builds. Seurat's exact (`rann`)
 neighbours give the same 16 RNA clusters as its default annoy search, so the
