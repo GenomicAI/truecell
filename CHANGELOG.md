@@ -327,6 +327,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A `find_clusters` call that fails part way writes nothing**, as
   `FindClusters` does: every resolution's column is built before any is stored.
   A failure at a later resolution used to leave the earlier columns on the object.
+- **Plots draw identities in which some groups are named and others still numbered.**
+  `dim_plot`, `vln_plot`, `feature_scatter`, `do_heatmap`, `ridge_plot` and `dot_plot`
+  sorted their groups with a key that gave a number for a numbered group and text for a
+  named one, and Python cannot order the two. Renaming some clusters and not others
+  raised `TypeError` in all six, as it did in 1.2.0, and so did `split_by` on such a
+  column. Numbered groups now come first, in numeric order, then named ones in
+  alphabetical order, the order each kind already had on its own. Running the guided
+  tour's notebook against this release found it: an annotation map written for eight
+  clusters, applied to the nine that `find_clusters` now finds, left one numbered.
 - **The DE tutorial's `roc` band no longer fails a run that meets Seurat's
   rounding exactly.** Seurat rounds `myAUC` to three decimals, so the two AUCs can
   differ by at most 5e-4, but `0.488 - 0.4875` is 0.0005000000000000004, and six of

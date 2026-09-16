@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import warnings
 
 import numpy as np
@@ -123,3 +124,21 @@ def sanitize_feature_names(names) -> list[str]:
             )
             names = [str(n).replace(char, "-") for n in names]
     return names
+
+
+def ident_sort_key(label) -> tuple:
+    """Sort key for group labels: numbers first, in numeric order, then names.
+
+    Seurat's identities are a factor whose levels for ``FindClusters`` output are
+    0, 1, ... in numeric order. Plain string sorting puts "10" before "2", so a
+    dataset with eleven or more clusters would come back in a different cluster
+    order from Seurat's, silently and only past ten clusters.
+
+    Numbers and names can sit side by side: renaming some clusters and not others
+    leaves both. A key that returned an ``int`` for one label and a ``str`` for
+    another could not compare them, so every label here gets a tuple.
+    """
+    text = str(label)
+    if re.fullmatch(r"-?[0-9]+", text):
+        return (0, int(text), "")
+    return (1, 0, text)

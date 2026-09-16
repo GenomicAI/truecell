@@ -410,7 +410,7 @@ def test_cluster_labels_are_ordered_numerically_past_ten():
     silently, and only past ten clusters, which is why every tutorial in the
     suite (eight and nine clusters on PBMC 3k) missed it.
     """
-    from truecell.markers import _ident_sort_key
+    from truecell._utils import ident_sort_key as _ident_sort_key
 
     labels = [str(i) for i in range(12)]
     assert sorted(labels, key=_ident_sort_key) == labels
