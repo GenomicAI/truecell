@@ -67,6 +67,7 @@ matplotlib.use("Agg")
 ```python
 # Embeddings
 fig = truecell.dim_plot(obj, reduction="umap", label=True, label_size=9, pt_size=4.0)
+fig = truecell.dim_plot(obj, reduction="umap", label=True, repel=True)  # labels kept apart
 fig = truecell.dim_plot(obj, reduction="umap", group_by="batch", label=False)
 
 # Expression
@@ -79,7 +80,7 @@ fig = truecell.dot_plot(obj, canonical_markers, group_by="cell_type",
 
 # QC and dimensionality
 fig = truecell.feature_scatter(obj, "nCount_RNA", "percent.mt")
-fig = truecell.variable_feature_plot(obj, n_label=10)
+fig = truecell.variable_feature_plot(obj, n_label=10, repel=True)
 fig = truecell.elbow_plot(obj, ndims=50)
 fig = truecell.viz_dim_loadings(obj, dims=[1, 2], n_features=15)
 fig = truecell.dim_heatmap(obj, dims=list(range(9)), cells=500, balanced=True)

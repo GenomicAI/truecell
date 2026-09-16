@@ -147,7 +147,10 @@ def leverage_vs_r(summary):
         hi = max(r.max(), py.max())
         ax.plot([lo, hi], [lo, hi], color=_R_COLOR, lw=1, ls="--", label="y = x")
         from scipy.stats import spearmanr
-        ax.set_title(f"{regime} regime — Spearman {spearmanr(r, py).statistic:.3f}")
+        # Wrapped: printed at 0.55 of this size for the manuscript, the two titles
+        # side by side are each wider than their panel and ran into each other.
+        ax.set_title(f"{regime} regime\n"
+                     f"Spearman {spearmanr(r, py).statistic:.3f}")
         ax.set_xlabel("R Seurat leverage")
         ax.set_ylabel("truecell leverage")
         ax.legend(fontsize=8, frameon=False)
@@ -160,13 +163,19 @@ def rarity(summary):
     """Mean leverage against population size — the method's claim in one panel."""
     import matplotlib.pyplot as plt
 
+    from truecell._repel import attach
+
     table = summary["enrichment"]
     fig, ax = plt.subplots(figsize=(6.5, 4.5))
     ax.scatter(table["n"], table["mean_leverage"], s=40, color=_PY_COLOR,
                edgecolors="none")
-    for name, row in table.iterrows():
-        ax.annotate(str(name), (row["n"], row["mean_leverage"]), fontsize=7,
-                    xytext=(4, 3), textcoords="offset points")
+    # Each name starts on its point and is moved off it, and off the other names,
+    # when drawn: nudged by a fixed offset, "CD16 Mono" printed over "CD8 T". The
+    # gap clears a marker of size 40, whose radius is about 3 pt.
+    points = list(zip(table["n"], table["mean_leverage"]))
+    texts = [ax.text(x, y, str(name), fontsize=7, ha="center", va="center")
+             for name, (x, y) in zip(table.index, points)]
+    attach(ax, texts, points, [[xy] for xy in points], gap_pt=4.0)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("cells of this type (log scale)")

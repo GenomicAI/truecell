@@ -424,3 +424,91 @@ def test_cell_type_map_matches_the_markers():
             f"{marker} is highest in {winner!r}, not in {label!r} — the "
             f"cluster-to-cell-type map no longer matches the clustering."
         )
+
+
+def test_pbmc3k_labelled_umap_is_laid_out_cleanly():
+    """The annotated UMAP keeps its labels apart and every cell type in view.
+
+    Reviewer 3 found this figure's labels colliding where the manuscript printed
+    it, at 0.55 of its size, and at the tutorial's own size the "Platelet" label
+    box covered all 14 platelets. Checked on the real data, at both sizes, with
+    the check the tutorial figures were swept with (``tests/_layout.py``).
+    """
+    if not (DATA_ROOT / "pbmc3k").is_dir():
+        pytest.skip("dataset 'pbmc3k' not cached")
+
+    import matplotlib.pyplot as plt
+
+    sys.path.insert(0, str(REPO_ROOT))
+    sys.path.insert(0, str(REPO_ROOT / "tests"))
+    import _layout
+
+    from tutorials.generate_plots import CELL_TYPE_MAP, labelled_umap, run_pipeline
+
+    pbmc, _, _ = run_pipeline()
+    fig = labelled_umap(pbmc)
+    labels = set(CELL_TYPE_MAP.values())
+    try:
+        assert _layout.check_layout(fig, on_data=labels) == []
+        assert _layout.leaders_through_labels(fig) == []
+        _layout.shrink(fig)
+        assert _layout.check_layout(fig, on_data=labels) == []
+        assert _layout.leaders_through_labels(fig) == []
+    finally:
+        plt.close(fig)
+
+
+def test_pbmc3k_variable_feature_names_are_laid_out_cleanly():
+    """The ten gene names crowd the top of the plot, where vst's clip stacks the
+    most variable genes. Unrepelled they overlapped, and the first repelled
+    version drew PF4's leader line through IGLL5."""
+    if not (DATA_ROOT / "pbmc3k").is_dir():
+        pytest.skip("dataset 'pbmc3k' not cached")
+
+    import matplotlib.pyplot as plt
+
+    sys.path.insert(0, str(REPO_ROOT))
+    sys.path.insert(0, str(REPO_ROOT / "tests"))
+    import _layout
+
+    from tutorials.generate_plots import run_pipeline_unlabelled, variable_features
+
+    pbmc, _ = run_pipeline_unlabelled()
+    fig = variable_features(pbmc)
+    try:
+        problems = _layout.check_layout(fig)
+        # The names may sit on other genes' points; the named points are
+        # kept clear by the placement itself.
+        assert [p for p in problems if not p.startswith("annotation overlaps")] == []
+        assert _layout.leaders_through_labels(fig) == []
+    finally:
+        plt.close(fig)
+
+
+def test_ifnb_integration_scoreboard_is_laid_out_cleanly():
+    """The scoreboard on the tutorial's real scores, at both sizes.
+
+    ``tests/test_integration_scoreboard.py`` checks the layout on the vignette's
+    table and on harder scores without the data; this runs the integrations. Opt-in
+    beyond the smoke gate itself: CI's tutorials job does not cache ifnb.
+    """
+    if not (DATA_ROOT / "ifnb").is_dir():
+        pytest.skip("dataset 'ifnb' not cached")
+
+    import matplotlib.pyplot as plt
+
+    sys.path.insert(0, str(REPO_ROOT))
+    sys.path.insert(0, str(REPO_ROOT / "tests"))
+    import _layout
+
+    from tutorials.generate_integration_plots import scoreboard_bars
+    from tutorials.ifnb_integration_tutorial import run_full
+
+    _, summary = run_full(verbose=False, do_umap=False)
+    fig = scoreboard_bars(summary)
+    try:
+        assert _layout.check_layout(fig) == []
+        _layout.shrink(fig)
+        assert _layout.check_layout(fig) == []
+    finally:
+        plt.close(fig)

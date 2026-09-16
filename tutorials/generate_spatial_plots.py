@@ -170,7 +170,7 @@ def main(data_dir: str | None):
     save(vln_plot(obj, features=["nCount_Xenium", "nFeature_Xenium"],
                   group_by="cell_type", ncol=2, figsize=(12, 4)),
          "01_qc_violin.png")
-    save(dim_plot(obj, reduction="umap", group_by="cell_type", label=True,
+    save(dim_plot(obj, reduction="umap", group_by="cell_type", label=True, repel=True,
                   pt_size=2.0, title="UMAP — marker cell types"),
          "02_umap_celltype.png")
     save(image_dim_plot(obj, group_by="cell_type", size=1.5),

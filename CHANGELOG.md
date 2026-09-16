@@ -80,6 +80,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs what the site shows, and a crash's traceback names the line on the page. On
   its first run all four environments ran the block to the end. In the mixed one,
   numba ran on the OpenMP layer beside a second copy of the runtime.
+- **`repel` for `dim_plot` and `variable_feature_plot`**, Seurat's `DimPlot(repel =
+  TRUE)` and `LabelPoints(repel = TRUE)`. Labels move apart, stay inside the panel,
+  cover no other group's median and at most half of any group's cells, each as close
+  to where it belongs as that allows. A line joins a label that has moved away to its
+  group, and goes round the other labels wherever the panel leaves room. ggrepel is
+  GPL-3, so this is not a port of it: the placement (`truecell/_repel.py`) is greedy
+  and deterministic, where ggrepel starts from random jitter. It is worked out
+  whenever the figure is drawn, so it still holds after the figure is resized or
+  printed smaller. Off by default, as in Seurat.
+- **A layout check for figures, `tests/_layout.py`.** Reviewer 3 asked for a
+  systematic answer to overlapping annotations rather than figures nudged by hand;
+  this is the Frontiers revision's figure check, upstreamed. It fails a figure on
+  text over text, text off the canvas, a legend over markers or bars, and an
+  annotation over a legend, a bar or markers. A label drawn on the data may cover
+  cells, but not more than half of a group. Run over the 94 figures the tutorial
+  generators draw, it failed 18 at the size the tutorials show them, with 97
+  problems; all are fixed (see Fixed). CI's tutorials job checks the pbmc3k
+  annotated UMAP on the real data, at its own size and at the 0.55 the manuscript
+  prints it at. The opt-in smoke suite does the same for the integration scoreboard.
 
 ### Changed
 
@@ -245,6 +264,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compared with R on a real run, and the API page now says which loader was checked
   on what. `pyarrow` joins the `dev` extra, so the tests read `cells.parquet`.
 
+- **`dim_plot` puts each group's label at the median of its cells**, as Seurat's
+  `LabelClusters` does, in each panel when the plot is split. It took the mean, which a
+  few outlying cells pull off the group. Every labelled embedding in the tutorials
+  moves slightly.
+- **`viz_dim_loadings`, `image_dim_plot` and `spatial_dim_plot` return figures laid out
+  by constrained layout**, which keeps room for the legend beside or under the panels at
+  any size. Calling `fig.tight_layout()` on one replaces that layout, with matplotlib's
+  warning, and leaves no room for the legend.
+
 ### Fixed
 
 - **`subset(cells=...)` left the object misaligned whenever the cells were not
@@ -353,6 +381,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ULP past 1. On an Apple M5 Pro under macOS 27 a run compared with itself read
   1.0000000000000002, failing a band bounded at 1 in `tests/test_dimreduc_tutorial.py`,
   on `main` too. It now clips as `np.corrcoef` does.
+- **Legends no longer cover the data.** `viz_dim_loadings` drew its legend over the
+  positive loadings' bars; it is now one legend under the panels. `image_dim_plot` and
+  `spatial_dim_plot` kept a fixed 12% strip for theirs, and a legend of cell-type names
+  is wider, so it lay over the tissue: over 4,151 cells in the Xenium tutorial's
+  cell-type map.
+- **Tutorial figures that failed the layout check.** At the size the tutorials show
+  them, in 12 labelled UMAPs the labels collided or a label's box covered most of a
+  small cluster; they now repel, and the pbmc3k annotated UMAP's "Platelet" label no
+  longer covers all 14 platelets. The pbmc3k variable-feature plot's gene names
+  overlapped, as did the sketching tutorial's leverage-rarity names, and the kNN-degree
+  histogram's legend covered its bar. Six more failed only at the 0.55 the manuscript
+  prints them at: the integration scoreboard, whose legend sat on its bars; the anchor
+  agreement's titles and counts; the leverage titles; the DE log2FC and concordance
+  legends; and the Moran's I legend and title. At that size every figure the manuscript
+  takes from the tutorials now passes, except the pbmc3k marker heatmap, whose 45 gene
+  names can not fit its height.
 
 ## [1.2.0] - 2026-08-10
 

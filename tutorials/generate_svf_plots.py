@@ -68,7 +68,7 @@ def moransi_vs_r(exact, knn, r):
     import matplotlib.pyplot as plt
 
     shared = exact.index.intersection(r.index)
-    fig, ax = plt.subplots(figsize=(6.2, 6))
+    fig, ax = plt.subplots(figsize=(6.2, 6), layout="constrained")
     lim = [min(r[shared].min(), knn[shared].min()) - 0.02,
            max(r[shared].max(), knn[shared].max()) + 0.02]
     ax.plot(lim, lim, color=_R, lw=1.0, ls="--", zorder=1,
@@ -78,13 +78,20 @@ def moransi_vs_r(exact, knn, r):
     ax.scatter(r[shared], exact[shared], s=14, color=_EXACT, alpha=0.9, zorder=3,
                label="after — R's 1/d², row-standardised")
     ax.set_xlabel("Seurat 5.5.1  ·  FindSpatiallyVariableFeatures(moransi)")
-    ax.set_ylabel("truecell  ·  find_spatially_variable_features")
+    # Wrapped rather than shortened, to keep the function names the panel pairs.
+    # Printed at 0.55 of this size for the manuscript, the one-line label ran past
+    # the axes and through the title.
+    ax.set_ylabel("truecell\nfind_spatially_variable_features")
     ax.set_xlim(lim)
     ax.set_ylim(lim)
     ax.set_aspect("equal")
-    ax.set_title("Moran's I per gene, 248 genes on 2,000 shared cells",
+    # Two lines: at the manuscript's 0.55 one line is wider than the square axes
+    # and runs over the y-axis label.
+    ax.set_title("Moran's I per gene\n248 genes on 2,000 shared cells",
                  fontsize=11)
-    ax.legend(fontsize=8, frameon=False, loc="upper left")
+    # Below the axes. At upper left it covered points once the manuscript printed
+    # the figure at 0.55 of its size.
+    fig.legend(fontsize=8, frameon=False, loc="outside lower center")
     ax.spines[["top", "right"]].set_visible(False)
     return fig
 

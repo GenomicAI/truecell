@@ -79,7 +79,7 @@ def log2fc_vs_r(before, after, r):
     import matplotlib.pyplot as plt
 
     shared = after.index.intersection(r.index)
-    fig, ax = plt.subplots(figsize=(6.2, 6))
+    fig, ax = plt.subplots(figsize=(6.2, 6), layout="constrained")
     lim = [min(r[shared].min(), before[shared].min()) - 0.5,
            max(r[shared].max(), before[shared].max()) + 0.5]
     ax.plot(lim, lim, color=_R, lw=1.0, ls="--", zorder=1,
@@ -95,7 +95,9 @@ def log2fc_vs_r(before, after, r):
     ax.set_aspect("equal")
     ax.set_title("avg_log2FC per gene — 13,712 genes, 1,172 shared cells",
                  fontsize=11)
-    ax.legend(fontsize=8, frameon=False, loc="upper left")
+    # Below the axes. At upper left it covered points once the manuscript printed
+    # the figure at 0.55 of its size.
+    fig.legend(fontsize=8, frameon=False, loc="outside lower center")
     ax.spines[["top", "right"]].set_visible(False)
     return fig
 
@@ -152,7 +154,7 @@ def test_concordance(table):
     expressed = [table.loc[t, "p_spearman_expressed"] for t in tests]
     y = np.arange(len(tests))
 
-    fig, ax = plt.subplots(figsize=(7.5, 4.4))
+    fig, ax = plt.subplots(figsize=(7.5, 4.4), layout="constrained")
     ax.barh(y + 0.19, overall, height=0.36, color="0.78",
             label="all genes scored by both")
     ax.barh(y - 0.19, expressed, height=0.36, color=_AFTER,
@@ -165,9 +167,10 @@ def test_concordance(table):
     ax.set_title("All eight tests reproduce Seurat's ranking\n"
                  "(`roc` omitted — it returns an AUC, not a p-value)",
                  fontsize=11)
-    # Below the axes: at "lower left" it sat on top of the wilcox bars.
-    ax.legend(fontsize=8, frameon=False, loc="upper center", ncol=2,
-              bbox_to_anchor=(0.5, -0.16))
+    # Below the axes: at "lower left" it sat on top of the wilcox bars. Placed by
+    # constrained layout, not at a fixed fraction under the axes, where printed
+    # smaller for the manuscript it ran into the axis label.
+    fig.legend(fontsize=8, frameon=False, loc="outside lower center", ncol=2)
     ax.spines[["top", "right"]].set_visible(False)
     return fig
 

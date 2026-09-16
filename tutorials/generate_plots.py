@@ -128,6 +128,24 @@ def run_pipeline(data_dir=None):
     return pbmc, hvg, all_markers
 
 
+def variable_features(pbmc):
+    """The variable-feature plot (figure 3), its ten names repelled as the vignette's
+    ``LabelPoints(repel = TRUE)`` does. Its own function for the smoke suite."""
+    return variable_feature_plot(pbmc, label=True, n_label=10, figsize=(9, 5), repel=True)
+
+
+def labelled_umap(pbmc):
+    """The annotated UMAP (figure 11), with the labels repelled.
+
+    Its own function so that the smoke suite checks the layout of the figure
+    this script saves, not a copy of the call. Reviewer 3 found the labels
+    colliding where the manuscript printed it; `repel` keeps them apart at any
+    size, and `test_pbmc3k_labelled_umap_is_laid_out_cleanly` holds it to that.
+    """
+    return dim_plot(pbmc, reduction="umap", label=True, repel=True,
+                    title="UMAP — Cell Type Annotations", figsize=(9, 7))
+
+
 def main(data_dir=None):
     pbmc, hvg, all_markers = run_pipeline(data_dir)
     print("\nGenerating plots...")
@@ -164,8 +182,7 @@ def main(data_dir=None):
     _save(fig, "02_qc_scatter.png")
 
     # 3. Variable features
-    _save(variable_feature_plot(pbmc, label=True, n_label=10, figsize=(9, 5)),
-          "03_variable_features.png")
+    _save(variable_features(pbmc), "03_variable_features.png")
 
     # 4. PCA loadings — viz_dim_loadings matches R's VizDimLoadings (bar charts)
     _save(viz_dim_loadings(pbmc, reduction="pca", dims=[1, 2], n_features=15,
@@ -217,9 +234,7 @@ def main(data_dir=None):
     pbmc.rename_idents(CELL_TYPE_MAP)  # restore cell type names
 
     # 11. Annotated UMAP (cell types)
-    _save(dim_plot(pbmc, reduction="umap", label=True,
-                   title="UMAP — Cell Type Annotations", figsize=(9, 7)),
-          "11_umap_labeled.png")
+    _save(labelled_umap(pbmc), "11_umap_labeled.png")
 
     # 12. Ridge plot (bonus)
     _save(ridge_plot(pbmc, ["LYZ", "NKG7", "MS4A1", "CD8A"],

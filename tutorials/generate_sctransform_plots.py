@@ -44,10 +44,10 @@ def main(data_dir=None):
 
     # 1-2. SCT UMAP — clusters and annotated cell types
     sct.idents = sct.meta_data["sct_clusters"].astype(str).tolist()
-    _save(dim_plot(sct, reduction="umap", group_by="sct_clusters", label=True,
+    _save(dim_plot(sct, reduction="umap", group_by="sct_clusters", label=True, repel=True,
                    title="PBMC 3k — SCTransform clusters", figsize=(8, 6.5)),
           "01_sct_umap_clusters.png")
-    _save(dim_plot(sct, reduction="umap", group_by="sct_celltype", label=True,
+    _save(dim_plot(sct, reduction="umap", group_by="sct_celltype", label=True, repel=True,
                    title="PBMC 3k — SCTransform cell types", figsize=(8.5, 6.5)),
           "02_sct_umap_celltypes.png")
 

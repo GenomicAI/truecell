@@ -357,7 +357,7 @@ find_variable_features(
 
 # Visualise (labels top 10 automatically)
 fig = variable_feature_plot(
-    pbmc, label=True, n_label=10
+    pbmc, label=True, n_label=10, repel=True
 )
 # Access the list:
 hvg = pbmc.assays["RNA"].variable_features
@@ -378,8 +378,10 @@ print(top10)
 > the **raw counts**, then ranks genes by the variance of the standardized values after
 > clipping each to `sqrt(n_cells)` (the clip step that stops single-cell outliers from
 > dominating).
-> R's `LabelPoints` (with `ggrepel`) avoids label overlaps; Truecell uses `matplotlib.annotate`
-> which may overlap in dense regions.
+> Both move the ten names apart: R's `LabelPoints(repel = TRUE)` with ggrepel, which
+> starts from random jitter, and Truecell's `repel=True` with a deterministic placement
+> worked out whenever the figure is drawn. Without `repel`, names in the crowded
+> top-right corner print over one another.
 > **Top-10 gene overlap: 9/10 (90%)** — the same `PPBP, LYZ, S100A9, IGLL5, GNLY, FTL, PF4,
 > FTH1, S100A8` HVGs as the R tutorial; `GNG11` sits just outside the top 10 (rank 11).
 > Minor rank differences come from the LOESS implementation (R: Fortran; Python: local
@@ -908,6 +910,7 @@ fig = dim_plot(
     pbmc,
     reduction = "umap",
     label     = True,
+    repel     = True,
     pt_size   = 0.5,
     title     = "UMAP — Cell Type Annotations",
 )
@@ -924,6 +927,12 @@ fig = dim_plot(
 > Both tools number clusters by size, and here the nine come out in the same
 > order on both sides, so the map is Seurat's own, key for key. The two
 > partitions agree at ARI 0.928 — see Step 11.
+>
+> Both put each label at the median of its cluster's cells. `repel=True` then moves
+> a label only where it would overlap another, run off the panel, or cover more than
+> half of a cluster's cells. Here that moves the labels of the small clusters off the
+> cells they name: at its median, the "Platelet" label's box covered all 14
+> platelets.
 
 ---
 

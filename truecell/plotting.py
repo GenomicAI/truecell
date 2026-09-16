@@ -886,6 +886,7 @@ def dim_plot(
     raster: Optional[bool] = None,
     split_by: Optional[str] = None,
     ncol: Optional[int] = None,
+    repel: bool = False,
 ) -> "Figure":
     """Plot cells in a reduced-dimension embedding coloured by identity.
 
@@ -895,8 +896,18 @@ def dim_plot(
     ----------
     reduction : which reduction to use ("umap", "pca", …)
     group_by  : metadata column for colouring (default: active idents)
-    label     : add centroid labels for each group
-    label_size: font size for centroid labels (default: scales with the theme)
+    label     : label each group at the median of its cells' coordinates, in
+                each panel, as Seurat's ``LabelClusters`` does
+    label_size: font size for the group labels (default: scales with the theme)
+    repel     : move the labels so that none overlaps another, runs off the
+                panel, or covers another group's median or more than half of
+                any group's cells, keeping each as close to its median as that
+                allows. A line joins a label to its group when it has moved
+                away, going round the other labels where there is room.
+                Seurat's ``repel`` does this with ggrepel, which starts from
+                random jitter; this placement is deterministic. It is worked
+                out again whenever the figure is drawn, so it still holds after
+                the figure is resized or saved at another size.
     pt_size   : scatter point size
     alpha     : point transparency
     raster    : draw the cells as a raster layer instead of vector paths.
@@ -948,16 +959,27 @@ def dim_plot(
                        linewidths=0, rasterized=rast)
 
         if label:
+            texts, anchors, members = [], [], []
             for g in unique:
                 mask = (groups == g) & in_panel
                 if not mask.any():
                     continue
-                cx, cy = emb[mask, 0].mean(), emb[mask, 1].mean()
-                ax.text(cx, cy, g,
-                        fontsize=_fs("label") if label_size is None else label_size,
-                        fontweight="bold", ha="center", va="center",
-                        bbox=dict(boxstyle="round,pad=0.25", fc="white",
-                                  alpha=0.75, ec="none"))
+                # The median, as LabelClusters takes it. A mean is pulled towards
+                # a group's outlying cells, off the cells the label names.
+                cx, cy = np.nanmedian(emb[mask], axis=0)
+                texts.append(ax.text(
+                    cx, cy, g,
+                    fontsize=_fs("label") if label_size is None else label_size,
+                    fontweight="bold", ha="center", va="center",
+                    bbox=dict(boxstyle="round,pad=0.25", fc="white",
+                              alpha=0.75, ec="none")))
+                anchors.append((cx, cy))
+                members.append(emb[mask])
+            if repel and texts:
+                # Imported here: it subclasses a matplotlib artist, and
+                # matplotlib is optional for the package as a whole.
+                from ._repel import attach
+                attach(ax, texts, anchors, members)
 
         if xlim is not None:
             ax.set_xlim(*xlim)
@@ -1094,6 +1116,7 @@ def variable_feature_plot(
     n_label: int = 10,
     figsize: tuple = (9, 5),
     raster: Optional[bool] = None,
+    repel: bool = False,
 ) -> "Figure":
     """Plot mean expression vs dispersion and highlight variable features.
 
@@ -1107,6 +1130,10 @@ def variable_feature_plot(
     raster  : draw the points as a raster layer instead of vector paths.
               ``None`` (default) rasterises above 100,000 points. The points
               here are genes, not cells, so the default rarely engages.
+    repel   : move the names apart and off every named point, as Seurat's
+              ``LabelPoints(repel = TRUE)`` does; a line joins a name that has
+              moved away to its point. Without it each name sits just above and
+              to the right of its point, and names in a dense region overlap.
     """
     import scipy.sparse as sp
     plt = _mpl()
@@ -1164,11 +1191,22 @@ def variable_feature_plot(
                rasterized=rast)
 
     if label:
+        named = []
         for gene in top_labeled:
             if gene in feat_names:
-                idx = feat_names.index(gene)
-                ax.annotate(gene, (means[idx], y_vals[idx]),
-                            fontsize=_fs("tiny"), xytext=(3, 3),
+                i = feat_names.index(gene)
+                named.append((gene, (means[i], y_vals[i])))
+        if repel:
+            # Each name starts on its point. Passing every named point as a
+            # group of one keeps a name off its own point and off the others'.
+            texts = [ax.text(x, y, gene, fontsize=_fs("tiny"), color="#333333",
+                             ha="center", va="center")
+                     for gene, (x, y) in named]
+            from ._repel import attach
+            attach(ax, texts, [xy for _, xy in named], [[xy] for _, xy in named])
+        else:
+            for gene, xy in named:
+                ax.annotate(gene, xy, fontsize=_fs("tiny"), xytext=(3, 3),
                             textcoords="offset points", color="#333333")
 
     if log and not use_std_var:
@@ -1221,7 +1259,8 @@ def viz_dim_loadings(
     if figsize is None:
         figsize = (nc * 4.5, nrow * max(4, n_features * 0.35))
 
-    fig, axes = plt.subplots(nrow, nc, figsize=figsize, squeeze=False)
+    fig, axes = plt.subplots(nrow, nc, figsize=figsize, squeeze=False,
+                             layout="constrained")
     axes_flat = axes.flatten()
 
     for plot_i, (dim, d0) in enumerate(zip(dims, dims_0)):
@@ -1250,16 +1289,15 @@ def viz_dim_loadings(
         ax.set_title(f"{reduction.upper()} {dim}", fontsize=_fs("large"), fontweight="bold")
         _strip_axes(ax)
 
-        # Compact legend patches
-        from matplotlib.patches import Patch
-        ax.legend(handles=[Patch(color="#F8766D", label="Positive"),
-                            Patch(color="#00BFC4", label="Negative")],
-                  fontsize=_fs("small"), frameon=False, loc="lower right")
-
     for i in range(len(dims), len(axes_flat)):
         axes_flat[i].set_visible(False)
 
-    fig.tight_layout()
+    # One legend under the panels. Inside each panel, at lower right, it sat on
+    # the positive loadings' bars, and no corner stays clear at every size.
+    from matplotlib.patches import Patch
+    fig.legend(handles=[Patch(color="#F8766D", label="Positive"),
+                        Patch(color="#00BFC4", label="Negative")],
+               fontsize=_fs("small"), frameon=False, loc="outside lower center", ncol=2)
     return fig
 
 
@@ -1813,7 +1851,9 @@ def image_dim_plot(
     nrow, ncol = _subplot_grid(len(images), ncol)
     if figsize is None:
         figsize = (5 * ncol, 4.5 * nrow)
-    fig, axes = plt.subplots(nrow, ncol, figsize=figsize, squeeze=False)
+    # Constrained, so the legend beside the panels gets the width it needs.
+    fig, axes = plt.subplots(nrow, ncol, figsize=figsize, squeeze=False,
+                             layout="constrained")
     axes_flat = axes.ravel()
 
     for ax, img in zip(axes_flat, images):
@@ -1833,9 +1873,11 @@ def image_dim_plot(
     handles = [plt.Line2D([], [], marker="o", linestyle="", markersize=6,
                           markerfacecolor=cols.get(g, "grey"), markeredgewidth=0)
                for g in uniq]
-    fig.legend(handles, uniq, title=group_by or "ident", loc="center right",
+    # Outside the panels, where ggplot2 puts Seurat's legend. The fixed 12% strip
+    # this had was narrower than a legend of cell-type names, which then lay
+    # over the tissue: 4,151 cells in the Xenium tutorial's figure.
+    fig.legend(handles, uniq, title=group_by or "ident", loc="outside right center",
                fontsize=_fs("small"), title_fontsize=_fs("small"), frameon=False)
-    fig.tight_layout(rect=(0, 0, 0.88, 1))
     return fig
 
 
@@ -2039,7 +2081,9 @@ def spatial_dim_plot(
     nrow, ncol = _subplot_grid(len(panels), ncol)
     if figsize is None:
         figsize = (5 * ncol, 4.5 * nrow)
-    fig, axes = plt.subplots(nrow, ncol, figsize=figsize, squeeze=False)
+    # Constrained, so the legend beside the panels gets the width it needs.
+    fig, axes = plt.subplots(nrow, ncol, figsize=figsize, squeeze=False,
+                             layout="constrained")
     axes_flat = axes.ravel()
 
     for ax, (name, (coords, radius, img)) in zip(axes_flat, panels.items()):
@@ -2065,9 +2109,11 @@ def spatial_dim_plot(
     handles = [plt.Line2D([], [], marker="o", linestyle="", markersize=6,
                           markerfacecolor=cols.get(g, "grey"), markeredgewidth=0)
                for g in uniq]
-    fig.legend(handles, uniq, title=group_by or "ident", loc="center right",
+    # Outside the panels, where ggplot2 puts Seurat's legend. The fixed 12% strip
+    # this had was narrower than a legend of long group names, which then lay
+    # over the spots.
+    fig.legend(handles, uniq, title=group_by or "ident", loc="outside right center",
                fontsize=_fs("small"), title_fontsize=_fs("small"), frameon=False)
-    fig.tight_layout(rect=(0, 0, 0.88, 1))
     return fig
 
 
