@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, Optional, Union
 import numpy as np
 import pandas as pd
 
+from ._utils import ident_sort_key
+
 if TYPE_CHECKING:
     # Annotation-only, so matplotlib stays an optional runtime dependency: the
     # block never executes, and `from __future__ import annotations` above keeps
@@ -503,8 +505,7 @@ def _split_levels(obj, split_by: str) -> tuple:
     if isinstance(col.dtype, pd.CategoricalDtype):
         levels = [str(c) for c in col.cat.categories]
     else:
-        levels = sorted({str(v) for v in col},
-                        key=lambda x: (int(x) if x.isdigit() else x))
+        levels = sorted({str(v) for v in col}, key=ident_sort_key)
     return col.astype(str).values, levels
 
 
@@ -628,7 +629,7 @@ def vln_plot(
         features = [features]
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=lambda x: (int(x) if x.isdigit() else x))
+    unique = sorted(set(groups), key=ident_sort_key)
     if pt_size is None:
         pt_size = _auto_point_size(len(groups))
 
@@ -923,7 +924,7 @@ def dim_plot(
     plt = _mpl()
     emb = _get_embedding(obj, reduction)
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=lambda x: (int(x) if x.isdigit() else x))
+    unique = sorted(set(groups), key=ident_sort_key)
     colors = palette or _palette(len(unique))
     # On the whole embedding, not the per-group slice: the decision is about the
     # figure's total path count, and a 200k-cell object split across 20 clusters
@@ -1084,7 +1085,7 @@ def feature_scatter(
     x = _get_expression(obj, feature1, assay, layer)
     y = _get_expression(obj, feature2, assay, layer)
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=lambda v: (int(v) if v.isdigit() else v))
+    unique = sorted(set(groups), key=ident_sort_key)
     colors = palette or _palette(len(unique))
     rast = _should_raster(raster, len(x))
 
@@ -1475,7 +1476,7 @@ def do_heatmap(
     mat, all_feats = _resolve_layer(assay_obj, layer)
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=lambda x: (int(x) if x.isdigit() else x))
+    unique = sorted(set(groups), key=ident_sort_key)
     colors = palette or _palette(len(unique))
 
     if cells is None:
@@ -1587,7 +1588,7 @@ def ridge_plot(
         features = [features]
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=lambda x: (int(x) if x.isdigit() else x))[::-1]
+    unique = sorted(set(groups), key=ident_sort_key)[::-1]
     colors = palette or _palette(len(unique))
 
     nrow, nc = _subplot_grid(len(features), ncol)
@@ -1732,7 +1733,7 @@ def dot_plot(
         features = [features]
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=lambda x: (int(x) if x.isdigit() else x))
+    unique = sorted(set(groups), key=ident_sort_key)
 
     # Per (feature, group): average expression and fraction expressing.
     avg = np.zeros((len(features), len(unique)))

@@ -12,6 +12,7 @@ import pandas as pd
 import scipy.sparse as sp
 from scipy.stats import mannwhitneyu
 
+from ._utils import ident_sort_key
 from .lazy import is_lazy
 
 # Seurat's `pseudocount.use`, added to each group's *summed* un-logged expression
@@ -65,18 +66,6 @@ def _dense_rows(m, rows: np.ndarray) -> np.ndarray:
     if sp.issparse(m):
         return m.tocsr()[rows, :].toarray().astype(float, copy=False)
     return np.asarray(m)[rows, :].astype(float, copy=False)
-
-
-def _ident_sort_key(label: str):
-    """Sort cluster labels numerically when they are all numeric.
-
-    Seurat's identities are a factor whose levels for `FindClusters` output are
-    0, 1, ... in numeric order. Plain string sorting puts "10" before "2", so a
-    dataset with eleven or more clusters would come back in a different cluster
-    order from Seurat's — silently, and only past ten clusters.
-    """
-    text = str(label)
-    return (0, int(text), "") if text.lstrip("-").isdigit() else (1, 0, text)
 
 
 def _roc_auc(x1: np.ndarray, x2: np.ndarray) -> tuple[float, float]:
@@ -710,7 +699,7 @@ def find_all_markers(
     ``myAUC`` above 0.7 or below 0.3 come back. It tests the value, not whether
     it was passed, so an explicit 0.01 is swapped too; truecell does the same.
     """
-    clusters = sorted(set(str(i) for i in seurat.idents), key=_ident_sort_key)
+    clusters = sorted(set(str(i) for i in seurat.idents), key=ident_sort_key)
     all_results = []
 
     for cluster in clusters:

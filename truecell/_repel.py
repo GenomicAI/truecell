@@ -175,9 +175,10 @@ def _free_grid(anchor: np.ndarray, w: float, h: float, frame, placed: list, gap:
 def _first_acceptable(candidates, anchor, w, h, cover, risky, placed, leaders, lines: bool):
     """The first candidate that hides nothing and, if *lines*, crosses no leader
     line or label either way; None if there is none."""
+    cover_w, cover_h = cover
     for start in range(0, len(candidates), _CHUNK):
         chunk = candidates[start:start + _CHUNK]
-        keep = ~_hiding(chunk, *cover, risky) if risky else np.ones(len(chunk), dtype=bool)
+        keep = ~_hiding(chunk, cover_w, cover_h, risky) if risky else np.ones(len(chunk), dtype=bool)
         if lines and keep.any():
             keep[keep] = ~_crossing(anchor, chunk[keep], w, h, placed, leaders)
         if keep.any():

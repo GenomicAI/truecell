@@ -34,8 +34,8 @@ are shown side by side.
 | PCs significant at α = 0.05 | truecell 1-14 · R 1-13 + 15, 19 (Jaccard **0.81**) | ≥ **0.75** |
 | PCA bases matched one-to-one and in order | through PC **20** of 20, min \|r\| **1.0000** | ≥ PC 13 |
 | ICA, matched \|Pearson r\| over 20 components | **0.9991** (worst pair 0.9960) | — |
-| t-SNE, 30-NN retained from PCA | truecell **0.474** · R **0.477** | — |
-| t-SNE, 30-NN shared between the two tools | 0.862 | — |
+| t-SNE, 30-NN retained from PCA | truecell **0.474** · R **0.476** | — |
+| t-SNE, 30-NN shared between the two tools | 0.844 | — |
 
 The **Band** column is the point of this revision: those three numbers are
 allowed to move, so `--report` now checks each against a declared range and
@@ -343,8 +343,8 @@ run_tsne(obj, dims=range(10), reduction="pca")
 
 | | truecell | R Seurat |
 |---|---|---|
-| 30-NN retained from PCA | **0.474** | **0.477** |
-| 30-NN shared between the tools | 0.862 | |
+| 30-NN retained from PCA | **0.474** | **0.476** |
+| 30-NN shared between the tools | 0.844 | |
 
 Both panels are coloured by *LYZ* rather than by cluster — cluster labels are
 arbitrary integers that would not correspond between tools, whereas this gene's
