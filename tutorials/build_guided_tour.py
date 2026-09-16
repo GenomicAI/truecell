@@ -882,7 +882,7 @@ it supplied by us.
 
 The Seurat tutorial this mirrors ends with **nine** cell types, and so does this one, down to
 the 32 dendritic cells and the 14 platelets. That agreement is recent. truecell 1.2.0 clustered
-this same graph with a single pass of igraph's Louvain, which settles in a shallower optimum,
+this same data with a single pass of igraph's Louvain, which settles in a shallower optimum,
 and there the dendritic cells sat inside the CD14+ monocytes: eight clusters. `find_clusters`
 now runs Seurat's own modularity optimiser, restarts and random stream included, and on the
 same graph it returns Seurat's partition.
