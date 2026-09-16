@@ -46,10 +46,15 @@ def fig_agreement():
         only_r, only_p = len(rp - pp), len(pp - rp)
         ax.bar(["Seurat only", "both", "truecell only"], [only_r, len(shared), only_p],
                color=[ORANGE, BLUE, GREY])
+        # Wrapped to stay narrower than the panel: a title wider than its subplot
+        # runs into the next, which no layout engine prevents. The manuscript
+        # prints this figure at 0.55 of its size, where that happens first.
         ax.set_title(f"{reduction.upper()} — anchor pairs\n"
-                     f"{len(shared):,} of Seurat's {len(rp):,} recovered "
-                     f"({100*len(shared)/len(rp):.1f}%)")
+                     f"{len(shared):,} of Seurat's {len(rp):,}\n"
+                     f"recovered ({100*len(shared)/len(rp):.1f}%)")
         ax.set_ylabel("anchors")
+        # Room above the tallest bar for its count, clear of the title.
+        ax.margins(y=0.18)
         for i, v in enumerate([only_r, len(shared), only_p]):
             ax.text(i, v, f"{v:,}", ha="center", va="bottom", fontsize=9)
 
@@ -63,7 +68,7 @@ def fig_agreement():
         ax.plot([0, 1], [0, 1], color=GREY, lw=1, ls="--")
         ax.set_xlabel("Seurat anchor score")
         ax.set_ylabel("truecell anchor score")
-        ax.set_title(f"scores on the {len(order):,} shared anchors\n"
+        ax.set_title(f"scores, {len(order):,} shared anchors\n"
                      f"r = {np.corrcoef(x, y)[0, 1]:.5f}, "
                      f"{100*np.mean(np.isclose(x, y, atol=1e-9)):.1f}% identical")
         ax.set_xlim(-0.03, 1.03)

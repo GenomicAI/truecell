@@ -63,10 +63,10 @@ def main(data_dir=None):
 
     # ---- Global clustering ----
     _save(elbow_plot(pbmc, ndims=30, figsize=(7, 4)), "02_elbow_plot.png")
-    _save(dim_plot(pbmc, reduction="umap", group_by="global_clusters", label=True,
+    _save(dim_plot(pbmc, reduction="umap", group_by="global_clusters", label=True, repel=True,
                    title="PBMC 8k — global clusters", figsize=(8, 6.5)),
           "03_umap_global_clusters.png")
-    _save(dim_plot(pbmc, reduction="umap", group_by="broad_celltype", label=True,
+    _save(dim_plot(pbmc, reduction="umap", group_by="broad_celltype", label=True, repel=True,
                    title="PBMC 8k — broad cell types", figsize=(8.5, 6.5)),
           "04_umap_global_celltypes.png")
 
@@ -83,10 +83,10 @@ def main(data_dir=None):
           "06_global_markers_heatmap.png")
 
     # ---- T/NK subclustering highlight ----
-    _save(dim_plot(sub, reduction="umap", group_by="sub_clusters", label=True,
+    _save(dim_plot(sub, reduction="umap", group_by="sub_clusters", label=True, repel=True,
                    title="T/NK compartment — subclusters", figsize=(8, 6.5)),
           "07_umap_tnk_subclusters.png")
-    _save(dim_plot(sub, reduction="umap", group_by="tnk_subset", label=True,
+    _save(dim_plot(sub, reduction="umap", group_by="tnk_subset", label=True, repel=True,
                    title="T/NK compartment — annotated subsets", figsize=(8.5, 6.5)),
           "08_umap_tnk_subsets.png")
 

@@ -96,10 +96,10 @@ def main(data_dir=None):
     import matplotlib.pyplot as plt
 
     # 1-2. RNA UMAP — clusters and protein-based cell types
-    _save(dim_plot(obj, reduction="umap", group_by="rna_clusters", label=True,
+    _save(dim_plot(obj, reduction="umap", group_by="rna_clusters", label=True, repel=True,
                    title="CBMC — RNA clusters", figsize=(8, 6.5)),
           "01_rna_umap_clusters.png")
-    _save(dim_plot(obj, reduction="umap", group_by="protein_celltype", label=True,
+    _save(dim_plot(obj, reduction="umap", group_by="protein_celltype", label=True, repel=True,
                    title="CBMC — cell types (protein + RNA)", figsize=(8.5, 6.5)),
           "02_rna_umap_celltypes.png")
 
@@ -130,7 +130,7 @@ def main(data_dir=None):
                           figsize=(7, 5.5)), "07_adt_scatter_CD19_CD3.png")
 
     # 8. WNN joint clusters on the joint embedding (run_full ran run_wnn already)
-    _save(dim_plot(obj, reduction="wnn_umap", group_by="wnn_clusters", label=True,
+    _save(dim_plot(obj, reduction="wnn_umap", group_by="wnn_clusters", label=True, repel=True,
                    title="CBMC — WNN joint clusters", figsize=(8, 6.5)),
           "08_wnn_umap_clusters.png")
 

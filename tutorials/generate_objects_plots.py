@@ -168,7 +168,7 @@ def nn_degree(obj):
         return None
     degrees = np.diff(graph.tocsr().indptr)
 
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(7, 4), layout="constrained")
     lo, hi = int(degrees.min()), int(degrees.max())
     # Bins centred on the integers, so a single-valued degree draws as one bar
     # *at* 20 rather than a block spanning 20-21 that implies a spread.
@@ -181,8 +181,10 @@ def nn_degree(obj):
     ax.set_ylabel("cells")
     ax.set_title(
         f"kNN degree — truecell min {degrees.min()}, max {degrees.max()}, "
-        f"mean {degrees.mean():.1f} — matching Seurat", fontsize=11)
-    ax.legend(fontsize=8, frameon=False)
+        f"mean {degrees.mean():.1f}\nmatching Seurat", fontsize=11)
+    # Under the axes. Placed as "best" it still sat on the bar, which fills
+    # the middle of a panel this narrow whatever the legend's corner.
+    fig.legend(fontsize=8, frameon=False, loc="outside lower center", ncol=2)
     ax.spines[["top", "right"]].set_visible(False)
     return fig
 

@@ -47,30 +47,42 @@ def scoreboard_bars(summary):
     The story of integration in one panel — every method should push the left
     bar (batch silhouette, want low) down and hold the right bar (cell-type ARI,
     want high) up relative to the uncorrected baseline.
+
+    Laid out so that nothing can land on a bar whatever the scores are. The
+    manuscript printed this at 0.55 of its size, where the legend, placed
+    wherever matplotlib found room, sat on the bars. The legend now sits under
+    the method names, and constrained layout keeps room for it at any size;
+    ``tight_layout`` measures once, at the size the figure was made. The axis
+    runs past 1, the most either score can reach, so the value label on the
+    tallest possible bar still fits below the title.
+    ``tests/test_integration_scoreboard.py`` checks both sizes.
     """
     import matplotlib.pyplot as plt
     import numpy as np
 
     board = summary["scoreboard"]
     methods = list(board["method"])
-    sil_batch = board["sil_batch"].to_numpy()
-    ari = board["ari_celltype"].to_numpy()
+    sil_batch = board["sil_batch"].to_numpy(dtype=float)
+    ari = board["ari_celltype"].to_numpy(dtype=float)
 
     x = np.arange(len(methods))
     w = 0.38
-    fig, ax = plt.subplots(figsize=(8, 5))
-    b1 = ax.bar(x - w / 2, sil_batch, w, label="batch separation (sil_batch ↓ better)",
+    fig, ax = plt.subplots(figsize=(8, 5), layout="constrained")
+    # Two lines each, so the legend fits across the figure at the manuscript's size.
+    b1 = ax.bar(x - w / 2, sil_batch, w, label="batch separation\n(sil_batch ↓ better)",
                 color=_palette(3)[2])
-    b2 = ax.bar(x + w / 2, ari, w, label="cell-type recovery (ARI ↑ better)",
+    b2 = ax.bar(x + w / 2, ari, w, label="cell-type recovery\n(ARI ↑ better)",
                 color=_palette(3)[0])
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=20, ha="right", fontsize=9)
     ax.set_ylabel("score")
-    ax.set_title("Integration scoreboard — batch mixing vs cell-type preservation")
-    ax.legend(fontsize=8, frameon=False)
+    # Silhouettes and ARI can go below zero; a negative bar's label hangs below it.
+    lowest = min(0.0, float(np.nanmin(np.concatenate([sil_batch, ari]))))
+    ax.set_ylim(lowest - (0.15 if lowest < 0 else 0.0), 1.15)
+    ax.set_title("Integration scoreboard\nbatch mixing vs cell-type preservation")
+    fig.legend(fontsize=8, frameon=False, loc="outside lower center", ncol=2)
     for bars in (b1, b2):
         ax.bar_label(bars, fmt="%.2f", fontsize=7, padding=2)
-    fig.tight_layout()
     return fig
 
 
@@ -88,7 +100,7 @@ def main(data_dir=None):
           "py_02_harmony_stim.png")
 
     # 3. Same map by cell type: the biology survived the correction.
-    _save(dim_plot(obj, reduction="umap_harmony", group_by=CELLTYPE, label=True,
+    _save(dim_plot(obj, reduction="umap_harmony", group_by=CELLTYPE, label=True, repel=True,
                    pt_size=2, label_size=7, title="Harmony — by cell type"),
           "py_03_harmony_celltype.png")
 

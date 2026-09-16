@@ -84,20 +84,20 @@ def main(data_dir=None):
         predictions["predicted.id"].reindex(query.cell_names()).to_numpy())
 
     # 1. The reference atlas: the annotated space the query is mapped into.
-    _save(dim_plot(reference, reduction="umap", group_by=CELLTYPE, label=True,
+    _save(dim_plot(reference, reduction="umap", group_by=CELLTYPE, label=True, repel=True,
                    pt_size=2, label_size=7,
                    title=f"Reference ({REFERENCE_TECH}) — by cell type"),
           "py_01_reference_umap_celltype.png")
 
     # 2. The query projected into the reference UMAP, by transferred label.
-    _save(dim_plot(query, reduction="ref.umap", group_by="predicted.id", label=True,
+    _save(dim_plot(query, reduction="ref.umap", group_by="predicted.id", label=True, repel=True,
                    pt_size=2, label_size=7,
                    title=f"Query ({QUERY_TECH}) projected — predicted labels"),
           "py_02_query_projected_predicted.png")
 
     # 3. The same projection by the query's true label — the two should match
     #    wherever the transfer succeeded.
-    _save(dim_plot(query, reduction="ref.umap", group_by=CELLTYPE, label=True,
+    _save(dim_plot(query, reduction="ref.umap", group_by=CELLTYPE, label=True, repel=True,
                    pt_size=2, label_size=7,
                    title=f"Query ({QUERY_TECH}) projected — true labels"),
           "py_03_query_projected_truth.png")
