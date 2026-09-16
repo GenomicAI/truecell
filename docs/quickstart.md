@@ -145,17 +145,17 @@ separates here too.
 
 ```
 cluster   gene  avg_log2FC
-      1   FCN1    4.070133
-      1 S100A8    6.607992
+      1 S100A8    6.642881
+      1   FCN1    4.058240
       3  CD79A    6.911221
       3  MS4A1    5.718520
-      7 TMEM40   11.633066
-      7 ITGA2B   12.070139
+      8 ITGA2B   12.070139
+      8 TMEM40   11.633066
 ```
 
 `find_markers` runs all nine of Seurat's tests via `test_use=`. On a shared
 cell assignment, the eight that return a p-value reproduce Seurat's top 50 genes exactly and
-`avg_log2FC` agrees to 7.1e-15 — [the DE vignette](tutorials/de_vignette.md)
+`avg_log2FC` agrees to 1.8e-15 — [the DE vignette](tutorials/de_vignette.md)
 has the full table.
 
 ## Plot

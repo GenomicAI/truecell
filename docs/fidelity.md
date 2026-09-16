@@ -53,7 +53,7 @@ the defects its own comparison found:
 |---|---|
 | [Anchor internals](tutorials/anchors_vignette.md) | **18** — CCA standardizing instead of L2-normalizing, randomized SVD drifting reciprocal-PCA's trailing PCs, `integrate_layers` silently running v4's algorithm behind the v5 name, a symmetrized KNN graph, a missing SNN diagonal |
 | [The object model](tutorials/objects_vignette.md) | **11** — a split/join round trip that silently misordered columns, `FetchData` returning sparse objects instead of numbers, an inert command log |
-| [Batch integration](tutorials/integration_vignette.md) | **8** — a crash on unequal batch sizes, and a 4× under-integration: batch mixing 0.222 → 0.867 → 0.991 |
+| [Batch integration](tutorials/integration_vignette.md) | **8** — a crash on unequal batch sizes, and a 4× under-integration: RPCA's batch mixing 0.222 → 0.867 → 0.991, on truecell's clusters before `find_clusters` ran Seurat's optimiser (0.917 now, as in Seurat) |
 | [Out of core](tutorials/lazy_vignette.md) | **7** — five functions that densified the whole store, so going on disk *raised* peak memory 4.6× |
 | [Spatial statistics](tutorials/svf_vignette.md) | **3** — Moran's I on a kNN graph instead of R's inverse-square weights, centroids with no radius, unclosed polygons |
 | [Dim-reduction extras](tutorials/dimreduc_vignette.md) | **2** — a too-tight JackStraw null, and the wrong aggregation test |
@@ -154,7 +154,7 @@ non-zero outside one. Two rules make them worth having:
 | Band | Range | Why it is where it is |
 |---|---|---|
 | JackStraw PC cutoff | \|truecell − R\| ≤ 2 | R's `JackRandom` seeds each replicate from its loop index, so R is deterministic at 13. truecell seeds from its `seed` argument and keeps 12/13/14/15 for 2/28/11/19 of 60 seeds — mode 13, which is R's answer. |
-| The eight DE p-value tests | exactly 50 | One dropped gene is a regression. Seven have given 50 of 50 on two cluster assignments. `deseq2` has given it on one, where the 50th and 51st genes sit 0.97 decades apart in both tools and no gene within three ranks of the cut differs by more than 0.12. |
+| The eight DE p-value tests | exactly 50 | One dropped gene is a regression. All eight gave 50 of 50 both before and after `find_clusters` began running Seurat's optimiser, which moved cells between the two clusters. At `deseq2`'s cut the 50th and 51st genes sit 5.0 decades apart in truecell and 4.9 in Seurat, and no gene within three ranks of it differs by more than 0.05. |
 | `roc` max ∆AUC | ≤ 5e-4 | Half a unit in Seurat's third decimal. Measured 4.9986e-4 — bands are inclusive by design, and this one sits on its boundary. |
 
 `max |Δlog2FC|` is one band over every test, `deseq2` included: all of them

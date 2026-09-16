@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     polygons and a Visium image. Each was checked through zarr with spatialdata 0.8.0.
   - Both functions stay on `truecell.compat.anndata`, and the README now shows that
     import rather than listing them as if they were top-level.
+  - `as_anndata` takes `spatial_key=` and `fov_key=`, the names `from_anndata` already
+    read, and `ScaleFactors.to_dict()` and `ScaleFactors.from_dict()` convert to and from
+    `scalefactors_json.json`'s keys.
 - **`Segmentation.as_centroids()`**, SeuratObject's `as(segmentation, "Centroids")`:
   each ring's area centroid, or its first vertex when the ring has no area. It is
   within 5.1e-16 of SeuratObject 5.4.0 on 40 random polygons and exact on the rings
@@ -201,10 +204,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zero raises, as `estimateSizeFactors` stops. On Seurat's ifnb pseudobulk
   vignette the genes tested are now Seurat's in all 11 cell types, and the genes
   called at `p_val_adj < 0.05` agree at Jaccard 0.947–1.000 (median 0.993), where
-  1.2.0 reached 0.41–0.66. Per cell on PBMC 3k, truecell and Seurat call the same
-  726 genes, with the same top 50 and p-value Spearman 0.9999995 on genes detected
-  above 5 %. The `deseq2` extra needs pydeseq2 0.5.4 or a later 0.5 release, the
-  version this was checked against.
+  1.2.0 reached 0.41–0.66. Per cell on the DE tutorial's PBMC 3k clusters, truecell
+  and Seurat call the same 712 genes at `p_val_adj < 0.05`, with the same top 50 and
+  p-value Spearman 0.9999991 on genes detected above 5 %. The `deseq2` extra needs
+  pydeseq2 0.5.4 or a later 0.5 release, the version this was checked against.
 - **BREAKING: `find_clusters` runs Seurat's own modularity optimiser, so a graph
   gives Seurat's partition.** Algorithms 1, 2 and 3 now run a translation of the
   C++ behind `FindClusters` (`RunModularityClusteringCpp`, Waltman and van Eck's
@@ -218,8 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and 1.2, singletons included) and on every graph in the tests' reference. It holds
   at scale, at about 1.2 times Seurat's time: on SNN graphs exported from Seurat,
   every one of 100,000 cells in 10.3 s against 8.9 s, and of 941,000 in 280 s
-  against 234 s. The
-  default `resolution` is Seurat's 0.8 rather than 0.5, `modularity_fxn`,
+  against 234 s. The default `resolution` is Seurat's 0.8 rather than 0.5, `modularity_fxn`,
   `n_start` and `n_iter` are Seurat's arguments, and `algorithm=3`, smart local
   moving, now works. Leiden takes `n_iter` too, 10 by default where leidenalg ran
   until stable, and turns a seed of 0 into 1 with a warning, as `RunLeiden` does;
@@ -229,8 +231,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arm64, its C++ fuses a multiply-add that flips near-tied moves. truecell follows
   the x86_64 build, as it does for `clara`; PBMC 3k's graph is not such a case.
   The DE tutorial now tests clusters of 703 and 480 cells rather than 692 and
-  515, so its numbers were re-measured; the `deseq2` and `negbinom` entries above
-  quote the earlier clusters.
+  515, so its numbers were re-measured.
 - **`create_fovs` puts the images in category order when the FOV labels are
   categorical.** Other labels still give the order of first appearance. `from_anndata`
   relies on this to rebuild `obj.images` in the order `as_anndata` recorded, even when
@@ -309,8 +310,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coefficients, alternating with maximum likelihood for theta, stopped as
   `glm.control` stops. Its output is identical to the bit under both versions.
   Against Seurat on the DE tutorial's clusters:
-  - p-value Spearman on genes detected above 5 % is 0.9999991 (0.9217 before);
-  - no gene falls on the other side of `p_val_adj < 0.05` (48 before);
+  - p-value Spearman on genes detected above 5 % went from 0.9217 to 0.9999991, and
+    is 0.9999995 on the clusters `find_clusters` gives now;
+  - the genes on the other side of `p_val_adj < 0.05` went from 48 to none, and
+    none on today's clusters either;
   - on the genes the two statsmodels versions disagreed on, it matches R's
     `glm.nb` within 2e-5.
 
@@ -397,6 +400,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   legends; and the Moran's I legend and title. At that size every figure the manuscript
   takes from the tutorials now passes, except the pbmc3k marker heatmap, whose 45 gene
   names can not fit its height.
+- **Documentation that had fallen behind its own comparisons.** Before this release all
+  eighteen tutorials were run on both sides, Python first, then R, then the report, and
+  every page that quotes a result was read against it.
+  - The tutorial index's rows for PBMC 8k, CITE-seq, integration, reference mapping,
+    dimensional reduction and sketching still quoted the numbers from before this
+    release's changes; the README, the docs home page and the skills carried the same.
+  - The sketching vignette's numbers were still those of its first run, in July:
+    leverage tracks rarity at −0.918 in both tools, not −0.929, and projected labels
+    agree per cell 94.6 %, not 94.9 %.
+  - The CITE-seq, reference-mapping, dimensional-reduction and DE pages are re-measured
+    from the same run. The DE tables gain `poisson`'s rows, which they had left out.
+  - The integration skill still said truecell's clusters differ from Seurat's by design,
+    which stopped being true when `find_clusters` became Seurat's optimiser, and the
+    quickstart's marker excerpt listed the platelet genes under cluster 7, which is now
+    the dendritic cells.
+  - The R figures that changed on the re-run are committed. R reproduced every one of
+    them byte for byte on a second run.
 
 ## [1.2.0] - 2026-08-10
 

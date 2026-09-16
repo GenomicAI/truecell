@@ -43,17 +43,17 @@ p-value hands you ribosomal genes.
 | # | Tutorial | Dataset | Key Concepts | Complexity |
 |---|----------|---------|--------------|-----------|
 | 1 | [PBMC 3k — Guided Clustering](pbmc3k_tutorial.md) | 3,000 PBMCs · 10x Genomics (2016) | QC · Normalization · HVG/VST · PCA · Louvain · UMAP · Markers. **Compared end to end**, both sides running their own pipeline: the same 2,638 barcodes survive QC, 1,998/2,000 variable features shared, PCA matched \|r\| **0.9986**, clusters at **ARI 0.928** (9 vs 9), and on the three clusters whose cells match exactly the marker tables are **identical gene sets** agreeing to 4.6e-14 | Beginner |
-| 2 | [PBMC 8k — Advanced Subclustering](advanced_pbmc8k_subclustering.md) | 8,400 PBMCs · GRCh38 · 10x Genomics | All of Tutorial 1 + subclustering, hierarchical cell-type gating, T/NK annotation. **Both stages compared by barcode**: same 7,475 cells after QC, global clusters at **ARI 0.977**, and the T/NK compartment handed to stage 2 matches at **Jaccard 0.9991** (4,631 of 4,635 cells) — subclusters then at ARI 0.916 and subset labels **98.2%** concordant | Intermediate |
-| 3 | [CBMC CITE-seq — Multimodal](multimodal_citeseq.md) | 8,600 CBMCs · RNA + 13 surface proteins | Multi-assay objects · CLR normalization · Protein feature plots · RNA-protein comparison · WNN joint clustering. **Compared per protein and per cell**: CLR to **4.2e-15**, WNN modality weights at Pearson **0.9847** over 8,617 shared barcodes, cell-type labels **99.29%** concordant, all cluster counts identical. Settled the long-open progenitor question — it was a labelling difference, not a WNN one | Advanced |
+| 2 | [PBMC 8k — Advanced Subclustering](advanced_pbmc8k_subclustering.md) | 8,400 PBMCs · GRCh38 · 10x Genomics | All of Tutorial 1 + subclustering, hierarchical cell-type gating, T/NK annotation. **Both stages compared by barcode**: same 7,475 cells after QC, global clusters at **ARI 0.983**, and the T/NK compartment handed to stage 2 matches at **Jaccard 0.9998** (4,634 of 4,635 cells) — subclusters then at ARI 0.934 and subset labels **96.3%** concordant | Intermediate |
+| 3 | [CBMC CITE-seq — Multimodal](multimodal_citeseq.md) | 8,600 CBMCs · RNA + 13 surface proteins | Multi-assay objects · CLR normalization · Protein feature plots · RNA-protein comparison · WNN joint clustering. **Compared per protein and per cell**: CLR to **4.9e-15**, WNN modality weights at Pearson **0.9838** over 8,617 shared barcodes, cell-type labels **98.72%** concordant, the same 21 WNN clusters (RNA alone: 15 against Seurat's 16). Settled the long-open progenitor question — it was a labelling difference, not a WNN one | Advanced |
 | 4 | [PBMC 3k — SCTransform](sctransform_vignette.md) | 3,000 PBMCs · 10x Genomics (2016) | Regularized NB normalization · Pearson residuals · `vars.to.regress` · 30-PC workflow · SCT-vs-LogNormalize. The **fitted model is compared per gene** against Seurat's `SCTModel` feature attributes — `detection_rate`/`gmean` to machine precision, intercept and theta at **Spearman 1.0000**, the 3,848 non-overdispersed genes exactly the same set, residual variance at 0.9986; both arms now agree on cluster count (12 and 11) | Advanced |
 | 5 | [Xenium — Spatial (R vs Python)](xenium_spatial_tutorial.md) | 36,602 cells · 10x Xenium mouse brain (CTX+HP) | `load_xenium` · `ImageDimPlot`/`ImageFeaturePlot` · nearest-neighbour distance · local density · `BuildNicheAssay` · `composition_test` — verified to 8 s.f. vs R Seurat | Spatial |
 | 6 | [Cell Hashing — Demultiplexing](hashing_vignette.md) | 39,842 cells · 8 HTOs · GSE108313 (human+mouse) | Hashtag assay · CLR (margin 1) · `HTODemux` ↔ `hto_demux` · `MULTIseqDemux` ↔ `multiseq_demux` · cross-species doublet ground truth — **99.81 %** call-concordant with R | Advanced |
 | 7 | [Mixscape — Pooled CRISPR Screen](mixscape_vignette.md) | 20,729 cells · 25 guides + NT · GSE153056 (THP-1 ECCITE-seq) | Perturbation signature (`CalcPerturbSig`) · KO-vs-escaper mixture (`RunMixscape`) · guide-separating LDA (`MixscapeLDA`) · `PlotPerturbScore` / `MixscapeHeatmap` — **97.68 %** per-cell call-concordant with R | Advanced |
-| 8 | [Batch Integration — Harmony/CCA/RPCA](integration_vignette.md) | 13,999 cells · CTRL/STIM · ifnb (Kang 2018) | Batch correction (`RunHarmony` ↔ `run_harmony`) · CCA/RPCA anchors (`IntegrateLayers` ↔ `integrate_layers`) · silhouette + cluster-ARI scoring — Harmony/CCA/RPCA all reach **batch-mix 0.991**; **caught eight bugs, all fixed** (a crash, an under-integration, and — found chasing what looked like the remaining implementation gap — `IntegrateLayers` silently running the v4 algorithm, a randomized-SVD PC drift in `run_pca`, and four in the neighbour graphs). The last gap standing turned out **not** to be a defect: Seurat's deeper modularity search buys 0.17 % by splitting CD14 Mono on batch, so truecell's coarser partition scores **ARI 0.92 to the annotations against Seurat's 0.74** | Advanced |
-| 9 | [Reference Mapping — Label Transfer](refmap_vignette.md) | 4,679 cells · celseq2→smartseq2 · panc8 (Baron 2016) | Cross-technology annotation transfer (`FindTransferAnchors` ↔ `find_transfer_anchors`) · `TransferData` ↔ `transfer_data` · `MapQuery`/`ProjectUMAP` ↔ `map_query`/`project_umap` — **98.71 %** per-cell label-concordant with R, both ~98.5 % accurate vs ground truth | Advanced |
+| 8 | [Batch Integration — Harmony/CCA/RPCA](integration_vignette.md) | 13,999 cells · CTRL/STIM · ifnb (Kang 2018) | Batch correction (`RunHarmony` ↔ `run_harmony`) · CCA/RPCA anchors (`IntegrateLayers` ↔ `integrate_layers`) · silhouette + cluster-ARI scoring — batch mixing within 0.001 of Seurat's for all three (**0.991** Harmony, **0.992** CCA, **0.917** RPCA); **caught eight bugs, all fixed** (a crash, an under-integration, and — found chasing what looked like the remaining implementation gap — `IntegrateLayers` silently running the v4 algorithm, a randomized-SVD PC drift in `run_pca`, and four in the neighbour graphs). The last gap standing was the clustering search, not a defect: Seurat's deeper modularity search splits CD14 Mono on batch. Now that `find_clusters` runs Seurat's own optimiser, RPCA's clusters agree with Seurat's at **ARI 0.942**, that split included | Advanced |
+| 9 | [Reference Mapping — Label Transfer](refmap_vignette.md) | 4,679 cells · celseq2→smartseq2 · panc8 (Baron 2016) | Cross-technology annotation transfer (`FindTransferAnchors` ↔ `find_transfer_anchors`) · `TransferData` ↔ `transfer_data` · `MapQuery`/`ProjectUMAP` ↔ `map_query`/`project_umap` — **98.87 %** per-cell label-concordant with R, both ~98.7 % accurate vs ground truth | Advanced |
 | 10 | [Cell-cycle & Module Scoring](cellcycle_vignette.md) | 20,729 cells · THP-1 · GSE153056 (Papalexi 2021) | Gene-program scoring (`AddModuleScore` ↔ `add_module_score`) · cell-cycle phase (`CellCycleScoring` ↔ `cell_cycle_scoring`) · S/G2M scores + discrete phase — **95.9 %** per-cell Phase-concordant with R, scores correlate at Pearson ≥ 0.997 | Advanced |
-| 11 | [Dimensional-Reduction Extras](dimreduc_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | PC significance (`JackStraw`/`ScoreJackStraw` ↔ `jack_straw`/`score_jackstraw`) · `RunICA` ↔ `run_ica` · `RunTSNE` ↔ `run_tsne` — both tools keep **13 PCs**; ICA matched \|r\| **0.982**; **caught two JackStraw bugs, both fixed** (a too-tight null + the wrong aggregation test) | Advanced |
-| 12 | [Leverage-Score Sketching](sketch_vignette.md) | 13,999 cells · CTRL/STIM · ifnb (Kang 2018) | Scaling to atlas size (`LeverageScore` ↔ `leverage_score` · `SketchData` ↔ `sketch_data` · `ProjectData` ↔ `project_data`) · both of Seurat's regimes · uniform-sampling control · on-disk `LazyMatrix` — exact-regime Spearman **1.000000**; leverage tracks rarity at **−0.929** in both tools; **caught two bugs, both fixed** (full-rank leverage + anchor-based label transfer) | Advanced |
+| 11 | [Dimensional-Reduction Extras](dimreduc_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | PC significance (`JackStraw`/`ScoreJackStraw` ↔ `jack_straw`/`score_jackstraw`) · `RunICA` ↔ `run_ica` · `RunTSNE` ↔ `run_tsne` — JackStraw keeps **14 PCs** to Seurat's 13, inside the measured \|Δ\| ≤ 2 seed band; ICA matched \|r\| **0.9991**; **caught two JackStraw bugs, both fixed** (a too-tight null + the wrong aggregation test) | Advanced |
+| 12 | [Leverage-Score Sketching](sketch_vignette.md) | 13,999 cells · CTRL/STIM · ifnb (Kang 2018) | Scaling to atlas size (`LeverageScore` ↔ `leverage_score` · `SketchData` ↔ `sketch_data` · `ProjectData` ↔ `project_data`) · both of Seurat's regimes · uniform-sampling control · on-disk `LazyMatrix` — exact-regime Spearman **1.000000**; leverage tracks rarity at **−0.918** in both tools; **caught two bugs, both fixed** (full-rank leverage + anchor-based label transfer) | Advanced |
 | 13 | [The Object Model Itself](objects_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | The **container**, not an algorithm: `Cells`/`Features` · the v5 layered assay (`Layers`/`LayerData`/`split`/`JoinLayers`) · `Key` · `Embeddings`/`Loadings`/`Stdev` · `Graphs` · `FetchData` · `Idents`/`WhichCells`/`RenameIdents`/`subset` · `Command` — **91 of 91 anchors match exactly**, no tolerance (the two neighbour-graph anchors closed by PR #55); **caught eleven bugs, all fixed** (a split/join round trip that silently misordered columns, `FetchData` returning sparse objects instead of numbers, an inert command log) | Advanced |
 | 14 | [Spatial Statistics & the Spatial Container](svf_vignette.md) | 36,602 cells · 248 genes · 10x Xenium mouse brain | The spatial **container** and the one spatial **statistic** never checked against R: `LoadXenium` ↔ `load_xenium` · `CreateFOV`/`CreateCentroids`/`CreateSegmentation` ↔ `create_fov`/`create_centroids`/`create_segmentation` · `GetTissueCoordinates` · `Radius` · `FindSpatiallyVariableFeatures` ↔ `find_spatially_variable_features` — **39 of 39 anchors match exactly**; Moran's I to **1.6e-14** and 10/10 of Seurat's top genes, on a slide R cannot hold in memory; **caught three bugs, all fixed** (Moran's I on a kNN graph instead of R's inverse-square weights, centroids with no radius, unclosed polygons) | Advanced |
 | 15 | [The Differential-Expression Test Suite](de_vignette.md) | 2,700 PBMCs · 10x Genomics (2016) | All **nine** `find_markers` tests against `FindMarkers` — `wilcox` · `t` · `bimod` · `LR` · `negbinom` · `poisson` · `roc` · `MAST` · `DESeq2` — on a shared cell assignment so no clustering difference can pose as a DE difference. **All eight p-value tests reproduce Seurat's top 50 exactly**, `DESeq2` included now that it runs Seurat's per-cell test; `avg_log2FC` to **1.8e-15**; **caught two bugs, both fixed** (Seurat's pseudocount on the group mean instead of the sum, which also changed which genes `logfc_threshold` returned; and a moment-dispersion LRT where Seurat runs an ML-dispersion Wald test) | Advanced |
@@ -582,12 +582,12 @@ python  tutorials/generate_refmap_plots.py             # Truecell figures → fi
 
 | Comparison | Agreement |
 |---|---:|
-| Same `predicted.id` per cell (truecell vs Seurat) | **98.71 %** (31 cells differ) |
-| truecell accuracy vs ground-truth `celltype` | **98.45 %** |
-| Seurat accuracy vs ground-truth `celltype` | **98.79 %** |
+| Same `predicted.id` per cell (truecell vs Seurat) | **98.87 %** (27 cells differ) |
+| truecell accuracy vs ground-truth `celltype` | **98.62 %** |
+| Seurat accuracy vs ground-truth `celltype` | **98.75 %** |
 
-Both tools annotate the query almost identically — 2,363 of 2,394 cells get the
-same label — and each is ~98.5 % accurate against the held-out truth. Every
+Both tools annotate the query almost identically — 2,367 of 2,394 cells get the
+same label — and each is ~98.7 % accurate against the held-out truth. Every
 abundant cell type is recovered at ≥98 %; the entire error budget is the rare
 types (epsilon, quiescent_stellate, schwann, <10 reference cells each), where both
 tools stumble the same way — the honest limit of a small single-technology
@@ -690,8 +690,8 @@ python  tutorials/generate_dimreduc_plots.py    # figures + the side-by-side num
 |---|---:|
 | PCs kept (truecell vs R's 13) | **14**, band \|Δ\| ≤ 2 (modal answer over 60 seeds: 13) |
 | ICA, mean matched \|Pearson r\| over 20 components | **0.9991** (worst pair 0.9960) |
-| t-SNE, 30-NN retained from PCA (truecell / R) | 0.474 / 0.477 |
-| t-SNE, 30-NN shared between the two tools | 0.862 |
+| t-SNE, 30-NN retained from PCA (truecell / R) | 0.474 / 0.476 |
+| t-SNE, 30-NN shared between the two tools | 0.844 |
 
 **Found and fixed two defects** — `jack_straw` built its permutation null
 against a fixed PCA basis instead of refitting per replicate, and
@@ -742,10 +742,10 @@ python  tutorials/generate_sketch_plots.py
 
 | Comparison | Agreement |
 |---|---:|
-| Leverage, exact regime — per-cell Spearman vs R | **1.000000** (max abs diff 3.4e-6) |
-| Does leverage track rarity? Spearman(mean leverage, type size) | truecell −0.929 · R −0.929 |
-| `project_data` labels — per-cell agreement with R | **94.9 %** (98.1 % on a shared sketch) |
-| `project_data` accuracy vs held-out annotations | truecell 0.9050 · R 0.9050 |
+| Leverage, exact regime — per-cell Spearman vs R | **1.000000** (max abs diff 4.0e-6) |
+| Does leverage track rarity? Spearman(mean leverage, type size) | truecell −0.918 · R −0.918 |
+| `project_data` labels — per-cell agreement with R | **94.6 %** (99.2 % on a shared sketch) |
+| `project_data` accuracy vs held-out annotations | truecell 0.9074 · R 0.9029 |
 
 **Found and fixed two defects** — `leverage_score` whitened against the full
 matrix rank instead of Seurat's rank-50 truncation, which flattened the
@@ -906,11 +906,11 @@ python  tutorials/generate_de_plots.py
 
 | Comparison | Agreement |
 |---|---:|
-| `avg_log2FC` vs Seurat, all genes | max abs diff **6.22e-15** |
+| `avg_log2FC` vs Seurat, all genes | max abs diff **1.78e-15** |
 | Tests reproducing Seurat's top 50 genes | **8 of 8** p-value tests (`roc` is AUC-scored) |
-| `wilcox` / `t` / `bimod` / `LR` — p-value Spearman | 1.000000 / 0.999977 / 0.999996 / 0.999981 |
+| `wilcox` / `t` / `bimod` / `LR` — p-value Spearman | 1.000000 / 0.999977 / 0.999996 / 0.999977 |
 | `mast` — Spearman, detected >5 % | **0.9993** |
-| `negbinom` — Spearman, detected >5 % | **0.9999994** |
+| `negbinom` — Spearman, detected >5 % | **0.9999995** |
 | `deseq2` — Spearman, detected >5 % | **0.9999991**; the same 712 genes at `p_val_adj` < 0.05 |
 
 **Found and fixed two defects** — `avg_log2FC` put Seurat's pseudocount on
