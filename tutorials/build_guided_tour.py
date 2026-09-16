@@ -246,6 +246,10 @@ the rest were detected in fewer than three cells, so nothing downstream could ha
 them anyway — you cannot compare a gene across groups if only two cells in the entire
 experiment ever showed it.
 
+The warning is one Seurat gives too. Its objects can't hold underscores in gene names, so
+`CreateSeuratObject` turns them into dashes; truecell does the same, so every gene has one
+name in both tools.
+
 ### What's inside the object
 
 Four containers, and every step from here writes into one of them:
@@ -473,7 +477,7 @@ for i, g in enumerate(hvg[:10], 1):
 code(r"""
 from truecell import variable_feature_plot
 
-show(variable_feature_plot(pbmc, label=True, n_label=10, figsize=(9, 5)))
+show(variable_feature_plot(pbmc, label=True, n_label=10, repel=True, figsize=(9, 5)))
 """)
 
 md(r"""
@@ -619,10 +623,10 @@ for cid, n in sizes.items():
 """)
 
 md(r"""
-Eight groups, from 692 cells down to 14. **Clusters are numbered by size**, largest first —
-which is why cluster 7 here is that 14-cell sliver. Hold on to it; small clusters are
-routinely the interesting ones, and this one turns out to be a genuine cell type rather
-than debris.
+Nine groups, from 703 cells down to 14. **Clusters are numbered by size**, largest first —
+which is why the last two, cluster 7 with 32 cells and cluster 8 with 14, are the slivers.
+Hold on to them; small clusters are routinely the interesting ones, and both turn out to be
+genuine cell types rather than debris.
 
 ### `resolution` is a dial, not a truth
 
@@ -685,12 +689,14 @@ code(r"""
 from truecell import run_umap, dim_plot
 
 run_umap(pbmc, dims=range(10), reduction_name="umap", seed=42)
-show(dim_plot(pbmc, reduction="umap", label=True,
-              title="Eight clusters, no names yet", figsize=(8, 6.5)))
+# repel=True, as in Seurat's DimPlot, moves labels off each other and off the
+# small clusters, which a label left at the centre can hide.
+show(dim_plot(pbmc, reduction="umap", label=True, repel=True,
+              title="Nine clusters, no names yet", figsize=(8, 6.5)))
 """)
 
 md(r"""
-There's the map. Eight islands, each a group of cells the data insists belong together —
+There's the map. Nine islands, each a group of cells the data insists belong together —
 and every one of them still anonymous.
 """)
 
@@ -754,7 +760,7 @@ A completely different list — and now it means something. `CCR7`, `LEF1`, `TCF
 are the naive-T-cell programme, and every one of them has a `pct.1` three to four times its
 `pct.2`. Cluster 0 has declared itself.
 
-Now all eight clusters at once — eight tests across thousands of genes, and still a second
+Now all nine clusters at once — nine tests across thousands of genes, and still a second
 or two, because the marker code filters genes before it densifies anything.
 """)
 
@@ -855,11 +861,15 @@ cell_types = {
     "4": "CD8 T",
     "5": "FCGR3A+ Mono",
     "6": "NK",
-    "7": "Platelet",
+    "7": "DC",
+    "8": "Platelet",
 }
 
+# The map has to name exactly the clusters this run produced; the section below says why.
+assert set(cell_types) == set(map(str, pbmc.idents)), sorted(set(map(str, pbmc.idents)))
+
 pbmc.rename_idents(cell_types)
-show(dim_plot(pbmc, reduction="umap", label=True,
+show(dim_plot(pbmc, reduction="umap", label=True, repel=True,
               title="PBMC 3k — annotated", figsize=(9, 7)))
 """)
 
@@ -868,72 +878,74 @@ md(r"""
 turned into a map of the human immune system — every label derived from the data, none of
 it supplied by us.
 
-### One caveat, stated plainly
+### Nine — and why to distrust the number anyway
 
-The Seurat tutorial this mirrors ends with **nine** cell types. We have eight, and the
-missing one is dendritic cells.
+The Seurat tutorial this mirrors ends with **nine** cell types, and so does this one, down to
+the 32 dendritic cells and the 14 platelets. That agreement is recent. truecell 1.2.0 clustered
+this same graph with a single pass of igraph's Louvain, which settles in a shallower optimum,
+and there the dendritic cells sat inside the CD14+ monocytes: eight clusters. `find_clusters`
+now runs Seurat's own modularity optimiser, restarts and random stream included, and on the
+same graph it returns Seurat's partition.
 
-They aren't lost — at resolution 0.5 they sit inside the CD14+ monocyte cluster, which is
-biologically reasonable, since DCs and monocytes are close relatives sharing much of the
-myeloid programme. Check it yourself: `FCER1A`, the DC marker, is faintly on in the CD14+
-Mono cluster and absent everywhere else.
-
-You have two ways to pull them out, and both are legitimate:
-
-- **Raise the resolution** — we already computed `res_1.5`.
-- **Subcluster** — take the monocytes alone, `.subset()`, and re-run the pipeline on them.
-  This is usually the better move, because a rare population competes for attention against
-  the whole dataset at high resolution but has the field to itself in a subset.
-
-Don't take that on trust — the columns are sitting in the metadata, so go and look:
+So is nine the right answer? The data can tell you something more useful than a count:
+whether a group holds together as you turn the dial. We computed five resolutions earlier, so
+follow `FCER1A`, the dendritic-cell marker, through all of them:
 """)
 
 code(r"""
 from truecell import average_expression
 
-# Where does FCER1A live once the resolution is turned up?
 saved = pbmc.idents                       # keep the annotated labels
-pbmc.idents = pbmc.meta_data["res_1.5"]
 
-dc_check = average_expression(pbmc, features=["FCER1A", "CD14", "CST3"]).round(2)
-winner = dc_check.loc["FCER1A"].idxmax()
-
-print(f"FCER1A is highest in res-1.5 cluster {winner} "
-      f"({(pbmc.meta_data['res_1.5'] == winner).sum()} cells)\n")
-print(dc_check[[winner] + [c for c in dc_check.columns if c != winner][:4]].to_string())
+for col in ["res_0.1", "res_0.3", "res_0.5", "res_1.0", "res_1.5"]:
+    pbmc.idents = pbmc.meta_data[col]
+    fcer1a = average_expression(pbmc, features=["FCER1A"]).loc["FCER1A"]
+    top = fcer1a.idxmax()
+    size = (pbmc.meta_data[col] == top).sum()
+    print(f"  {col}: FCER1A highest in a {size:>3}-cell cluster, "
+          f"{fcer1a[top]:5.2f} against at most {fcer1a.drop(top).max():.2f} elsewhere")
 
 pbmc.idents = saved                       # put the names back
 """)
 
 md(r"""
-There they are. A **32-cell cluster** where `FCER1A` reads ~15 against ≤0.3 in every other
-cluster in the dataset — dendritic cells, cleanly separated, and the same 32 cells Seurat
-finds. They were never missing; they were just below the resolution we chose to look at.
+At 0.1 the dendritic cells are part of a 688-cell monocyte cluster, where `FCER1A` averages
+under 1. From 0.3 to 1.5 they are the same 32 cells every time, with `FCER1A` near 15 against
+at most 0.3 in any other cluster. **A group that holds together across the whole range of
+sensible resolutions is a population; a group that appears at one setting is a parameter
+choice.**
 
-We're leaving the main annotation at eight on purpose. **A tutorial that quietly matched a target number
-would be teaching you the wrong lesson.** Cluster counts move with parameters, with package
-versions, with the random seed. What's stable is the marker evidence, and that's what you
-should trust — the identity of a cluster is the genes it expresses, not its position in a
+When a population only appears at high resolution, subclustering is usually the better way
+to look for it: `.subset()` the lineage and re-run the pipeline on it alone. At high
+resolution a rare population competes for attention with the whole dataset; in a subset it
+has the field to itself.
+
+Cluster counts move with parameters, with the random seed, and with package versions — this
+one moved with a package version. What's stable is the marker evidence, and that's what you
+should trust: the identity of a cluster is the genes it expresses, not its position in a
 list.
 
 ### One more thing worth knowing about `rename_idents`
 
-It maps **positionally**. Hand it a dictionary whose length doesn't match the number of
-clusters and it won't error — it will silently shift every label from the mismatch onward,
-and your figure will be confidently, invisibly wrong.
+It maps **by name**, and it never complains. A cluster the dictionary doesn't mention keeps its
+number; a key the clustering didn't produce is ignored. So a map written for one clustering and
+applied to another doesn't fail — it names whatever now carries each number, and your figure is
+confidently, invisibly wrong.
 
-This is not hypothetical. Exactly that bug shipped in this project: a nine-entry map applied
-to eight clusters, captioning the platelets as "DC" in a published figure. It's the reason
-truecell's own tutorial now has a test asserting the map's keys equal the clusters the
-pipeline actually produced. **If you take one operational habit from this notebook: after
-renaming, look at the plot and check a marker.**
+This is not hypothetical. Exactly that shipped in this project: a nine-entry map applied to
+eight clusters captioned the platelets as "DC" in a published figure. Cluster numbers are not
+identities; change a parameter or a package version and cluster 7 can be a different
+population. That's why truecell's own tutorial has a test asserting the map's keys equal the
+clusters the pipeline produced, and why the annotation cell above asserts the same before it
+draws anything. **If you take one operational habit from this notebook: after renaming, look
+at the plot and check a marker.**
 """)
 
 code(r"""
 # Verify rather than trust: does each label lead on the gene it should?
 check = {"Naive CD4 T": "CCR7", "CD14+ Mono": "CD14", "Memory CD4 T": "IL7R",
          "B": "MS4A1", "CD8 T": "CD8A", "FCGR3A+ Mono": "FCGR3A",
-         "NK": "GNLY", "Platelet": "PPBP"}
+         "NK": "GNLY", "DC": "FCER1A", "Platelet": "PPBP"}
 
 avg = average_expression(pbmc, features=list(check.values()))
 
@@ -1071,9 +1083,9 @@ pd.DataFrame({
 """)
 
 md(r"""
-NK versus CD8 T is a genuinely hard call — closely related killers — and five of the top six
-are the same across all four tests, in slightly different orders. That's the usual outcome,
-and it's worth knowing: **the choice of statistic matters far less than people expect.**
+NK versus CD8 T is a genuinely hard call — closely related killers — and yet `GZMB` leads all
+four tests, and `PRF1`, `TYROBP` and `GNLY` make every test's top six too. That's the usual
+outcome, and it's worth knowing: **the choice of statistic matters far less than people expect.**
 `wilcox` is the
 default because it's rank-based and makes almost no assumptions, not because it's uniquely
 correct.
@@ -1108,8 +1120,9 @@ Want a marker to name a cluster? Take the AUC list. Want to know what's biologic
 between two populations? The fold-change list holds things AUC buries. The lesson generalises
 well past this function: **when a tool ranks things for you, find out what it ranked by.**
 
-Also available: `LR` (with covariates via `latent_vars`), `negbinom`, `mast`, and `deseq2` for
-pseudobulk DE with `sample_col=`.
+Also available: `LR` (with covariates via `latent_vars`), `negbinom`, `poisson`, `mast`, and
+`deseq2`, which tests every cell as a replicate, as Seurat's does, or sums each sample's cells
+first with `sample_col=`.
 
 ### Pulling values out for your own analysis
 
@@ -1134,7 +1147,7 @@ code(r"""
 from truecell import theme_context
 
 with theme_context(base_size=13, style="minimal"):
-    show(dim_plot(pbmc, reduction="umap", label=True,
+    show(dim_plot(pbmc, reduction="umap", label=True, repel=True,
                   title="same plot, different theme", figsize=(8, 6.5)))
 """)
 
@@ -1197,7 +1210,7 @@ map_query(anchors, query=query, reference=ref)             # + place it in the r
 ```
 
 → [Reference mapping tutorial](https://genomicai.github.io/truecell/tutorials/refmap_vignette/) —
-98.71% per-cell concordant with R Seurat on the panc8 cross-technology benchmark.
+98.87% per-cell concordant with R Seurat on the panc8 cross-technology benchmark.
 
 ### CITE-seq — RNA and surface protein together
 
@@ -1353,8 +1366,9 @@ Two differences that will bite if you don't know them:
 
 Fair question, and the project treats it as the central one. Each tutorial has a matching R
 script that runs the same analysis in Seurat, and the two are compared numerically rather
-than by eye. Deterministic steps agree to floating-point precision; steps with an RNG
-(Louvain, UMAP, the module-score control sets) agree within measured, declared bands.
+than by eye. Deterministic steps agree to floating-point precision. Louvain carries Seurat's own
+random stream, so the same graph gives Seurat's clusters; steps whose RNG differs between the
+languages (UMAP, the module-score control sets) agree within measured, declared bands.
 
 Where they disagreed, the cause has more than once turned out to be a defect on the
 **truecell** side — found by these comparisons and fixed — and at least once a defect in

@@ -324,6 +324,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A `find_clusters` call that fails part way writes nothing**, as
   `FindClusters` does: every resolution's column is built before any is stored.
   A failure at a later resolution used to leave the earlier columns on the object.
+- **The guided-tour notebook follows the clusters this release finds.** Its annotation
+  named 1.2.0's eight clusters, so against the nine `find_clusters` now finds it left one
+  numbered, and its prose explained how the dendritic cells go missing at resolution 0.5,
+  which they no longer do. It now names all nine and asserts that its map covers exactly
+  the clusters produced. It follows `FCER1A` across five resolutions to show the 32
+  dendritic cells holding together from 0.3 to 1.5. It says that `rename_idents` maps by
+  name, where it claimed position. Its test-menu, cell-cycle and catalogue passages were
+  checked against a run on this release, and its labelled plots repel. The notebook is
+  committed without outputs until it is run in Colab against the release.
 - **The DE tutorial's `roc` band no longer fails a run that meets Seurat's
   rounding exactly.** Seurat rounds `myAUC` to three decimals, so the two AUCs can
   differ by at most 5e-4, but `0.488 - 0.4875` is 0.0005000000000000004, and six of
