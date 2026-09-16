@@ -48,11 +48,11 @@ numbers rather than declaring success. A few of them:
 | Comparison | Result |
 |---|---|
 | Object model — `Cells`, `Layers`, `FetchData`, `Idents`, `Command` | 91 of 91 anchors exact, no tolerance |
-| Differential expression, all nine tests | seven per-cell p-value tests reproduce Seurat's top 50 exactly; `avg_log2FC` to 7.1e-15 |
+| Differential expression, all nine tests | all eight p-value tests reproduce Seurat's top 50 exactly; `avg_log2FC` to 1.8e-15 |
 | Anchors, RPCA | 649 of 649 of Seurat's v4 anchors, 30 of 30 v5 embedding PCs |
 | Moran's I on 36,602 Xenium cells | 1.6e-14, on a slide R cannot hold in memory |
 | Cell hashing against cross-species ground truth | 99.81 % call-concordant |
-| Label transfer, celseq2 → smartseq2 | 98.71 % per-cell concordant |
+| Label transfer, celseq2 → smartseq2 | 98.87 % per-cell concordant |
 
 The tutorials are not a demo. **They are how the defects were found** — dozens of
 them in this package, and one in Seurat. Each vignette says which bugs its

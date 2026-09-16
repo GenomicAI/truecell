@@ -46,7 +46,7 @@ truecell.project_data(
 Each cell is sampled without replacement with probability proportional to its
 **statistical leverage** — how much of the data's variance it accounts for. Rare
 populations are kept and indeed over-represented, where uniform sampling would
-lose them. Leverage tracks rarity at **−0.929** in both truecell and Seurat.
+lose them. Leverage tracks rarity at **−0.918** in both truecell and Seurat.
 
 `method="Uniform"` is the control, not a lesser option: run it to see what
 leverage weighting is buying you on *your* data.
@@ -78,8 +78,9 @@ renamed to `sketched_assay` (default `"sketch"`) so the provenance is visible, a
 
 Step 3 is deliberately **not** the anchor path. Finding anchors between the
 sketch and the full dataset costs exactly what sketching exists to avoid — on a
-million-cell object the anchor route is unusable, not merely different. The two
-agree per-cell 98.1 % of the time at matching accuracy.
+million-cell object the anchor route is unusable, not merely different. Given the
+same sketch, truecell and Seurat project the same label onto 99.2 % of cells, at
+matching accuracy.
 
 `project_data` takes no `seed`: the label vote is deterministic.
 
@@ -92,7 +93,7 @@ agree per-cell 98.1 % of the time at matching accuracy.
   knob; the default is fine unless leverage looks degenerate.
 
 Measured against Seurat: exact-regime Spearman **1.000000**; projected label
-accuracy 0.9050 on both sides.
+accuracy 0.9074 in truecell and 0.9029 in Seurat, each from its own sketch.
 
 **Cautionary note from this feature's own history.** `project_data` scored
 *above* Seurat while it was broken. A divergence that flatters the port is a

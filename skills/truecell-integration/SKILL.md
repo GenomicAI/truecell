@@ -120,8 +120,8 @@ truecell.project_umap(qry, ref, reduction="pca", umap_reduction="umap")
 - `map_query` needs the reference to carry a fitted UMAP model
   (`run_umap` on the reference, before mapping).
 
-Label transfer is **98.71 % per-cell concordant** with R Seurat on the panc8
-cross-technology benchmark, both ~98.5 % accurate against held-out ground truth.
+Label transfer is **98.87 % per-cell concordant** with R Seurat on the panc8
+cross-technology benchmark, both ~98.7 % accurate against held-out ground truth.
 
 **Always keep the prediction score.** `prediction.score.max` is how you find the
 query cells whose type is absent from the reference — they get a confident-looking
@@ -158,7 +158,7 @@ biology; cell-type ARI alone is maximised by not integrating at all.
 | Anchor finding crashes or is empty | Objects not scaled, or no shared variable features. Anchor input is `layer="scale.data"`. |
 | Cell types merge that shouldn't | CCA over-correcting; try `rpca`, or reduce `k_anchor`. |
 | Query cells confidently mislabelled | A type missing from the reference. Check `prediction.score.max`. |
-| Cluster count differs from Seurat | Expected. On ifnb RPCA, Seurat's deeper modularity search buys 0.17 % modularity by splitting CD14 Mono **on batch**; truecell's coarser partition scores ARI 0.92 to the annotations against Seurat's 0.74. |
+| Clusters differ from Seurat's | `find_clusters` runs Seurat's own modularity optimiser, so the same graph gives Seurat's partition. Look at the graph: Seurat's default annoy neighbours are approximate (`nn.method = "rann"` for a like-for-like check), or the embeddings differ. On ifnb RPCA both tools split CD14 Mono **on batch**; `optimizer="igraph"`'s shallower single pass does not. |
 
 ## Reference
 
