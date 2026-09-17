@@ -426,6 +426,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the dendritic cells.
   - The R figures that changed on the re-run are committed. R reproduced every one of
     them byte for byte on a second run.
+- **The PBMC 3k tutorial names its CD8 T and NK clusters again.** Its
+  `_assign_cell_types` handed cell types out cluster by cluster, each cluster taking
+  the best-scoring type still free. With Seurat's optimiser, both NK genes reach the
+  CD8 T cluster's top 50 markers, so that cluster took NK, two panel genes to CD8 T's
+  one, and the NK cluster was left "Unknown". The script printed both wrongly, and the
+  report's label agreement with Seurat fell to 82.0 % while the clusters agreed on
+  97.1 % of cells. Each cell type now names at most one cluster, in the assignment
+  that matches the most panel genes overall; ties go to the earlier cluster, then the
+  earlier panel. `pbmc3k_verify.R` labels Seurat's clusters the same way. Label
+  agreement is 97.1 %, all nine matched clusters named alike (1.2.0: 95.5 %, with no
+  dendritic-cell cluster). The published tutorial names the clusters from a fixed
+  map, as Seurat's does, so it was never affected. Found by running every tutorial
+  against 1.2.0 on the same machine: 11 reports were identical, 2 improved, and 5
+  moved closer to Seurat overall with some numbers lower, each of those already
+  explained in its vignette except this one.
 
 ## [1.2.0] - 2026-08-10
 

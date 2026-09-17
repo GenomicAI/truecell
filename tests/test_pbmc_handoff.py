@@ -10,12 +10,19 @@ between each `--report` and the R script that feeds it.
 import re
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tutorials.pbmc3k_tutorial import _r_symbols, match_partitions  # noqa: E402
+from tutorials.pbmc3k_tutorial import (  # noqa: E402
+    CELL_TYPE_PANELS,
+    _assign_cell_types,
+    _r_symbols,
+    match_partitions,
+)
 
 TUTORIALS = Path(__file__).resolve().parent.parent / "tutorials"
 
@@ -90,6 +97,91 @@ def test_gene_symbols_are_mapped_to_reads10x_spelling():
         ["RP11-34P13-3", "MIR1302-2", "LYZ"]
     # idempotent: running it on already-mapped symbols is a no-op
     assert _r_symbols(_r_symbols(["A_B_C"])) == ["A-B-C"]
+
+
+# ---------------------------------------------------------------------------
+# The cell-type labeller
+# ---------------------------------------------------------------------------
+
+def _label(top_markers):
+    """Run `_assign_cell_types` on each cluster's markers, best first."""
+    rows = [(cluster, gene) for cluster, genes in top_markers.items() for gene in genes]
+    markers = pd.DataFrame(rows, columns=["cluster", "gene"])
+    return _assign_cell_types(markers, SimpleNamespace(idents=list(top_markers)))
+
+
+def test_labeller_keeps_nk_for_the_nk_cluster():
+    """The panel hits PBMC 3k's markers gave, once clustering matched Seurat's.
+
+    Both NK genes reached the CD8 T cluster's top 50 beside CD8A. Handing the
+    types out cluster by cluster gave that cluster NK, 2 hits to CD8 T's 1, and
+    left the NK cluster "Unknown", which dropped label agreement with Seurat to
+    82 % while the clusters themselves agreed on 97 % of cells.
+    """
+    got = _label({
+        "0": ["CCR7"],
+        "1": ["CD14", "LYZ", "S100A4", "CST3"],
+        "2": ["IL7R"],
+        "3": ["MS4A1"],
+        "4": ["CD8A", "GNLY", "NKG7"],
+        "5": ["FCGR3A", "MS4A7"],
+        "6": ["FCGR3A", "GNLY", "NKG7"],
+        "7": ["FCER1A", "CST3"],
+        "8": ["PPBP"],
+    })
+    assert got == {
+        "0": "Naive CD4 T", "1": "CD14+ Mono", "2": "Memory CD4 T", "3": "B",
+        "4": "CD8 T", "5": "FCGR3A+ Mono", "6": "NK", "7": "DC", "8": "Platelet",
+    }
+
+
+def test_labeller_names_each_cell_type_once():
+    """Two clusters that match only the same panel cannot both take its name."""
+    assert _label({"0": ["MS4A1"], "1": ["MS4A1"]}) == {"0": "B", "1": "Unknown"}
+
+
+def test_labeller_breaks_ties_in_numeric_cluster_order():
+    """Cluster 2 comes before cluster 10, which string order would reverse."""
+    assert _label({"10": ["PPBP"], "2": ["PPBP"]}) == {"2": "Platelet", "10": "Unknown"}
+
+
+def test_labeller_breaks_ties_in_panel_order():
+    """A cluster matching two panels equally takes the one listed first."""
+    assert _label({"0": ["MS4A1", "CD8A"]}) == {"0": "B"}
+
+
+def test_labeller_saves_a_type_for_the_cluster_that_matches_it_better():
+    """An earlier, weaker match stays "Unknown" rather than take the name."""
+    assert _label({"0": ["GNLY"], "1": ["GNLY", "NKG7"]}) == {"0": "Unknown", "1": "NK"}
+
+
+def test_labeller_does_not_spend_a_type_on_a_cluster_without_its_genes():
+    """A cluster with no panel gene is "Unknown" and uses up no cell type."""
+    assert _label({"0": ["ACTB"], "1": ["CD8A"]}) == {"0": "Unknown", "1": "CD8 T"}
+
+
+def test_labeller_reads_only_the_top_50_markers():
+    """A panel gene at 51st place does not count."""
+    filler = [f"GENE{i}" for i in range(50)]
+    assert _label({"0": filler + ["MS4A1"]}) == {"0": "Unknown"}
+    assert _label({"0": filler[:49] + ["MS4A1"]}) == {"0": "B"}
+
+
+def test_python_and_r_label_with_the_same_panels_in_the_same_order():
+    """The panels live in two files, and their order decides ties.
+
+    `pbmc3k_verify.R` labels Seurat's clusters with its own copy of the labeller,
+    so a panel edited on one side only, or two panels swapped, would show up in
+    the report as clusters the two tools disagree about.
+    """
+    r_text = (TUTORIALS / "pbmc3k_verify.R").read_text()
+    block = r_text[r_text.index("MARKERS_REF <- list("):]
+    block = block[:block.index("\n)")]
+    r_panels = {
+        name: re.findall(r'"([^"]+)"', genes)
+        for name, genes in re.findall(r'"([^"]+)"\s*=\s*c\(([^)]*)\)', block)
+    }
+    assert list(r_panels.items()) == list(CELL_TYPE_PANELS.items())
 
 
 # ---------------------------------------------------------------------------
