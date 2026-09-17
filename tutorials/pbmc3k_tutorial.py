@@ -21,6 +21,7 @@ Stuart et al. (2019) Cell — https://doi.org/10.1016/j.cell.2019.05.031
 from __future__ import annotations
 
 import argparse
+import functools
 import sys
 import time
 from pathlib import Path
@@ -368,54 +369,72 @@ def run_tutorial(data_dir: str | None = None) -> None:
     return pbmc, all_markers
 
 
+# Canonical markers for each cell type. The order breaks ties (see
+# `_assign_cell_types`), so `pbmc3k_verify.R` lists the same panels in the same
+# order, and a test holds the two files to it.
+CELL_TYPE_PANELS = {
+    "Naive CD4 T":   ["IL7R", "CCR7"],
+    "CD14+ Mono":    ["CD14", "LYZ"],
+    "Memory CD4 T":  ["IL7R", "S100A4"],
+    "B":             ["MS4A1"],
+    "CD8 T":         ["CD8A"],
+    "FCGR3A+ Mono":  ["FCGR3A", "MS4A7"],
+    "NK":            ["GNLY", "NKG7"],
+    "DC":            ["FCER1A", "CST3"],
+    "Platelet":      ["PPBP"],
+}
+
+
 def _assign_cell_types(
     all_markers: pd.DataFrame,
     pbmc,
-) -> dict[int, str]:
-    """Heuristically assign cell types to clusters based on top markers.
+) -> dict[str, str]:
+    """Name each cluster after the canonical panel its top 50 markers match.
 
-    Mirrors the manual annotation step in the R tutorial.
+    Mirrors the manual annotation step in the R tutorial. A cluster scores a
+    point for each panel gene among its top 50 markers, each cell type names at
+    most one cluster, and the assignment with the highest total score wins. A
+    cluster that no free panel matches is "Unknown".
+
+    Handing the types out cluster by cluster instead, each cluster taking the
+    best type still free, lets an early cluster spend a type a later one needs
+    more. On PBMC 3k both NK genes reach the CD8 T cluster's top 50, so that
+    cluster took NK, 2 hits to CD8 T's 1, and the NK cluster came out "Unknown".
     """
-    # Canonical markers for each cell type (ordered by specificity)
-    markers_ref = {
-        "Naive CD4 T":   ["IL7R", "CCR7"],
-        "CD14+ Mono":    ["CD14", "LYZ"],
-        "Memory CD4 T":  ["IL7R", "S100A4"],
-        "B":             ["MS4A1"],
-        "CD8 T":         ["CD8A"],
-        "FCGR3A+ Mono":  ["FCGR3A", "MS4A7"],
-        "NK":            ["GNLY", "NKG7"],
-        "DC":            ["FCER1A", "CST3"],
-        "Platelet":      ["PPBP"],
-    }
-
-    # Sort numerically, not lexicographically: a type is consumed once assigned
-    # (`used_types` below), so the loop order is part of the definition, and
-    # string order would visit cluster 10 before cluster 2 and hand out the
-    # panels in a different sequence. `pbmc3k_verify.R` iterates the same way.
+    # Sort numerically, not lexicographically. Among assignments with the same
+    # total, the earliest cluster takes the earliest panel that still allows it,
+    # so the order is part of the definition, and string order would put
+    # cluster 10 before cluster 2. `pbmc3k_verify.R` iterates the same way.
     clusters = sorted(set(str(i) for i in pbmc.idents), key=int)
-    cluster_top_genes: dict[str, set] = {}
+    types = list(CELL_TYPE_PANELS)
+    score = []
     for cluster in clusters:
         sub = all_markers[all_markers["cluster"] == cluster].head(50)
-        cluster_top_genes[cluster] = set(sub["gene"].tolist())
+        top_genes = set(sub["gene"].tolist())
+        score.append([sum(g in top_genes for g in CELL_TYPE_PANELS[t]) for t in types])
+
+    # The best total that clusters i onwards can still reach when the types in
+    # the bitmask `used` are taken. Nine panels make 512 masks, so this is exact.
+    @functools.cache
+    def best(i: int, used: int) -> int:
+        if i == len(clusters):
+            return 0
+        total = best(i + 1, used)  # cluster i left "Unknown"
+        for j in range(len(types)):
+            if score[i][j] and not used >> j & 1:
+                total = max(total, score[i][j] + best(i + 1, used | 1 << j))
+        return total
 
     assignment: dict[str, str] = {}
-    used_types: set[str] = set()
-
-    for cluster in clusters:
-        top_genes = cluster_top_genes.get(cluster, set())
-        best_type = "Unknown"
-        best_score = 0
-        for cell_type, canon in markers_ref.items():
-            if cell_type in used_types:
-                continue
-            score = sum(1 for g in canon if g in top_genes)
-            if score > best_score:
-                best_score = score
-                best_type = cell_type
-        if best_score > 0:
-            used_types.add(best_type)
-        assignment[cluster] = best_type
+    used = 0
+    for i, cluster in enumerate(clusters):
+        assignment[cluster] = "Unknown"
+        for j, cell_type in enumerate(types):
+            if (score[i][j] and not used >> j & 1
+                    and score[i][j] + best(i + 1, used | 1 << j) == best(i, used)):
+                assignment[cluster] = cell_type
+                used |= 1 << j
+                break
 
     return assignment
 
@@ -702,12 +721,11 @@ def report() -> None:
 
     # ---- 5. the cell-type labels, which share a vocabulary -----------------
     # Read this against the table above, not on its own. `_assign_cell_types`
-    # is a greedy heuristic that consumes each cell type once, scoring clusters
-    # on whether canonical genes reach their top 50 markers — so a cluster the
-    # two tools agree about, cell for cell, can still come out with different
-    # labels if one marker slipped in or out of a top-50 list. Where that
-    # happens the "<-- differs" flag above is the honest reading, not this
-    # number.
+    # scores clusters on whether canonical genes reach their top 50 markers and
+    # gives each cell type to one cluster — so a cluster the two tools agree
+    # about, cell for cell, can still come out with different labels if one
+    # marker slipped in or out of a top-50 list. Where that happens the
+    # "<-- differs" flag above is the honest reading, not this number.
     same = (p["celltype"].astype(str).to_numpy() == r["celltype"].astype(str).to_numpy())
     agree = sum(1 for a, b in m["mapping"].items()
                 if p.loc[p["cluster"].astype(str) == a, "celltype"].mode().iat[0]

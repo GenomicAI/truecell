@@ -82,11 +82,13 @@ all_markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25,
                               logfc.threshold = 0.25, verbose = FALSE)
 
 # ---- cell-type annotation (_assign_cell_types ported from the Python side) ---
-# The tutorial's RenameIdents() step. Each cluster is scored against the
-# canonical panels on its top-50 markers, highest score wins, and a cell type is
-# consumed once it has been assigned — so the loop order over clusters is part
-# of the definition. Iterate numerically (0, 1, ..., 10, 11), matching the
-# Python helper.
+# The tutorial's RenameIdents() step. Each cluster scores a point for each
+# canonical panel gene among its top-50 markers, each cell type names at most one
+# cluster, and the assignment with the highest total wins. Among assignments with
+# the same total, the earliest cluster takes the earliest panel that still allows
+# it — so the loop order over clusters and panels is part of the definition.
+# Iterate clusters numerically (0, 1, ..., 10, 11) and keep the panels in the
+# Python helper's order.
 MARKERS_REF <- list(
   "Naive CD4 T"  = c("IL7R","CCR7"),   "CD14+ Mono"   = c("CD14","LYZ"),
   "Memory CD4 T" = c("IL7R","S100A4"), "B"            = c("MS4A1"),
@@ -96,21 +98,40 @@ MARKERS_REF <- list(
 )
 assign_cell_types <- function(markers, obj) {
   clusters <- as.character(sort(unique(as.integer(as.character(Idents(obj))))))
-  top50 <- lapply(clusters, function(c) {
-    df <- markers[as.character(markers$cluster) == c, ]
-    head(df$gene, 50)
-  })
-  names(top50) <- clusters
-  assignment <- character(); used <- character()
-  for (c in clusters) {
-    best <- "Unknown"; best_score <- 0
-    for (ct in names(MARKERS_REF)) {
-      if (ct %in% used) next
-      score <- sum(MARKERS_REF[[ct]] %in% top50[[c]])
-      if (score > best_score) { best_score <- score; best <- ct }
+  types <- names(MARKERS_REF)
+  n <- length(clusters); k <- length(types)
+  score <- matrix(0, n, k)
+  for (i in seq_len(n)) {
+    df <- markers[as.character(markers$cluster) == clusters[i], ]
+    top50 <- head(df$gene, 50)
+    for (j in seq_len(k)) score[i, j] <- sum(MARKERS_REF[[types[j]]] %in% top50)
+  }
+  # best(i, used): the highest total clusters i..n can still reach when the
+  # types in the bitmask `used` are taken. Nine panels make 512 masks.
+  memo <- matrix(NA_real_, n + 1, 2^k)
+  best <- function(i, used) {
+    if (i > n) return(0)
+    if (is.na(memo[i, used + 1])) {
+      total <- best(i + 1, used)  # cluster i left "Unknown"
+      for (j in seq_len(k)) {
+        bit <- bitwShiftL(1L, j - 1L)
+        if (score[i, j] > 0 && bitwAnd(used, bit) == 0)
+          total <- max(total, score[i, j] + best(i + 1, bitwOr(used, bit)))
+      }
+      memo[i, used + 1] <<- total
     }
-    if (best_score > 0) used <- c(used, best)
-    assignment[c] <- best
+    memo[i, used + 1]
+  }
+  assignment <- setNames(rep("Unknown", n), clusters); used <- 0L
+  for (i in seq_len(n)) {
+    for (j in seq_len(k)) {
+      bit <- bitwShiftL(1L, j - 1L)
+      if (score[i, j] > 0 && bitwAnd(used, bit) == 0 &&
+          score[i, j] + best(i + 1, bitwOr(used, bit)) == best(i, used)) {
+        assignment[i] <- types[j]; used <- bitwOr(used, bit)
+        break
+      }
+    }
   }
   assignment
 }
