@@ -40,6 +40,10 @@ p-value hands you ribosomal genes.
 
 ## Tutorial Overview
 
+The numbers below were measured on an Apple M5 Pro.
+[Which machine the numbers come from](#which-machine-the-numbers-come-from) has the
+same runs on Linux x86-64.
+
 | # | Tutorial | Dataset | Key Concepts | Complexity |
 |---|----------|---------|--------------|-----------|
 | 1 | [PBMC 3k — Guided Clustering](pbmc3k_tutorial.md) | 3,000 PBMCs · 10x Genomics (2016) | QC · Normalization · HVG/VST · PCA · Louvain · UMAP · Markers. **Compared end to end**, both sides running their own pipeline: the same 2,638 barcodes survive QC, 1,998/2,000 variable features shared, PCA matched \|r\| **0.9986**, clusters at **ARI 0.928** (9 vs 9), and on the three clusters whose cells match exactly the marker tables are **identical gene sets** agreeing to 4.6e-14 | Beginner |
@@ -70,8 +74,8 @@ Clone the repo and install dependencies once, then pick any tutorial script:
 ```bash
 git clone https://github.com/GenomicAI/truecell.git
 cd truecell
-uv venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-uv pip install -e ".[analysis]"
+uv sync --all-extras --locked          # the versions the figures were drawn with
+source .venv/bin/activate              # Windows: .venv\Scripts\activate
 ```
 
 The scripts don't need the editable install. From a checkout of a release's tag
@@ -82,8 +86,8 @@ change.
 Each tutorial has a **Python script** that runs the analysis and prints validation output,
 and a **figure-generation script** that writes plots to a `figures_*/` subfolder.
 
-The datasets download automatically on first run, to `~/.truecell_data/` (~200 MB
-~770 MB with every dataset cached).
+The datasets download automatically on first run, to `~/.truecell_data/` (about
+770 MB with every dataset cached).
 
 ### Checking the tutorials still run
 
@@ -123,6 +127,64 @@ Every tutorial pairs R and Python on the **same counts**. Two ways that happens:
   Then `truecell.datasets.ifnb()` / `panc8()` load that export in Python. (This is
   the mirror of the `*_verify.R` scripts, where R instead depends on the Python
   download.) Needs R with `Seurat` + `SeuratData`.
+
+---
+
+## Which machine the numbers come from
+
+Every number on these pages was measured on an **Apple M5 Pro**: macOS 27, R 4.6.1
+linked against Apple's Accelerate BLAS, and Python from `uv.lock`. Before 2.0.0 all
+eighteen tutorials were also run, unchanged, on **Linux x86-64**: Ubuntu 24.04 on 8
+cores, R 4.6.1 on OpenBLAS 0.3.26, and the same `uv.lock`. The R packages were the
+Mac's, version for version, except four Bioconductor infrastructure packages one
+patch release ahead (S4Vectors, rhdf5, rhdf5filters and h5mread). Each tutorial ran
+Python, then R, then its report, as on the Mac.
+
+**truecell gave the same answer on both machines wherever its path is
+deterministic**: the same cells, the same 2,000 variable genes (a few that tie to
+1e-12 swap rank), PBMC 3k's nine clusters and all 2,638 of its labels, the same
+3,467 marker rows, and PCA, WNN weights, SCTransform's fitted model and fold
+changes within 2.4e-12. **Seurat moved more**, mostly towards truecell's answers
+but not always:
+
+| Tutorial | Measure | Mac | Linux |
+|---|---|---|---|
+| 1 · PBMC 3k | cluster agreement (ARI), 9 clusters on both sides | 0.928 | 0.969 |
+| | cell-type labels agreeing | 97.1 % | 98.8 % |
+| | Seurat's marker rows, against truecell's 3,467 | 3,470 | 3,446 |
+| 3 · CITE-seq | RNA clusters, truecell v Seurat | 15 v 16 | 15 v 15 |
+| | cell-type labels agreeing | 98.72 % | 99.91 % |
+| 5 · Xenium | clusters, truecell v Seurat | 19 v 20 | 19 v 19 |
+| 6 · Cell hashing | `HTODemux` calls agreeing | 99.81 % | 100.00 % |
+| 8 · Integration | cluster agreement (ARI): uncorrected · Harmony · CCA · RPCA | 0.952 · 0.964 · 0.983 · 0.942 | 0.946 · 0.976 · 0.981 · 0.957 |
+| 16 · Out of core | variable genes Seurat's on-disk run shares with its in-memory one | 1,999 | 2,000 |
+
+truecell moved as well in four places, each a step that turns rounding into a
+different choice:
+
+- **Sketching** (12): the leverage-weighted sketch drew different cells. Its
+  projected labels were 90.7 % accurate on the Mac and 91.0 % on Linux; Seurat's
+  sketch, and its 90.3 %, were the same on both.
+- **JackStraw** (11): the permutation p-values moved in both tools. truecell kept
+  14 PCs on the Mac and 13 on Linux; Seurat kept 13 on both.
+- **Anchors** (18): each tool chose a different anchor set on each machine, since
+  near-tied neighbours break differently. On each machine truecell still found
+  nearly all of Seurat's: 2,811 of 2,814 CCA anchors on the Mac and 2,791 of 2,792
+  on Linux, and every RPCA anchor on both (649, then 625).
+- **Harmony** (8): harmonypy's result moved in the fourth decimal place (cell-type
+  ARI 0.9217 on the Mac, 0.9221 on Linux).
+
+The other nine (PBMC 8k, SCTransform, Mixscape, reference mapping, cell cycle, the
+object model, spatial statistics, differential expression and Visium) reached the
+same results on both machines. What moved there was confined to the
+finest-grained agreement statistics, such as the DE vignette's p-value
+correlations with Seurat, in their fifth decimal place.
+
+The pages quote the Mac. On Linux x86-64, expect the right-hand column above. And
+compare the two tools on one machine: both move between machines, Seurat more.
+
+Every R script runs on Linux as shipped. The two THP-1 verify scripts called macOS's
+`gzcat` until 2.0.0 and now call `gzip -dc`, as the benchmark already did.
 
 ---
 
@@ -874,7 +936,7 @@ left standing on purpose, and the reasoning is in the vignette.
 
 > **Walkthrough:** [`de_vignette.md`](de_vignette.md)
 
-All **eight** `find_markers` tests against `FindMarkers`, on a shared cell
+All **nine** `find_markers` tests against `FindMarkers`, on a shared cell
 assignment so no clustering difference can pose as a DE difference. Runs on
 two clusters (703 and 480 cells) from PBMC 3k.
 
@@ -900,7 +962,7 @@ python  tutorials/generate_de_plots.py
 |--------|-------------|
 | `py_01_log2fc_vs_r.png` | `avg_log2FC`, before and after, vs R |
 | `py_02_threshold_impact.png` | Genes returned at each `logfc_threshold`, truecell vs R |
-| `py_03_test_concordance.png` | All eight tests against Seurat |
+| `py_03_test_concordance.png` | The eight tests that return a p-value, against Seurat |
 
 **Accuracy vs R** (13,714 shared genes):
 

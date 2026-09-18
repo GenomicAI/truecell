@@ -14,7 +14,7 @@ and as context for any other model.
 |---|---|
 | [`truecell`](truecell/SKILL.md) | **Start here.** Install, the six API contracts, the canonical pipeline, routing. Bundles the full [API map](truecell/reference/api-map.md) and [object model](truecell/reference/object-model.md). |
 | [`truecell-workflow`](truecell-workflow/SKILL.md) | A standard scRNA-seq run: QC thresholds, LogNormalize vs SCTransform, how many PCs, resolution, annotation. |
-| [`truecell-differential-expression`](truecell-differential-expression/SKILL.md) | Marker genes, the eight `test_use` options, pseudobulk, conserved markers. |
+| [`truecell-differential-expression`](truecell-differential-expression/SKILL.md) | Marker genes, the nine `test_use` options, pseudobulk, conserved markers. |
 | [`truecell-integration`](truecell-integration/SKILL.md) | Batch correction (Harmony/CCA/RPCA), label transfer, reference mapping, and scoring whether it worked. |
 | [`truecell-multimodal`](truecell-multimodal/SKILL.md) | CITE-seq + WNN, cell hashing, pooled CRISPR (Mixscape). Includes the CLR `margin` rule. |
 | [`truecell-spatial`](truecell-spatial/SKILL.md) | Xenium / Visium / CosMx / MERSCOPE, niches, spatially variable features, spatial plots. |

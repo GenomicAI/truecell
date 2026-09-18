@@ -104,7 +104,8 @@ pip install truecell                 # core: object model, preprocessing, PCA, m
 pip install "truecell[analysis]"     # + clustering, UMAP, plotting (matplotlib/seaborn)
 pip install "truecell[anndata]"      # + AnnData interoperability
 pip install "truecell[integration]"  # + Harmony batch correction (harmonypy)
-pip install "truecell[all]"          # everything (analysis + anndata + integration + dev/test tooling)
+pip install "truecell[deseq2]"       # + find_markers(test_use="deseq2") (pydeseq2)
+pip install "truecell[all]"          # everything (all of the above + dev/test and docs tooling)
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
@@ -118,10 +119,12 @@ uv pip install "truecell[analysis]"
 ```bash
 git clone https://github.com/GenomicAI/truecell.git
 cd truecell
-uv venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-uv pip install -e ".[all]"  # editable install + tests/linting
+uv sync --all-extras --locked   # editable install + tests/linting, at uv.lock's versions
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
 ```
+
+`--locked` installs the versions CI tests and the tutorial figures were drawn
+with; resolving fresh can give a different scientific stack.
 
 With `pip` instead of `uv`:
 
@@ -413,29 +416,28 @@ released, not just landed on `main`. Milestones:
 | v0.7.0 | Spatial — Xenium/Visium/CosMx/MERSCOPE loaders, niche/neighbourhood analysis, `find_spatially_variable_features` (Moran's I + markvariogram), `image_*` plots, `VisiumV2` tissue images, `spatial_*` H&E plots ✅ *(released in 0.9.0 — see Tutorial 5)* |
 | v0.8.0 | Scale — `SketchData`/`ProjectData` (leverage-score sketching) ✅; BPCells-style lazy on-disk matrices (`LazyMatrix`) ✅ *(released in 0.9.0)* |
 | v0.9.0 | Specialized — `HTODemux` ✅ + `MULTIseqDemux` ✅ (cell hashing); Mixscape ✅ (`CalcPerturbSig` + `RunMixscape` + `MixscapeLDA` + `PlotPerturbScore` + `MixscapeHeatmap`, CRISPR screens) — **released in 0.9.0** |
-| v0.10.0 | Infrastructure — PyPI ✅, GitHub Actions CI ✅ (3.12–3.13 matrix, wheel build + clean-install verification, coverage), [`CHANGELOG.md`](https://github.com/GenomicAI/truecell/blob/main/CHANGELOG.md) ✅, `mypy` clean ✅, this release ✅; MkDocs site on `main` but not yet released |
+| v0.10.0 | Infrastructure — PyPI ✅, GitHub Actions CI ✅ (3.12–3.13 matrix, wheel build + clean-install verification, coverage), [`CHANGELOG.md`](https://github.com/GenomicAI/truecell/blob/main/CHANGELOG.md) ✅, `mypy` in CI ✅, the [documentation site](https://genomicai.github.io/truecell/) ✅ |
 
 ---
 
 ## Running Tests
 
 ```bash
-uv pip install -e ".[dev]"
-pytest tests/ -v
+uv sync --all-extras --locked
+uv run pytest tests/ -q
 ```
 
-All 955 tests pass.
+About 1,700 tests; CI runs them on Python 3.12 and 3.13.
 
-Twenty-five further tests run the tutorials end-to-end against real data. They are opt-in
-— they need the cached datasets (~200 MB) and take minutes, so they do not run in
-CI:
+A further smoke suite runs the tutorials end to end against real data. It is opt-in:
+it needs the cached datasets and takes minutes. CI runs the part that needs only
+PBMC 3k; the rest runs on a developer's machine before each release:
 
 ```bash
 TRUECELL_TUTORIAL_SMOKE=1 pytest tests/test_tutorial_smoke.py -v
 ```
 
-Worth running before cutting a release: a green suite says nothing about the
-tutorials on its own.
+A green unit suite says nothing about the tutorials on its own.
 
 ---
 
@@ -444,7 +446,7 @@ tutorials on its own.
 | Package | Purpose |
 |---------|---------|
 | numpy, scipy, pandas | Core numerics and data frames |
-| statsmodels | LOESS smoothing for VST |
+| statsmodels | The `LR`, `poisson` and `mast` DE tests |
 | scikit-learn | PCA |
 | umap-learn | UMAP embedding |
 | numba | Seurat's modularity optimiser (`find_clusters`) |

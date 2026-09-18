@@ -1,9 +1,10 @@
 # The Differential-Expression Test Suite — R Seurat vs Truecell (Python)
 
 Wave 3's first side-by-side, and the last large untested surface in the library:
-`find_markers` offers **eight statistical tests and none of them had ever been
-compared to R**. Their unit tests assert self-consistency on synthetic fixtures —
-the same shape of coverage that let the CLR and SCTransform defects survive.
+`find_markers` offered **eight statistical tests and none of them had ever been
+compared to R**. Their unit tests asserted self-consistency on synthetic fixtures —
+the same shape of coverage that let the CLR and SCTransform defects survive. A
+ninth, `poisson`, came in 1.2.0, and all nine are compared below.
 
 > **Dataset:** pbmc3k — 2,700 PBMCs, 10x Genomics (2016). The comparison runs on
 > **clusters 0 and 1** (703 and 480 cells, 13,714 genes).
@@ -143,7 +144,7 @@ on ifnb: 8 donors, 11 cell types, STIM against CTRL, both sides given the same
 13,383 cells and identical aggregated counts. With `find_markers` called the way
 the vignette calls `FindMarkers`, without `sample_col`:
 
-| | truecell 1.2.0 | now |
+| | truecell 1.2.0 | truecell 2.0.0 |
 |---|---|---|
 | Genes tested | 8,170 for CD14 monocytes against Seurat's 13,188 | identical in all 11 cell types |
 | DEG Jaccard at `p_val_adj < 0.05` | 0.41–0.66 | **0.947–1.000**, median 0.993 |
@@ -258,7 +259,7 @@ res.head(3)[["p_val", "avg_log2FC"]]
 Both columns are identical to seven significant figures — the same p-values and
 the same fold changes, on the same cells.
 
-![All eight tests against Seurat](figures_de/py_03_test_concordance.png)
+![The eight tests that return a p-value, against Seurat](figures_de/py_03_test_concordance.png)
 
 ---
 
@@ -411,7 +412,7 @@ every correlation reported here, since neither carries a rank.
 > through a misparsing float reader. The change is at the ULP level and no band
 > moved, but the table is the measured one, not the previous one.
 
-> Re-measured before this release with both sides re-run together, which moved
+> Re-measured before 2.0.0 with both sides re-run together, which moved
 > the all-gene Spearman of `LR`, `negbinom`, `mast` and `deseq2` in the fifth or
 > sixth decimal place. `poisson`'s rows, which this table and the next one had
 > left out, are added.

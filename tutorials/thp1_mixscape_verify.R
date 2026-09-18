@@ -48,8 +48,10 @@ if (!file.exists(HVG_TXT))
 # ---- 1. Load counts + metadata (the same GEO bytes Python reads) -------------
 # The cDNA table is a dense ~18.6k gene x 20.7k cell matrix; fread reads it fast,
 # then it is sparsified immediately so only one dense copy is ever held.
+# `gzip -dc`, not `gzcat`: that is the macOS name, Linux has only `zcat`, and
+# `gzip -dc` is the same command on both.
 cat("Reading cDNA counts ...\n")
-dt <- data.table::fread(cmd = paste("gzcat", shQuote(RNA_TSV)), showProgress = FALSE)
+dt <- data.table::fread(cmd = paste("gzip -dc", shQuote(RNA_TSV)), showProgress = FALSE)
 genes <- dt[[1]]
 mat <- as.matrix(dt[, -1])
 rownames(mat) <- genes
