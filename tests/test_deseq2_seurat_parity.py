@@ -121,6 +121,32 @@ def test_the_fit_tracks_deseq2_step_by_step():
     assert nan_pattern == np.isnan(_values("pvalue")).tolist()
 
 
+def test_the_fit_runs_in_one_process(monkeypatch):
+    """DESeq2 runs in one R process; pydeseq2 starts a joblib worker per core.
+
+    Those workers outlive the call. On the benchmark's PBMC 3k DE call they took the
+    process tree from under 1 GB to 5.1 GB to save 1.6 s, for the same output. So
+    every parallel section pydeseq2 opens must ask for one job.
+    """
+    import pydeseq2.default_inference as inference
+
+    jobs = []
+    real_parallel = inference.Parallel
+
+    def recording_parallel(*args, **kwargs):
+        jobs.append(kwargs.get("n_jobs"))
+        return real_parallel(*args, **kwargs)
+
+    monkeypatch.setattr(inference, "Parallel", recording_parallel)
+    genes, samples, groups = REF["genes"], np.array(REF["samples"]), np.array(REF["groups"])
+    counts = pd.DataFrame(np.array(REF["counts"], dtype=np.int64), index=genes, columns=samples)
+    order = list(samples[groups == "A"]) + list(samples[groups == "B"])
+    _deseq2.fit(counts.loc[REF["tested_features"], order].T,
+                np.isin(order, samples[groups == "A"]))
+    assert jobs, "pydeseq2 opened no parallel section, so nothing was checked"
+    assert set(jobs) == {1}, jobs
+
+
 LOW = REF["low_count"]
 
 
