@@ -10,8 +10,8 @@ data structures and the same algorithms, checked against R Seurat 5.5.1 test by
 test. Python **3.12+**, MIT; `truecell.__version__` is the installed release.
 
 - Docs: <https://genomicai.github.io/truecell/> · Repo: <https://github.com/GenomicAI/truecell>
-- 105 public names, all exported from the package root **except the generics**
-  (see contract 6 below).
+- 115 public names in `truecell.__all__`, all importable from the package root.
+  Most of the generics are not among them (see contract 6 below).
 
 ```bash
 pip install truecell                 # core: objects, preprocessing, PCA, markers
@@ -81,8 +81,7 @@ truecell.features(pbmc)              # AttributeError
 
 Same for the loaders: `from truecell.io import read_10x`,
 `from truecell.datasets import pbmc3k`, `from truecell.compat.anndata import as_anndata`.
-(The published API reference says everything is top-level; for the generics page
-that is not true.)
+The API reference's generics and loader pages show these module paths.
 
 ## The canonical pipeline
 

@@ -159,8 +159,10 @@ small in-memory block.
   because someone measured and the number came out backwards.
 
 truecell's on-disk and in-memory paths are **bit-identical**. (Seurat's differ by
-1.0e-06 and pick a different variable feature — the comparison worth knowing if
-you are reconciling the two.)
+1.0e-06, because BPCells computes in single precision, and on the Mac the
+tutorials were measured on that was enough to swap one variable feature; on
+Linux x86-64 it swapped none. The comparison worth knowing if you are
+reconciling the two.)
 
 ---
 

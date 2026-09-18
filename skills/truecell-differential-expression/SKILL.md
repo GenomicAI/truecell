@@ -72,7 +72,9 @@ call unconditionally.
 
 ## Output columns
 
-For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `poisson` / `mast` / `deseq2`, sorted by `p_val`:
+For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `poisson` / `mast` / `deseq2`,
+sorted by `p_val`, with ties going to the larger `|pct.1 - pct.2|`, as in Seurat 5.
+The strongest markers are the ones that tie, so this decides a "top N":
 
 | Column | Meaning |
 |---|---|
@@ -80,14 +82,15 @@ For `wilcox` / `t` / `bimod` / `LR` / `negbinom` / `poisson` / `mast` / `deseq2`
 | `avg_log2FC` | log2 fold change, group 1 over group 2 |
 | `pct.1` | Fraction of group-1 cells detecting the gene |
 | `pct.2` | Fraction of group-2 cells detecting the gene |
-| `p_val_adj` | Bonferroni-corrected over all tested genes |
+| `p_val_adj` | Bonferroni: `p_val` times the number of features in the assay, capped at 1 |
 
 `roc` returns a different frame — `myAUC`, `avg_diff`, `power`, `avg_log2FC`,
 `pct.1`, `pct.2`, sorted by `power`, **with no p-value**. Matching Seurat. Code
 that assumes `p_val` exists breaks on `roc`.
 
-`find_all_markers` adds `cluster` and `gene` columns and filters at
-`return_thresh=0.01` on `p_val` (`power` for `roc`).
+`find_all_markers` adds `cluster` and `gene` columns and keeps rows with
+`p_val < return_thresh` (0.01). For `roc`, which has no p-value, it keeps `myAUC`
+above 0.7 or below 0.3: Seurat swaps the default threshold to 0.7 for that test.
 
 ### `avg_log2FC` is computed Seurat's way
 
@@ -193,9 +196,10 @@ condition/batch, not just on average across them.
 
 ## Interpreting results honestly
 
-- `p_val_adj` is Bonferroni over genes tested **in that call**. Changing
-  `logfc_threshold` or `features` changes the correction. Two runs' adjusted
-  p-values are not comparable unless the tested gene set was the same.
+- `p_val_adj` multiplies by the number of features **in the assay**, not the
+  number tested, as Seurat's `FindMarkers` does. Raising `logfc_threshold` or
+  passing `features=` leaves the correction alone. Changing the assay or its
+  feature set changes it: an SCT assay and an RNA assay correct by different counts.
 - Per-cell tests treat cells as independent replicates. They are not. Where the
   question is "does this differ between conditions", `deseq2` with `sample_col`
   is the defensible answer and `wilcox` is the exploratory one.

@@ -102,6 +102,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   problems; all are fixed (see Fixed). CI's tutorials job checks the pbmc3k
   annotated UMAP on the real data, at its own size and at the 0.55 the manuscript
   prints it at. The opt-in smoke suite does the same for the integration scoreboard.
+- **The tutorials on a second machine.** Before this release all eighteen were run
+  again, unchanged, on Linux x86-64 (Ubuntu 24.04, R 4.6.1 on OpenBLAS, the same
+  `uv.lock`), and the tutorial index gains a section with both machines side by side.
+  truecell's deterministic steps gave the same cells, variable genes, clusters,
+  labels and marker rows on both. Seurat's answers moved, mostly towards truecell's:
+  CITE-seq's RNA clusters went from 16 on the Mac to 15 on Linux, PBMC 3k's cluster
+  agreement from ARI 0.928 to 0.969, cell hashing from 99.81 % to 100 %. truecell's
+  random steps moved too (the sketch, JackStraw's permutations), and both tools'
+  anchor sets. The pages keep the Mac's numbers.
 
 ### Changed
 
@@ -438,9 +447,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   agreement is 97.1 %, all nine matched clusters named alike (1.2.0: 95.5 %, with no
   dendritic-cell cluster). The published tutorial names the clusters from a fixed
   map, as Seurat's does, so it was never affected. Found by running every tutorial
-  against 1.2.0 on the same machine: 11 reports were identical, 2 improved, and 5
-  moved closer to Seurat overall with some numbers lower, each of those already
-  explained in its vignette except this one.
+  against 1.2.0 on the same machine. With this fix, 11 reports are identical to
+  1.2.0's, and PBMC 3k, DE and Mixscape agree with Seurat better. PBMC 8k and
+  integration agree better overall with some numbers lower, and the cell-cycle
+  phases move onto Seurat's split while per-cell agreement falls. CITE-seq loses a
+  cluster against Seurat on the Mac (15 against 16, labels 98.94 % to 98.72 %) and
+  matches it on Linux x86-64 (15 against 15, 99.91 %). Each of those is explained
+  in its vignette.
+- **The Mixscape and cell-cycle R scripts ran only on macOS.** Both read THP-1's
+  counts through `gzcat`, which a Linux shell does not have. They now use
+  `gzip -dc`, as the benchmark's R arm already did, and
+  `tests/test_tutorial_r_portability.py` checks every R script under `tutorials/`
+  for a decompressor only one platform has. Nothing they compute changes.
+- **Docs and skills read against this release.**
+  - The DE skill said `p_val_adj` corrects over the genes tested in a call.
+    truecell, like Seurat, multiplies by every feature in the assay, so neither
+    `logfc_threshold` nor `features=` changes it. The same skill gave `roc`'s old
+    filter and not the new row order.
+  - The markers API page said `pct.1` and `pct.2` could differ from Seurat's by up
+    to 5e-4. Rounded as Seurat rounds them, they now match exactly.
+  - The integration skill still gave RPCA's batch mixing from before `find_clusters`
+    ran Seurat's optimiser (0.991); it is 0.917, as in Seurat.
+  - The installation page listed `negbinom` under the `analysis` extra. Its GLM is
+    truecell's own now, so it runs on the core install.
+  - The README, the fidelity page and the tutorial index installed from source with
+    `uv pip install -e`, which resolves fresh; they now use `uv sync --locked`, as
+    the installation page does. The README's test count (955) and the dev skill's
+    (972, with ruff and mypy "clean") were months old; neither linter is clean.
+  - The object-model reference now describes `subset`'s cell order and identity
+    levels, the plotting skill the constrained-layout legends, and the installation
+    page the two R packages whose presence changes Seurat's output (`presto` and
+    `glmGamPoi`).
+  - The DE tutorial's fold-change figure was titled "13,712 genes, 1,172 shared
+    cells", typed in before the feature renaming and the new clusters. The title is
+    now counted from the data: 13,714 genes and 1,183 cells.
 
 ## [1.2.0] - 2026-08-10
 

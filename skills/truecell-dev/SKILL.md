@@ -32,22 +32,25 @@ tests in.
 
 | Path | What |
 |---|---|
-| `truecell/` | The package. 53 source modules; `spatial/`, `compat/`, `mixins/` are subpackages. |
-| `tests/` | ~70 test modules. |
+| `truecell/` | The package. 59 source modules; `spatial/`, `compat/`, `mixins/` are subpackages. |
+| `tests/` | ~100 test modules. |
 | `tutorials/` | 18 vignettes + their Python and R scripts + `figures_*/`. Also the R-comparison apparatus. |
 | `docs/` | MkDocs site. `docs/tutorials` is a **symlink** to `../tutorials`. |
-| `tools/` | Build-time helpers: `griffe_sphinx_roles.py`, `mkdocs_html_relpaths.py`. Plus `find_dead_args.py` — an AST sweep for parameters never read in their own function body; run it before trusting a signature. Every hit needs triage (dispatch adapters and protocol methods are legitimately unused). And `run_docs_snippet.py`, which runs the Python block on `docs/index.md` as published, for the macOS canary. |
+| `tools/` | Build-time helpers: `griffe_sphinx_roles.py`, `mkdocs_html_relpaths.py`. Plus `find_dead_args.py` — an AST sweep for parameters never read in their own function body; run it before trusting a signature. Every hit needs triage (dispatch adapters and protocol methods are legitimately unused). And `run_docs_snippet.py`, which runs the Python block on `docs/index.md` as published, for the macOS canary. And `compare_defaults.py`, which compares every ported default with Seurat's formals (dumped by `compare_defaults.R` into `tests/data/seurat_formals.json`); `tests/test_default_parity.py` runs it without R. |
 | `.github/workflows/` | `ci.yml`, `docs.yml`, `macos-canary.yml`. |
 
 ## The checks
 
 ```bash
-pytest tests/ -q          # 972 passed, 25 skipped at 8a2b523
-ruff check truecell         # clean
-ruff check .              # clean (tests/ and tutorials/ ignore E402 by scope)
-mypy                      # clean, 53 source files
+pytest tests/ -q          # 1701 passed, 33 skipped in CI at b2f0561
+ruff check truecell       # what CI runs: 644 findings at b2f0561
+ruff check .              # the whole repo (tests/ and tutorials/ ignore E402 by scope)
+mypy                      # 4 errors in 2 files at b2f0561, 59 source files
 mkdocs build --strict     # the docs check CI runs
 ```
+
+Neither ruff nor mypy is clean, so a total says little. Compare the files you
+changed against `git show main:<file>`.
 
 Scope is pinned in `pyproject.toml` (`[tool.mypy] files = ["truecell"]`), so a bare
 `mypy` checks exactly what CI checks. `ruff` takes scope from the command line —
@@ -71,8 +74,9 @@ The floor tracks [SPEC 0](https://scientific-python.org/specs/spec-0000/) —
 numpy/scipy/pandas/scikit-learn's own three-year window — not CPython's longer
 EOL calendar.
 
-ruff and mypy run **advisory** in CI (`|| true`). Both are clean now; that is
-maintained by running them locally, not by the gate.
+ruff and mypy run **advisory** in CI (`|| true`), so neither can fail a PR. The
+job log carries their counts; read them there, and keep a change from adding to
+them.
 
 A separate `build` job builds the sdist and wheel, runs `twine check`, then
 installs the wheel **clean into `/tmp`** and asserts `truecell.__version__` matches
@@ -175,7 +179,7 @@ The second is **opt-in rather than skip-when-missing**, so a skip always means
 nobody asked, never that it passed. Run it before cutting a release — a green
 unit suite says nothing about whether the tutorials still work end to end.
 
-The `tutorials` CI job covers **part of the PBMC 3k slice** (9 of its 11 tests,
+The `tutorials` CI job covers **part of the PBMC 3k slice** (11 of its 13 tests,
 dataset cached, a skip counts as a failure). `lazy_bpcells` and `pbmc3k_de` are
 held out for runtime, so out-of-core and the DE tutorial are verified *only* by
 the command above. Everything needing one of the other eight datasets — ~200 MB

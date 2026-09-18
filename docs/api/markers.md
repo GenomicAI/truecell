@@ -14,9 +14,10 @@ Two numbers to know before reading a result table:
   mean.** Getting that backwards shifts every fold change and also changes which
   genes clear `logfc_threshold`, so it silently changes the returned gene set,
   not just a column.
-- **`pct.1` and `pct.2` are rounded to three decimals**, by Seurat, inside
-  `FindMarkers`. Anything comparing two runs gene-by-gene should not expect them
-  closer than 5e-4.
+- **`pct.1` and `pct.2` are rounded to three decimals** before `min_pct` filters
+  on them, as Seurat's `FoldChange` rounds them, and by R's rule rather than
+  NumPy's. A gene detected in 19 of 2,000 cells (0.0095) therefore passes
+  `min_pct=0.01` in both tools, and the two columns match Seurat's exactly.
 
 ## Per-cluster and per-pair tests
 

@@ -103,6 +103,19 @@ sketch composition.
 and x86_64. The port targets IEEE/x86_64 semantics on purpose rather than
 emulating whichever one a given laptop produces.
 
+**Seurat's numbers depend on the machine more than truecell's do.** Every
+tutorial was run on an Apple M5 Pro and again on Linux x86-64: the same code, and
+the same package versions except four Bioconductor infrastructure packages one
+patch release apart. truecell's deterministic steps gave the same cells,
+variable genes, clusters, labels and marker rows on both. Seurat's moved: the
+CITE-seq RNA clusters went from 16 on the Mac to 15 on Linux, PBMC 3k's cluster
+agreement from ARI 0.928 to 0.969, and hashing from 99.81 % to 100 %.
+Some of truecell's steps moved as well, each one that turns rounding into a
+different choice: the sketch's sampling, JackStraw's permutations, Harmony in the
+fourth decimal place, and which cell pairs become integration anchors. These
+pages quote the Mac. [The tutorial index](tutorials/README.md#which-machine-the-numbers-come-from)
+has both machines side by side.
+
 **Seurat's default neighbour search is approximate.** `annoy` against an exact
 search is a difference in the *reference*, not in either implementation. The
 verify scripts pass `nn.method = "rann"`; skipping that once cost one script a
@@ -206,7 +219,7 @@ question that nothing here needs an answer to.
 
 ```bash
 git clone https://github.com/GenomicAI/truecell.git
-cd truecell && uv venv && uv pip install -e ".[all]"
+cd truecell && uv sync --all-extras --locked && source .venv/bin/activate
 
 python tutorials/pbmc3k_de_tutorial.py
 Rscript tutorials/pbmc3k_de_verify.R

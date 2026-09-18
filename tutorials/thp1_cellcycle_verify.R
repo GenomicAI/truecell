@@ -48,8 +48,10 @@ if (!all(file.exists(S_TXT, G2M_TXT, IFN_TXT)))
        "\nRun `python tutorials/thp1_cellcycle_tutorial.py` first (it writes them).")
 
 # ---- 1. Load counts + metadata (the same GEO bytes Python reads) -------------
+# `gzip -dc`, not `gzcat`: that is the macOS name, Linux has only `zcat`, and
+# `gzip -dc` is the same command on both.
 cat("Reading cDNA counts ...\n")
-dt <- data.table::fread(cmd = paste("gzcat", shQuote(RNA_TSV)), showProgress = FALSE)
+dt <- data.table::fread(cmd = paste("gzip -dc", shQuote(RNA_TSV)), showProgress = FALSE)
 genes <- dt[[1]]
 mat <- as.matrix(dt[, -1])
 rownames(mat) <- genes
