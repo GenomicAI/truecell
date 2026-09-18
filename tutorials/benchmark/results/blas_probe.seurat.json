@@ -1,10 +1,15 @@
 {
   "machine": {
-    "cpu": "Apple M4 Pro",
-    "cores": "12",
-    "memory_gb": 25.8,
-    "platform": "macOS-26.5.2-arm64-arm-64bit",
-    "timestamp": "2026-08-03T21:15:28"
+    "cpu": "Apple M5 Pro",
+    "cores": "18",
+    "memory_gb": 51.5,
+    "platform": "macOS-27.0-arm64-arm-64bit",
+    "timestamp": "2026-09-18T13:49:38"
+  },
+  "blas": {
+    "r": "R version 4.6.1 (2026-06-24)",
+    "blas": "/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib",
+    "lapack": "/Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRlapack.dylib"
   },
   "runs": [
     {
@@ -13,60 +18,60 @@
       "repeat": 1,
       "threads": null,
       "exit_code": 0,
-      "wall_seconds": 1.9773669242858887,
-      "process_peak_rss_mb": 659.3125,
-      "baseline_rss_mb": 0.03125,
-      "n_samples": 31,
+      "wall_seconds": 1.734557867050171,
+      "process_peak_rss_mb": 652.25,
+      "baseline_rss_mb": 0.125,
+      "n_samples": 25,
       "steps": [
         {
           "step": "library_load",
-          "t0": 1785771922.363574,
-          "t1": 1785771923.754554,
-          "seconds": 1.39098,
+          "t0": 1789719573.450806,
+          "t1": 1789719574.651865,
+          "seconds": 1.201059,
           "anchor": null,
-          "peak_rss_mb": 483.109375,
-          "rss_start_mb": 59.828125,
-          "delta_rss_mb": 423.28125
+          "peak_rss_mb": 487.484375,
+          "rss_start_mb": 77.921875,
+          "delta_rss_mb": 409.5625
         },
         {
           "step": "blas_setup",
-          "t0": 1785771923.757711,
-          "t1": 1785771923.936154,
-          "seconds": 0.178443,
+          "t0": 1789719574.65443,
+          "t1": 1789719574.817051,
+          "seconds": 0.162621,
           "anchor": 2000,
-          "peak_rss_mb": 524.578125,
-          "rss_start_mb": 504.546875,
-          "delta_rss_mb": 20.03125
+          "peak_rss_mb": 518.90625,
+          "rss_start_mb": 487.484375,
+          "delta_rss_mb": 31.421875
         },
         {
           "step": "blas_gemm",
-          "t0": 1785771923.940867,
-          "t1": 1785771924.074866,
-          "seconds": 0.133999,
+          "t0": 1789719574.820433,
+          "t1": 1789719574.954073,
+          "seconds": 0.13364,
           "anchor": 2006.143,
-          "peak_rss_mb": 585.671875,
-          "rss_start_mb": 524.578125,
-          "delta_rss_mb": 61.09375
+          "peak_rss_mb": 588.3125,
+          "rss_start_mb": 580.0,
+          "delta_rss_mb": 8.3125
         },
         {
           "step": "blas_svd",
-          "t0": 1785771924.075147,
-          "t1": 1785771924.104516,
-          "seconds": 0.029369,
+          "t0": 1789719574.954314,
+          "t1": 1789719574.97474,
+          "seconds": 0.020426,
           "anchor": 67.223,
-          "peak_rss_mb": 654.375,
-          "rss_start_mb": 654.375,
+          "peak_rss_mb": 652.234375,
+          "rss_start_mb": 652.234375,
           "delta_rss_mb": 0.0
         },
         {
           "step": "blas_crossprod_chol",
-          "t0": 1785771924.104625,
-          "t1": 1785771924.227829,
-          "seconds": 0.123204,
+          "t0": 1789719574.974833,
+          "t1": 1789719575.095955,
+          "seconds": 0.121122,
           "anchor": 63.745,
-          "peak_rss_mb": 659.3125,
-          "rss_start_mb": 654.375,
-          "delta_rss_mb": 4.9375
+          "peak_rss_mb": 652.25,
+          "rss_start_mb": 652.234375,
+          "delta_rss_mb": 0.015625
         }
       ],
       "log": "tutorials/benchmark/logs/blas_probe.seurat.1.log"
@@ -77,59 +82,59 @@
       "repeat": 2,
       "threads": null,
       "exit_code": 0,
-      "wall_seconds": 1.951631784439087,
-      "process_peak_rss_mb": 660.34375,
-      "baseline_rss_mb": 0.03125,
-      "n_samples": 30,
+      "wall_seconds": 1.7456648349761963,
+      "process_peak_rss_mb": 652.484375,
+      "baseline_rss_mb": 0.125,
+      "n_samples": 25,
       "steps": [
         {
           "step": "library_load",
-          "t0": 1785771924.346879,
-          "t1": 1785771925.723533,
-          "seconds": 1.376654,
+          "t0": 1789719575.185862,
+          "t1": 1789719576.392833,
+          "seconds": 1.206971,
           "anchor": null,
-          "peak_rss_mb": 485.6875,
-          "rss_start_mb": 49.8125,
-          "delta_rss_mb": 435.875
+          "peak_rss_mb": 487.953125,
+          "rss_start_mb": 77.625,
+          "delta_rss_mb": 410.328125
         },
         {
           "step": "blas_setup",
-          "t0": 1785771925.726462,
-          "t1": 1785771925.903809,
-          "seconds": 0.177347,
+          "t0": 1789719576.395483,
+          "t1": 1789719576.55979,
+          "seconds": 0.164307,
           "anchor": 2000,
-          "peak_rss_mb": 527.703125,
-          "rss_start_mb": 508.46875,
-          "delta_rss_mb": 19.234375
+          "peak_rss_mb": 519.03125,
+          "rss_start_mb": 487.953125,
+          "delta_rss_mb": 31.078125
         },
         {
           "step": "blas_gemm",
-          "t0": 1785771925.908077,
-          "t1": 1785771926.033017,
-          "seconds": 0.12494,
+          "t0": 1789719576.563159,
+          "t1": 1789719576.696449,
+          "seconds": 0.13329,
           "anchor": 2006.143,
-          "peak_rss_mb": 605.421875,
-          "rss_start_mb": 527.703125,
-          "delta_rss_mb": 77.71875
+          "peak_rss_mb": 588.453125,
+          "rss_start_mb": 580.140625,
+          "delta_rss_mb": 8.3125
         },
         {
           "step": "blas_svd",
-          "t0": 1785771926.033282,
-          "t1": 1785771926.060321,
-          "seconds": 0.027039,
+          "t0": 1789719576.696724,
+          "t1": 1789719576.71745,
+          "seconds": 0.020726,
           "anchor": 67.223,
-          "peak_rss_mb": 605.421875,
-          "rss_start_mb": 605.421875,
-          "delta_rss_mb": 0.0
+          "peak_rss_mb": 652.484375,
+          "rss_start_mb": 588.453125,
+          "delta_rss_mb": 64.03125
         },
         {
           "step": "blas_crossprod_chol",
-          "t0": 1785771926.060411,
-          "t1": 1785771926.187476,
-          "seconds": 0.127065,
+          "t0": 1789719576.717536,
+          "t1": 1789719576.840485,
+          "seconds": 0.122949,
           "anchor": 63.745,
-          "peak_rss_mb": 660.34375,
-          "rss_start_mb": 660.34375,
+          "peak_rss_mb": 652.484375,
+          "rss_start_mb": 652.484375,
           "delta_rss_mb": 0.0
         }
       ],
@@ -141,60 +146,60 @@
       "repeat": 3,
       "threads": null,
       "exit_code": 0,
-      "wall_seconds": 1.958441972732544,
-      "process_peak_rss_mb": 664.296875,
-      "baseline_rss_mb": 0.03125,
-      "n_samples": 30,
+      "wall_seconds": 1.7711949348449707,
+      "process_peak_rss_mb": 655.375,
+      "baseline_rss_mb": 0.125,
+      "n_samples": 25,
       "steps": [
         {
           "step": "library_load",
-          "t0": 1785771926.296342,
-          "t1": 1785771927.674601,
-          "seconds": 1.378259,
+          "t0": 1789719576.9381,
+          "t1": 1789719578.159734,
+          "seconds": 1.221634,
           "anchor": null,
-          "peak_rss_mb": 497.25,
-          "rss_start_mb": 58.46875,
-          "delta_rss_mb": 438.78125
+          "peak_rss_mb": 484.5,
+          "rss_start_mb": 67.09375,
+          "delta_rss_mb": 417.40625
         },
         {
           "step": "blas_setup",
-          "t0": 1785771927.677479,
-          "t1": 1785771927.864006,
-          "seconds": 0.186527,
+          "t0": 1789719578.162402,
+          "t1": 1789719578.325259,
+          "seconds": 0.162857,
           "anchor": 2000,
-          "peak_rss_mb": 530.671875,
-          "rss_start_mb": 497.25,
-          "delta_rss_mb": 33.421875
+          "peak_rss_mb": 518.84375,
+          "rss_start_mb": 484.5,
+          "delta_rss_mb": 34.34375
         },
         {
           "step": "blas_gemm",
-          "t0": 1785771927.867859,
-          "t1": 1785771927.995643,
-          "seconds": 0.127784,
+          "t0": 1789719578.328678,
+          "t1": 1789719578.462418,
+          "seconds": 0.13374,
           "anchor": 2006.143,
-          "peak_rss_mb": 601.71875,
-          "rss_start_mb": 530.671875,
-          "delta_rss_mb": 71.046875
+          "peak_rss_mb": 579.9375,
+          "rss_start_mb": 579.9375,
+          "delta_rss_mb": 0.0
         },
         {
           "step": "blas_svd",
-          "t0": 1785771927.995905,
-          "t1": 1785771928.023101,
-          "seconds": 0.027196,
+          "t0": 1789719578.462692,
+          "t1": 1789719578.483635,
+          "seconds": 0.020943,
           "anchor": 67.223,
-          "peak_rss_mb": 601.71875,
-          "rss_start_mb": 601.71875,
+          "peak_rss_mb": 611.6875,
+          "rss_start_mb": 611.6875,
           "delta_rss_mb": 0.0
         },
         {
           "step": "blas_crossprod_chol",
-          "t0": 1785771928.023205,
-          "t1": 1785771928.14737,
-          "seconds": 0.124165,
+          "t0": 1789719578.483723,
+          "t1": 1789719578.612905,
+          "seconds": 0.129182,
           "anchor": 63.745,
-          "peak_rss_mb": 664.296875,
-          "rss_start_mb": 664.296875,
-          "delta_rss_mb": 0.0
+          "peak_rss_mb": 655.375,
+          "rss_start_mb": 611.6875,
+          "delta_rss_mb": 43.6875
         }
       ],
       "log": "tutorials/benchmark/logs/blas_probe.seurat.3.log"

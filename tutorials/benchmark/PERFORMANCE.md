@@ -4,64 +4,65 @@ The companion to the accuracy comparison in [`../README.md`](../README.md).
 That work asked whether the two tools produce the same answers. This one asks
 what each answer costs.
 
-**Machine.** Apple M4 Pro, 12 cores, 25.8 GB, macOS 26.5.2. Measured 3 Aug 2026.
-The Truecell arm was re-measured later the same day, after the marker-detection
-fix in [section 2.4](#24-marker-detection-no-longer-densifies-before-it-filters).
+**Machine.** Apple M5 Pro, 18 cores, 51.5 GB, macOS 27.0. Measured 18 Sep 2026
+on truecell 2.0.0's code (`main` at `b2f0561`).
 
 **Versions.** R 4.6.1 (**linked against Accelerate/vecLib**) · Seurat 5.5.1 ·
-Matrix 1.7.5 · presto 1.0.0 · harmony 2.0.5 · uwot 0.2.4 · irlba 2.3.7 ·
-RANN 2.6.2 · Rfast2 · data.table 1.18.4 — Python 3.12.13 · truecell 1.0.0 ·
-numpy 2.4.6 (Accelerate) · scipy 1.18.0 · umap-learn · scikit-learn · harmonypy.
+SeuratObject 5.4.0 · Matrix 1.7.5 · presto 1.0.0 · harmony 2.0.5 · uwot 0.2.4 ·
+irlba 2.3.7 · RANN 2.6.2 · Rfast2 0.1.5.6 · data.table 1.18.4 · DESeq2 1.52.0 ·
+MAST 1.38.0 — Python 3.12.13 · numpy 2.4.6 (Accelerate) · scipy 1.18.0 ·
+scikit-learn 1.9.0 · umap-learn 0.5.12 · numba 0.66.0 · harmonypy 2.0.0 ·
+pydeseq2 0.5.4 · statsmodels 0.14.6.
 
-Reproduce with `bash tutorials/benchmark/sweep.sh` (about 40 minutes).
+Reproduce with `bash tutorials/benchmark/sweep.sh` (41 minutes here).
 
-> **Both stacks now sit on the same BLAS.** An earlier version of this report
-> measured an R that linked the unoptimised reference BLAS it ships with, and
-> flagged that as its largest caveat. That has been fixed — see
-> [section 2.1](#21-both-arms-are-on-accelerate-and-what-that-changed) for what
-> it moved, which was more than expected and reversed one of the report's
-> conclusions. The reference-BLAS sweep is kept in `results_refblas/` and the
-> two are diffable with `compare_sweeps.py`.
+> **Re-measured for 2.0.0, on a new machine.** The first version of this report
+> measured truecell 1.0.0 on a 12-core Apple M4 Pro on 3 Aug 2026, and that sweep
+> is kept in `results_m4pro/`. The machine and the release have both changed
+> since, so this report does not set the two sweeps against each other step by
+> step. Sections 2.1 and 2.4 are findings from the M4 Pro sweep, kept because
+> they explain numbers still visible below, and each says so.
 
-> **Marker detection has since been fixed.** The first version of this report
-> named `find_markers` densifying before it filters as the largest single gap.
-> It now filters first, and every Truecell number below was re-measured with
-> that in — [section 2.4](#24-marker-detection-no-longer-densifies-before-it-filters)
-> has the before-and-after. The pre-fix Truecell sweep is kept in
-> `results_predensefix/`.
+> **What 2.0.0 changed here.** `find_clusters` runs Seurat's own modularity
+> optimiser, restarts included, so both arms now find the same number of
+> clusters on all four datasets (9, 12, 16 and 8; truecell 1.0.0 found 8, 9, 15
+> and 7), at close to Seurat's cost — see
+> [2.5](#25-clustering-runs-seurats-optimiser). And `find_markers(test_use="deseq2")`
+> is Seurat's per-cell test now, so DESeq2 has a row for the first time, with a
+> memory cost worth knowing about ([section 5](#5-named-operations)).
 
 ---
 
 ## Summary
 
-Across 68 like-for-like step comparisons Truecell is **faster in 46, slower in
-21, and within 5% in 1** — but it loses the standard end-to-end workflow by
-1.2–2.6x. Two operations account for nearly all of that, and both have
-identifiable causes: umap-learn single-threads under a seed, and Seurat's
-Wilcoxon is presto's C++.
+Across 68 like-for-like step comparisons Truecell is **faster in 45, slower in
+22, and within 5% in 1** — but it loses the standard end-to-end workflow by
+1.2–2.5x. Two operations account for most of that, as they did in 1.0.0, and
+both have identifiable causes: umap-learn single-threads under a seed, and
+Seurat's Wilcoxon is presto's C++.
 
 | | Truecell | Seurat |
 |---|---|---|
-| Standard workflow, 2.7k–20.7k cells | | **1.2–2.6x faster** |
-| …with `run_umap`'s seed dropped | **1.2–1.5x faster** at ≥8k cells | 1.1x faster at 2.7k |
-| Reading counts, building the object | **4–21x faster** | |
-| PCA | **1.6–2.3x faster** | |
-| Normalisation, QC metrics | **2–12x faster** | |
-| VST feature selection, scaling | | **1.4–2.6x faster** |
-| Differential expression, 6 of the 7 shared tests | **2.0–11.4x faster** | |
-| Wilcoxon — `de_wilcox` and `find_all_markers` | | **1.7–4.8x faster** (presto) |
-| Seeded UMAP | | **1.6–4.3x faster** |
-| Harmony | **2.1x faster** | |
-| CCA / RPCA integration | | **1.1–3.6x faster** |
-| SCTransform | **1.3x faster**, half the memory | |
-| Moran's I | **87x faster**, and the only one without an *n* limit | |
-| Peak memory, standard workflow | **1.06–1.4x lighter** at ≥8k cells | 1.5x lighter at 2.7k |
-| Peak memory, the SCTransform / DE / spatial benches | **1.04–2.9x lighter** | |
+| Standard workflow, 2.7k–20.7k cells | | **1.2–2.5x faster** |
+| …with `run_umap`'s seed dropped | **1.2–1.4x faster** at ≥8k cells | 1.1x faster at 2.7k |
+| Reading counts, building the object | **3.7–16.5x faster** | |
+| PCA | **1.5–2.2x faster** | |
+| Normalisation, QC metrics | **1.9–9.8x faster** | |
+| VST feature selection | | **1.7–2.5x faster** |
+| Scaling; exact neighbours | 1.1–1.8x and 1.5–3.2x faster on two datasets each | 1.1–1.6x and 1.1–3.0x faster on the other two |
+| Clustering, Seurat's optimiser on both sides | | **1.1–1.2x faster** at ≥8k cells, 2.3x at 2.7k |
+| Differential expression, 7 of the 8 shared tests | **1.7–8.2x faster** | |
+| Wilcoxon — `de_wilcox` and `find_all_markers` | | **1.6–3.6x faster** (presto) |
+| Seeded UMAP | | **1.7–3.9x faster** |
+| Harmony | **1.6x faster** | |
+| CCA integration | | **3.1x faster** |
+| RPCA integration | **1.9x faster** | |
+| SCTransform | **1.4x faster**, half the memory | |
+| Moran's I | **77x faster**, and the only one without an *n* limit | |
+| Peak memory, standard workflow | **1.04–1.4x lighter** at ≥8k cells | 1.5x lighter at 2.7k |
+| Peak memory, the DE bench | | **2.0x lighter**: pydeseq2 starts a worker process per core (section 5) |
 
-The tally is generated by `make_report.py`, not counted by hand. It is
-unchanged by the marker fix: that made four steps 1.5–3.2x faster without
-moving any of them across the 5% band, because Seurat still wins each of them —
-by much less.
+The tally is generated by `make_report.py`, not counted by hand.
 
 ---
 
@@ -78,7 +79,9 @@ neither sees what the other's allocator is holding, so a memory number produced
 by either would not be comparable. Instead the parent process samples the
 resident set size of the child's whole process tree every 50 ms and afterwards
 intersects those samples with the step boundaries the child logged. Both arms
-are measured by one instrument, in one unit, on one clock.
+are measured by one instrument, in one unit, on one clock. Because it is the
+whole tree, worker processes a library starts are counted too, which matters
+for pydeseq2 in section 5.
 
 Resident set is a high-water mark — neither runtime returns freed pages
 promptly, and R's GC returns them more readily than CPython's arenas do — so a
@@ -86,63 +89,62 @@ late step's peak partly reports what earlier steps left behind. Per-step figures
 are peaks *during* the step; the pipeline row is the process peak, which is the
 number that decides whether a machine can run the workload.
 
-**The first repeat of every pair is discarded.** umap-learn's numba kernels
-compile on first use and R loads packages lazily; neither is what the benchmark
-is asking about. Three timed repeats follow, and the median is reported.
+**The first repeat of every pair is discarded.** umap-learn's and truecell's
+numba kernels compile on first use and R loads packages lazily; neither is what
+the benchmark is asking about. Timed repeats follow — three for the standard
+workflow, two for the named operations — and the median is reported.
 
 **Every step records an anchor** — cells kept, clusters found, genes tested,
 markers returned — printed in the tables beside the timings. A speed comparison
 is only worth reading if both sides did the same work, and the anchors are how
-you can check rather than take it on trust. They earned their keep when the BLAS
-was swapped: all 75 of them were unchanged, which is what made the new timings
-safe to believe.
+you can check rather than take it on trust. On the M4 Pro they earned their
+keep when R's BLAS was swapped: all 75 were unchanged, which is what made the
+new timings safe to believe (2.1).
 
 **The instrument is not free.** Sampling costs one `ps` call every 50 ms, a few
-percent of one core out of twelve. It is applied identically to both arms, so
+percent of one core out of eighteen. It is applied identically to both arms, so
 the comparisons hold, but treat the absolute seconds as very slightly inflated
 on both sides.
 
 **The truecell arm runs first, on purpose.** It writes the cell-to-cluster
-assignment and the Xenium cell subset that the R arm reads back. Without that,
-two things would have gone wrong: the tools do not always land on the same
-number of clusters (9 against Seurat's 12 on PBMC 8k), and one-vs-rest marker
-detection costs one test per cluster, so `find_all_markers` would have been
-timing a clustering difference. With it, both arms return the same marker table
-— 3118 rows against 3118 on PBMC 3k.
+assignment and the Xenium cell subset that the R arm reads back. truecell 1.0.0
+did not land on Seurat's number of clusters (9 against 12 on PBMC 8k), and
+one-vs-rest marker detection costs one test per cluster, so without the handoff
+`find_all_markers` would have timed a clustering difference. Since 2.0.0 the
+counts agree on all four datasets, and the handoff stays so the two arms still
+test the same cells. Both return the same marker table: 3,514 rows against
+3,514 on PBMC 3k.
 
 ---
 
-## 2. Four things that decide most of these numbers
+## 2. Five things that decide most of these numbers
 
 ### 2.1 Both arms are on Accelerate, and what that changed
 
-macOS R ships two BLAS builds and symlinks the unoptimised one by default. This
-machine was on that default until the sweep below; it is now on Accelerate:
+*Measured on the M4 Pro with truecell 1.0.0. `results_refblas/` against
+`results_m4pro/`.*
+
+macOS R ships two BLAS builds and symlinks the unoptimised one by default. The
+M4 Pro was on that default until the first sweep; both machines since have been
+on Accelerate:
 
 ```bash
 cd /Library/Frameworks/R.framework/Resources/lib && ln -sf libRblas.vecLib.dylib libRblas.dylib
 # revert with: ln -sf libRblas.0.dylib libRblas.dylib
 ```
 
-`blas_probe` is a control — dense linear algebra on identical inputs, touching
-neither Seurat nor truecell:
-
-| Step | Truecell | Truecell (1 thread) | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.46s | 0.47s | — | — | 123 MB | — |  |  |
-| `blas_setup` | 0.01s | 0.02s | 0.18s | **12.2x** | 124 MB | 528 MB | 2000 | 2000 |
-| `blas_gemm` | 0.01s | 0.02s | 0.13s | **9.3x** | 199 MB | 602 MB | 2002.361 | 2006.143 |
-| `blas_svd` | 0.02s | 0.02s | 0.03s | **1.4x** | 199 MB | 605 MB | 66.575 | 67.223 |
-| `blas_crossprod_chol` | 0.03s | 0.04s | 0.12s | **4.4x** | 199 MB | 660 MB | 62.883 | 63.745 |
-| `library_load` | — | — | 1.38s | — | — | 486 MB |  |  |
-| **shared pipeline** | **0.1s** | **0.1s** | **0.5s** | **6.0x** | **219 MB** | **660 MB** |  |  |
+`blas_probe` is the control — dense linear algebra on identical inputs,
+touching neither Seurat nor truecell. On this machine it is in
+[section 5](#5-named-operations): truecell's numpy is 1.2–11.9x ahead on the four
+kernels, as on the M4 Pro.
 
 **Nothing Seurat computes changed.** Every one of the 75 step anchors across
 the whole suite — cluster counts, graph edge counts, PC standard deviations,
-marker counts, gene counts — is identical between the two sweeps. The swap is
-free of numerical consequence at the precision the suite records.
+marker counts, gene counts — was identical between the reference-BLAS and
+Accelerate sweeps. The swap is free of numerical consequence at the precision
+the suite records.
 
-**What it bought, per step** (`compare_sweeps.py results_refblas results`):
+**What it bought, per step** (`compare_sweeps.py results_refblas results_m4pro`):
 
 | Step | Reference BLAS | Accelerate | |
 |---|---:|---:|---|
@@ -160,30 +162,30 @@ tests and SCTransform did not move at all, because none of them is BLAS-bound.
 **This reversed a conclusion.** The reference-BLAS report called batch
 integration "the largest clean win, and the one least contaminated by the
 BLAS" — truecell's CCA at 24.3s against Seurat's 88.4s. It was in fact the
-*most* contaminated result in the suite: on the same BLAS, Seurat's CCA is
-6.87s and truecell is **3.6x slower**. The claim was wrong, and it was wrong in
-the direction of flattering this project.
+*most* contaminated result in the suite: on the same BLAS, Seurat's CCA was
+6.87s and truecell **3.6x slower**. The claim was wrong, and it was wrong in
+the direction of flattering this project. It is still 3.1x slower here.
 
 One caveat on the probe itself: `blas_gemm` writes `a %*% t(a)`, which
 materialises the transpose, where numpy's `a @ a.T` passes a flag to dgemm and
-copies nothing — so that row times an extra 32 MB copy on the R side.
-`blas_crossprod_chol` uses `crossprod`, R's flagged form, and is the cleaner of
-the two.
+copies nothing — so that row times an extra 32 MB copy on the R side, and the
+tally leaves it out. `blas_crossprod_chol` uses `crossprod`, R's flagged form,
+and is the cleaner of the two.
 
 ### 2.2 presto is installed; glmGamPoi is not
 
 Seurat routes Wilcoxon through presto when it is installed and through a much
-slower internal loop when it is not. presto was not present on this machine, so
-it was installed (`remotes::install_github("immunogenomics/presto")`, 1.0.0)
-before any marker timing was taken. Every `find_all_markers` and `de_wilcox`
-figure is Seurat on its fast path — the right comparison, and also where
-truecell comes off worst.
+slower internal loop when it is not. presto 1.0.0 is installed here, so every
+`find_all_markers` and `de_wilcox` figure is Seurat on its fast path — the
+right comparison, and also where truecell comes off worst.
 
 The mirror image: **glmGamPoi is absent**, and Seurat says so ("could not find
 glmGamPoi installed … falling back to native (slower) implementation"). The
-SCTransform figures are Seurat *without* its accelerator; a previous round of
+SCTransform figures are Seurat *without* its accelerator; an earlier round of
 work in this repository found glmGamPoi not safely installable here, so it was
 left alone. Treat that row as favourable to truecell by an unmeasured margin.
+The tutorials' R references were taken the same way, since either package
+changes what Seurat computes.
 
 ### 2.3 umap-learn gives up every thread the moment you set a seed
 
@@ -191,17 +193,17 @@ left alone. Treat that row as favourable to truecell by an unmeasured margin.
 warns "n_jobs value 1 overridden to 1 by setting random_state" and runs
 single-threaded. uwot, which Seurat uses, does not make that trade. The benches
 measure both: `umap` is seeded, `umap_unseeded` is the same embedding without
-one — 3.6x apart on PBMC 3k and 8.5–9.0x on the three larger sets.
+one — 3.6x apart on PBMC 3k and 10.8–11.5x on the three larger sets.
 
-With marker detection fixed (2.4), this is now the largest thing truecell can
-fix, and it is enough to turn three of the four totals around on its own:
+It is the largest thing truecell could change, and it turns three of the four
+totals around on its own:
 
 | | Truecell as measured | Truecell, seed dropped | Seurat |
 |---|---:|---:|---:|
-| pbmc3k | 12.9s | 5.5s | 5.0s |
-| pbmc8k | 25.5s | **11.1s** | 16.9s |
-| ifnb | 26.8s | **13.4s** | 18.9s |
-| thp1 | 49.8s | **34.9s** | 42.0s |
+| pbmc3k | 10.8s | 4.7s | 4.4s |
+| pbmc8k | 23.8s | **11.0s** | 15.8s |
+| ifnb | 23.5s | **12.2s** | 16.8s |
+| thp1 | 45.8s | **32.4s** | 38.1s |
 
 That is not a free win — the seed is what makes `run_umap` reproducible, and
 dropping it trades that away. The column is here to size the cost of the
@@ -211,6 +213,9 @@ what hides it.
 
 ### 2.4 Marker detection no longer densifies before it filters
 
+*Measured on the M4 Pro with truecell 1.0.0. `results_predensefix/` against
+`results_m4pro/`.*
+
 `find_markers` used to build a dense (all genes × all cells in the group) array
 per group, then compute `min_pct` and `logfc_threshold` on it and throw most of
 it away. Both pre-filters are computable on the sparse matrix — `expm1(0) == 0`,
@@ -218,7 +223,7 @@ so the fold-change transform preserves the sparsity pattern — so they now run
 first, and only the surviving genes are densified. On PBMC 3k that is ~1.6k rows
 of 13.7k.
 
-`find_all_markers` calls this once per cluster, which is why the effect grows
+`find_all_markers` calls this once per cluster, which is why the effect grew
 with cluster count as well as with *n*:
 
 | Bench | Before | After | | Peak RSS before | after |
@@ -229,23 +234,29 @@ with cluster count as well as with *n*:
 | `find_all_markers` (pbmc3k, 8) | 2.36s | 1.54s | **1.5x** | 2938 MB | 2934 MB |
 | `de_wilcox` … `de_MAST` (pbmc3k) | — | — | 1.0–1.3x | 1117 MB | 911 MB |
 
-The two peak-RSS figures that did not move are both cases where the process was
-already holding something larger: pbmc3k's `scale_all_genes` result (2.5 GB
-dense), and thp1's 20,729-cell working set.
+**All 76 step anchors were identical between the two Truecell sweeps**
+(`compare_sweeps.py results_predensefix results_m4pro --arm truecell`), and the
+returned marker tables byte-identical for all eight tests on PBMC 3k. It changed
+when memory is allocated, not what is computed.
 
-**All 76 step anchors are identical between the two Truecell sweeps**
-(`compare_sweeps.py results_predensefix results --arm truecell`), and the
-returned marker tables are byte-identical for all eight tests on PBMC 3k. This
-was a change to when memory is allocated, not to what is computed.
+### 2.5 Clustering runs Seurat's optimiser
+
+truecell 1.0.0 ran one pass of igraph's multilevel Louvain. On the M4 Pro that
+beat Seurat on three of the four datasets, by settling in a shallower optimum
+with fewer clusters. 2.0.0 runs a translation of Seurat's own C++, with its ten
+restarts and its random stream, so the same graph gives Seurat's partition, and
+the benches now find the same number of clusters on both sides. It costs about
+what Seurat's does: 1.1–1.2x Seurat's time at ≥8k cells, and 0.26s against
+0.11s on PBMC 3k, where both take under a third of a second.
+`find_clusters(optimizer="igraph")` still runs the single pass.
 
 ### Two smaller ones
 
 * **Neighbours.** Seurat's default search is approximate (annoy); truecell's is
   exact. The tables compare against `nn.method = "rann"`, Seurat's exact option,
   and report `neighbours_annoy` separately so the default is visible too.
-* **UMAP metric.** `metric="cosine"` on both arms. It is `RunUMAP`'s default and
-  now `run_umap`'s too; `run_umap` had used umap-learn's euclidean.
-
+* **UMAP metric.** `metric="cosine"` on both arms, `RunUMAP`'s default and
+  `run_umap`'s since 2.0.0.
 
 ---
 
@@ -253,25 +264,24 @@ was a change to when memory is allocated, not to what is computed.
 
 | Dataset | Cells | Truecell | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS |
 |---|---:|---:|---:|---:|---:|---:|
-| `pbmc3k` | 2700 | 12.9s | 5.0s | 2.6x slower | 2934 MB | 1998 MB |
-| `pbmc8k` | 8381 | 25.5s | 16.9s | 1.5x slower | 2406 MB | 3295 MB |
-| `ifnb` | 13999 | 26.8s | 18.9s | 1.4x slower | 3580 MB | 3796 MB |
-| `thp1` | 20729 | 49.8s | 42.0s | 1.2x slower | 9428 MB | 10919 MB |
+| `pbmc3k` | 2700 | 10.8s | 4.4s | 2.5x slower | 2925 MB | 1994 MB |
+| `pbmc8k` | 8381 | 23.8s | 15.8s | 1.5x slower | 2422 MB | 3352 MB |
+| `ifnb` | 13999 | 23.5s | 16.8s | 1.4x slower | 3309 MB | 3432 MB |
+| `thp1` | 20729 | 45.8s | 38.1s | 1.2x slower | 11606 MB | 15672 MB |
 
-The ratio now falls as *n* grows: 2.6x at 2,700 cells, 1.2x at 20,729. That is
-the opposite of the shape this table had before the marker fix, and the reason
-is that the gap is no longer dominated by anything that scales — what is left is
-mostly seeded UMAP, which costs what it costs. Truecell's peak RSS is also below
-Seurat's on three of the four datasets now, where before it was above on three.
+The ratio falls as *n* grows: 2.5x at 2,700 cells, 1.2x at 20,729. What is left
+of the gap does not scale — it is mostly seeded UMAP, which costs what it costs.
+Truecell's peak RSS is below Seurat's on the three larger datasets.
 
-PBMC 3k is the outlier at 2.6x, and it is an artefact of the vignette rather
+PBMC 3k is the outlier at 2.5x, and it is an artefact of the vignette rather
 than of *n*: that bench scales all 13,714 genes because the Seurat tutorial
-does, which is 2.5 GB of dense matrix neither tool needs, and its UMAP is 79% of
-a total that is only 12.9s to begin with.
+does, which takes truecell's process to 2.5 GB for a matrix neither tool needs,
+and its UMAP is 78% of a total that is only 10.8s to begin with.
 
 The one genuinely asymptotic difference is Moran's I (section 5), where Seurat
 is quadratic in cells and truecell is not.
 
+---
 
 ## 4. Step by step
 
@@ -279,24 +289,24 @@ is quadratic in cells and truecell is not.
 
 | Step | Truecell | Truecell (1 thread) | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.51s | 0.51s | — | — | 120 MB | — |  |  |
-| `read_counts` | 0.05s | 0.05s | 0.69s | **13.1x** | 189 MB | 590 MB | 2700 | 2700 |
-| `create_object` | 0.01s | 0.02s | 0.29s | **20.6x** | 239 MB | 644 MB | 13714 | 13714 |
-| `qc_metrics` | 0.00s | 0.00s | 0.01s | **3.8x** | 239 MB | 657 MB | 2.216642 | 2.216642 |
-| `normalize` | 0.02s | 0.02s | 0.15s | **6.8x** | 241 MB | 696 MB | 4625433.29 | 4625433 |
-| `hvg_vst` | 0.26s | 0.26s | 0.15s | 1.8x slower | 406 MB | 723 MB | 2000 | 2000 |
-| `scale_hvg` | 0.10s | 0.10s | 0.17s | **1.6x** | 635 MB | 860 MB | 2000 | 2000 |
-| `scale_all_genes` | 0.60s | 0.53s | 0.75s | **1.3x** | 2533 MB | 1648 MB | 13714 | 13714 |
-| `rescale_hvg` | 0.08s | 0.09s | 0.16s | **1.9x** | 2533 MB | 1648 MB | 2000 | 2000 |
-| `pca` | 0.21s | 0.28s | 0.32s | **1.6x** | 2533 MB | 1980 MB | 6.8875 | 6.8737 |
-| `neighbours_exact` | 0.22s | 0.21s | 0.07s | 3.1x slower | 2577 MB | 1990 MB | 199616 | 198616 |
-| `cluster_louvain` | 0.22s | 0.22s | 0.12s | 1.8x slower | 2618 MB | 1394 MB | 8 | 9 |
-| `umap` | 10.26s | 10.49s | 2.41s | 4.3x slower | 2869 MB | 1397 MB | 2700 | 2700 |
-| `umap_unseeded` | 2.86s | 2.89s | — | — | 2877 MB | — | 2700 |  |
-| `find_all_markers` | 1.54s | 2.51s | 0.65s | 2.4x slower | 2934 MB | 1551 MB | 3118 | 3118 |
-| `library_load` | — | — | 1.44s | — | — | 501 MB |  |  |
-| `neighbours_annoy` | — | — | 0.38s | — | — | 1998 MB |  | 198484 |
-| **shared pipeline** | **12.9s** | **14.2s** | **5.0s** | 2.6x slower | **2934 MB** | **1998 MB** |  |  |
+| `import` | 0.44s | 0.45s | — | — | 143 MB | — |  |  |
+| `read_counts` | 0.04s | 0.04s | 0.58s | **13.7x** | 222 MB | 577 MB | 2700 | 2700 |
+| `create_object` | 0.02s | 0.02s | 0.26s | **16.5x** | 222 MB | 665 MB | 13714 | 13714 |
+| `qc_metrics` | 0.00s | 0.00s | 0.01s | **4.1x** | 351 MB | 700 MB | 2.216642 | 2.216642 |
+| `normalize` | 0.02s | 0.02s | 0.14s | **7.1x** | 351 MB | 700 MB | 4625433.29 | 4625433 |
+| `hvg_vst` | 0.23s | 0.24s | 0.13s | 1.7x slower | 432 MB | 726 MB | 2000 | 2000 |
+| `scale_hvg` | 0.08s | 0.09s | 0.15s | **1.8x** | 660 MB | 864 MB | 2000 | 2000 |
+| `scale_all_genes` | 0.48s | 0.53s | 0.63s | **1.3x** | 2467 MB | 1629 MB | 13714 | 13714 |
+| `rescale_hvg` | 0.07s | 0.07s | 0.13s | **1.9x** | 2559 MB | 1653 MB | 2000 | 2000 |
+| `pca` | 0.18s | 0.25s | 0.28s | **1.5x** | 2559 MB | 1986 MB | 6.8875 | 6.8737 |
+| `neighbours_exact` | 0.18s | 0.18s | 0.06s | 3.0x slower | 2587 MB | 1988 MB | 199616 | 198616 |
+| `cluster_louvain` | 0.26s | 0.26s | 0.11s | 2.3x slower | 2673 MB | 1366 MB | 9 | 9 |
+| `umap` | 8.40s | 8.50s | 2.14s | 3.9x slower | 2850 MB | 1369 MB | 2700 | 2700 |
+| `umap_unseeded` | 2.32s | 2.37s | — | — | 2861 MB | — | 2700 |  |
+| `find_all_markers` | 1.41s | 1.45s | 0.54s | 2.6x slower | 2925 MB | 1437 MB | 3514 | 3514 |
+| `library_load` | — | — | 1.21s | — | — | 480 MB |  |  |
+| `neighbours_annoy` | — | — | 0.32s | — | — | 1994 MB |  | 198484 |
+| **shared pipeline** | **10.8s** | **11.0s** | **4.4s** | 2.5x slower | **2925 MB** | **1994 MB** |  |  |
 
 Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up and the arm-specific asides (`neighbours_annoy`, `rescale_hvg`, `scale_all_genes`, `umap_unseeded`).
 
@@ -304,22 +314,22 @@ Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Truecell (1 thread) | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.49s | 0.65s | — | — | 120 MB | — |  |  |
-| `read_counts` | 0.17s | 0.17s | 2.57s | **15.2x** | 527 MB | 1173 MB | 8381 | 8381 |
-| `create_object` | 0.07s | 0.07s | 0.59s | **8.0x** | 572 MB | 1185 MB | 18340 | 18340 |
-| `qc_metrics` | 0.01s | 0.01s | 0.06s | **4.8x** | 612 MB | 1185 MB | 3.008575 | 3.008575 |
-| `normalize` | 0.12s | 0.12s | 0.35s | **2.9x** | 620 MB | 1368 MB | 17833653.695 | 17833654 |
-| `hvg_vst` | 0.88s | 0.87s | 0.34s | 2.6x slower | 1179 MB | 1374 MB | 2000 | 2000 |
-| `scale_hvg` | 0.41s | 0.41s | 0.27s | 1.5x slower | 1820 MB | 1642 MB | 2000 | 2000 |
-| `pca` | 0.48s | 0.71s | 1.11s | **2.3x** | 1826 MB | 2356 MB | 10.6853 | 10.6981 |
-| `neighbours_exact` | 0.30s | 0.36s | 0.26s | 1.1x slower | 1881 MB | 2372 MB | 583657 | 585211 |
-| `cluster_louvain` | 0.40s | 0.43s | 0.60s | **1.5x** | 1985 MB | 1643 MB | 9 | 12 |
-| `umap` | 16.34s | 17.08s | 7.24s | 2.3x slower | 2355 MB | 1742 MB | 8381 | 8381 |
-| `umap_unseeded` | 1.91s | 1.98s | — | — | 2400 MB | — | 8381 |  |
-| `find_all_markers` | 6.32s | 12.31s | 3.57s | 1.8x slower | 2406 MB | 3295 MB | 7973 | 7974 |
-| `library_load` | — | — | 1.49s | — | — | 493 MB |  |  |
-| `neighbours_annoy` | — | — | 1.03s | — | — | 2372 MB |  | 585179 |
-| **shared pipeline** | **25.5s** | **32.6s** | **16.9s** | 1.5x slower | **2406 MB** | **3295 MB** |  |  |
+| `import` | 0.45s | 0.44s | — | — | 140 MB | — |  |  |
+| `read_counts` | 0.14s | 0.14s | 2.21s | **16.1x** | 537 MB | 1162 MB | 8381 | 8381 |
+| `create_object` | 0.06s | 0.07s | 0.52s | **8.2x** | 582 MB | 1172 MB | 18340 | 18340 |
+| `qc_metrics` | 0.01s | 0.01s | 0.05s | **4.7x** | 674 MB | 1172 MB | 3.008575 | 3.008575 |
+| `normalize` | 0.11s | 0.11s | 0.31s | **2.9x** | 677 MB | 1352 MB | 17833653.695 | 17833654 |
+| `hvg_vst` | 0.77s | 0.79s | 0.30s | 2.5x slower | 1145 MB | 1384 MB | 2000 | 2000 |
+| `scale_hvg` | 0.26s | 0.27s | 0.24s | 1.1x slower | 1877 MB | 1643 MB | 2000 | 2000 |
+| `pca` | 0.45s | 0.65s | 0.98s | **2.2x** | 1877 MB | 2333 MB | 10.6853 | 10.6981 |
+| `neighbours_exact` | 0.24s | 0.24s | 0.22s | 1.1x slower | 1926 MB | 2344 MB | 583657 | 585211 |
+| `cluster_louvain` | 0.64s | 0.64s | 0.53s | 1.2x slower | 2040 MB | 1615 MB | 12 | 12 |
+| `umap` | 14.12s | 14.08s | 6.20s | 2.3x slower | 2337 MB | 1661 MB | 8381 | 8381 |
+| `umap_unseeded` | 1.31s | 1.29s | — | — | 2391 MB | — | 8381 |  |
+| `find_all_markers` | 7.04s | 7.01s | 4.28s | 1.6x slower | 2422 MB | 3352 MB | 9936 | 9936 |
+| `library_load` | — | — | 1.23s | — | — | 488 MB |  |  |
+| `neighbours_annoy` | — | — | 0.87s | — | — | 2358 MB |  | 585179 |
+| **shared pipeline** | **23.8s** | **24.0s** | **15.8s** | 1.5x slower | **2422 MB** | **3352 MB** |  |  |
 
 Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up and the arm-specific asides (`neighbours_annoy`, `umap_unseeded`).
 
@@ -327,22 +337,22 @@ Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Truecell (1 thread) | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.60s | 0.66s | — | — | 123 MB | — |  |  |
-| `read_counts` | 0.27s | 0.26s | 2.40s | **9.0x** | 472 MB | 1020 MB | 13999 | 13999 |
-| `create_object` | 0.05s | 0.05s | 0.44s | **8.8x** | 551 MB | 1105 MB | 13915 | 13915 |
-| `qc_metrics` | 0.00s | 0.00s | 0.04s | **12.0x** | 551 MB | 1105 MB | 0.0 | 0 |
-| `normalize` | 0.10s | 0.10s | 0.29s | **3.0x** | 551 MB | 1256 MB | 21191453.753 | 21191454 |
-| `hvg_vst` | 0.61s | 0.60s | 0.25s | 2.4x slower | 946 MB | 1261 MB | 2000 | 2000 |
-| `scale_hvg` | 0.73s | 0.68s | 0.52s | 1.4x slower | 2464 MB | 1941 MB | 2000 | 2000 |
-| `pca` | 0.86s | 1.27s | 1.79s | **2.1x** | 2467 MB | 3387 MB | 8.7871 | 8.783 |
-| `neighbours_exact` | 0.39s | 0.44s | 0.53s | **1.3x** | 2517 MB | 3430 MB | 955357 | 954109 |
-| `cluster_louvain` | 0.74s | 0.77s | 1.40s | **1.9x** | 2644 MB | 1747 MB | 15 | 16 |
-| `umap` | 15.00s | 15.04s | 6.92s | 2.2x slower | 2997 MB | 1948 MB | 13999 | 13999 |
-| `umap_unseeded` | 1.67s | 1.68s | — | — | 3080 MB | — | 13999 |  |
-| `find_all_markers` | 8.03s | 23.23s | 4.30s | 1.9x slower | 3580 MB | 3796 MB | 5895 | 5907 |
-| `library_load` | — | — | 1.47s | — | — | 485 MB |  |  |
-| `neighbours_annoy` | — | — | 1.81s | — | — | 3611 MB |  | 953731 |
-| **shared pipeline** | **26.8s** | **42.4s** | **18.9s** | 1.4x slower | **3580 MB** | **3796 MB** |  |  |
+| `import` | 0.45s | 0.45s | — | — | 142 MB | — |  |  |
+| `read_counts` | 0.23s | 0.22s | 1.95s | **8.6x** | 407 MB | 1087 MB | 13999 | 13999 |
+| `create_object` | 0.05s | 0.05s | 0.40s | **8.8x** | 531 MB | 1094 MB | 13915 | 13915 |
+| `qc_metrics` | 0.00s | 0.00s | 0.04s | **9.8x** | 532 MB | 1094 MB | 0.0 | 0 |
+| `normalize` | 0.09s | 0.08s | 0.27s | **3.1x** | 607 MB | 1244 MB | 21191453.753 | 21191454 |
+| `hvg_vst` | 0.54s | 0.54s | 0.23s | 2.4x slower | 1003 MB | 1244 MB | 2000 | 2000 |
+| `scale_hvg` | 0.45s | 0.47s | 0.47s | **1.1x** | 2519 MB | 2022 MB | 2000 | 2000 |
+| `pca` | 0.79s | 1.16s | 1.56s | **2.0x** | 2520 MB | 3177 MB | 8.7871 | 8.783 |
+| `neighbours_exact` | 0.30s | 0.29s | 0.44s | **1.5x** | 2573 MB | 3220 MB | 955357 | 954109 |
+| `cluster_louvain` | 1.37s | 1.35s | 1.22s | 1.1x slower | 2663 MB | 1537 MB | 16 | 16 |
+| `umap` | 12.44s | 12.19s | 5.96s | 2.1x slower | 2988 MB | 1737 MB | 13999 | 13999 |
+| `umap_unseeded` | 1.13s | 1.10s | — | — | 3072 MB | — | 13999 |  |
+| `find_all_markers` | 7.23s | 7.13s | 4.27s | 1.7x slower | 3309 MB | 3432 MB | 6172 | 6172 |
+| `library_load` | — | — | 1.23s | — | — | 475 MB |  |  |
+| `neighbours_annoy` | — | — | 1.54s | — | — | 3412 MB |  | 953731 |
+| **shared pipeline** | **23.5s** | **23.5s** | **16.8s** | 1.4x slower | **3309 MB** | **3432 MB** |  |  |
 
 Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up and the arm-specific asides (`neighbours_annoy`, `umap_unseeded`).
 
@@ -350,25 +360,27 @@ Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.63s | — | — | 123 MB | — |  |  |
-| `read_counts` | 0.61s | 6.04s | **9.9x** | 1220 MB | 9646 MB | 20729 | 20729 |
-| `create_object` | 0.40s | 1.61s | **4.0x** | 1533 MB | 10919 MB | 18381 | 18381 |
-| `qc_metrics` | 0.06s | 0.31s | **5.4x** | 1754 MB | 10625 MB | 3.675326 | 3.675325 |
-| `normalize` | 0.80s | 1.60s | **2.0x** | 2815 MB | 10741 MB | 66869178.271 | 66869178 |
-| `hvg_vst` | 2.68s | 1.32s | 2.0x slower | 4084 MB | 10686 MB | 2000 | 2000 |
-| `scale_hvg` | 1.08s | 0.57s | 1.9x slower | 5071 MB | 10744 MB | 2000 | 2000 |
-| `pca` | 0.72s | 1.51s | **2.1x** | 5074 MB | 10708 MB | 9.2571 | 9.2638 |
-| `neighbours_exact` | 0.63s | 1.66s | **2.6x** | 5222 MB | 10678 MB | 1217711 | 1217571 |
-| `cluster_louvain` | 2.07s | 2.74s | **1.3x** | 5370 MB | 6543 MB | 7 | 8 |
-| `umap` | 16.90s | 10.34s | 1.6x slower | 5700 MB | 6743 MB | 20729 | 20729 |
-| `umap_unseeded` | 1.99s | — | — | 5519 MB | — | 20729 |  |
-| `find_all_markers` | 23.87s | 14.31s | 1.7x slower | 9428 MB | 10915 MB | 9356 | 9365 |
-| `library_load` | — | 1.59s | — | — | 485 MB |  |  |
-| `neighbours_annoy` | — | 2.76s | — | — | 10685 MB |  | 1217807 |
-| **shared pipeline** | **49.8s** | **42.0s** | 1.2x slower | **9428 MB** | **10919 MB** |  |  |
+| `import` | 0.46s | — | — | 144 MB | — |  |  |
+| `read_counts` | 0.57s | 5.61s | **9.8x** | 1189 MB | 9671 MB | 20729 | 20729 |
+| `create_object` | 0.35s | 1.28s | **3.7x** | 1784 MB | 13204 MB | 18381 | 18381 |
+| `qc_metrics` | 0.05s | 0.30s | **5.7x** | 1785 MB | 13204 MB | 3.675326 | 3.675325 |
+| `normalize` | 0.70s | 1.33s | **1.9x** | 2847 MB | 14268 MB | 66869178.271 | 66869178 |
+| `hvg_vst` | 2.39s | 1.13s | 2.1x slower | 4115 MB | 14268 MB | 2000 | 2000 |
+| `scale_hvg` | 0.74s | 0.46s | 1.6x slower | 5103 MB | 14851 MB | 2000 | 2000 |
+| `pca` | 0.67s | 1.17s | **1.8x** | 5105 MB | 15280 MB | 9.2571 | 9.2638 |
+| `neighbours_exact` | 0.45s | 1.42s | **3.2x** | 5278 MB | 15381 MB | 1217711 | 1217571 |
+| `cluster_louvain` | 2.89s | 2.39s | 1.2x slower | 5364 MB | 15643 MB | 8 | 8 |
+| `umap` | 14.60s | 8.79s | 1.7x slower | 5734 MB | 15672 MB | 20729 | 20729 |
+| `umap_unseeded` | 1.27s | — | — | 5160 MB | — | 20729 |  |
+| `find_all_markers` | 22.36s | 14.27s | 1.6x slower | 11606 MB | 14716 MB | 10199 | 10199 |
+| `library_load` | — | 1.26s | — | — | 487 MB |  |  |
+| `neighbours_annoy` | — | 2.25s | — | — | 15606 MB |  | 1217807 |
+| **shared pipeline** | **45.8s** | **38.1s** | 1.2x slower | **11606 MB** | **15672 MB** |  |  |
 
 Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up and the arm-specific asides (`neighbours_annoy`, `umap_unseeded`).
 
+
+---
 
 ## 5. Named operations
 
@@ -376,13 +388,13 @@ Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Truecell (1 thread) | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.46s | 0.47s | — | — | 123 MB | — |  |  |
-| `blas_setup` | 0.01s | 0.02s | 0.18s | **12.2x** | 124 MB | 528 MB | 2000 | 2000 |
-| `blas_gemm` | 0.01s | 0.02s | 0.13s | **9.3x** | 199 MB | 602 MB | 2002.361 | 2006.143 |
-| `blas_svd` | 0.02s | 0.02s | 0.03s | **1.4x** | 199 MB | 605 MB | 66.575 | 67.223 |
-| `blas_crossprod_chol` | 0.03s | 0.04s | 0.12s | **4.4x** | 199 MB | 660 MB | 62.883 | 63.745 |
-| `library_load` | — | — | 1.38s | — | — | 486 MB |  |  |
-| **shared pipeline** | **0.1s** | **0.1s** | **0.5s** | **6.0x** | **219 MB** | **660 MB** |  |  |
+| `import` | 0.44s | 0.44s | — | — | 143 MB | — |  |  |
+| `blas_setup` | 0.01s | 0.01s | 0.16s | **11.9x** | 222 MB | 519 MB | 2000 | 2000 |
+| `blas_gemm` | 0.02s | 0.02s | 0.13s | **7.6x** | 222 MB | 588 MB | 2002.361 | 2006.143 |
+| `blas_svd` | 0.02s | 0.02s | 0.02s | **1.2x** | 222 MB | 652 MB | 66.575 | 67.223 |
+| `blas_crossprod_chol` | 0.03s | 0.04s | 0.12s | **3.8x** | 222 MB | 652 MB | 62.883 | 63.745 |
+| `library_load` | — | — | 1.21s | — | — | 487 MB |  |  |
+| **shared pipeline** | **0.1s** | **0.1s** | **0.4s** | **5.5x** | **316 MB** | **652 MB** |  |  |
 
 Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up.
 
@@ -390,13 +402,13 @@ Median of 3 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.51s | — | — | 123 MB | — |  |  |
-| `read_counts` | 0.05s | 0.70s | **13.5x** | 138 MB | 604 MB | 2700 | 2700 |
-| `create_object` | 0.01s | 0.30s | **19.7x** | 254 MB | 676 MB | 13714 | 13714 |
-| `sctransform` | 39.71s | 52.94s | **1.3x** | 1643 MB | 3114 MB | 3000 | 3000 |
-| `pca_on_sct` | 0.15s | 0.15s | ~equal | 1001 MB | 3116 MB | 14.3395 | 14.2162 |
-| `library_load` | — | 1.48s | — | — | 487 MB |  |  |
-| **shared pipeline** | **39.9s** | **54.1s** | **1.4x** | **1643 MB** | **3116 MB** |  |  |
+| `import` | 0.44s | — | — | 144 MB | — |  |  |
+| `read_counts` | 0.04s | 0.58s | **13.5x** | 243 MB | 594 MB | 2700 | 2700 |
+| `create_object` | 0.02s | 0.26s | **12.2x** | 243 MB | 666 MB | 13714 | 13714 |
+| `sctransform` | 32.82s | 44.71s | **1.4x** | 1668 MB | 3098 MB | 3000 | 3000 |
+| `pca_on_sct` | 0.13s | 0.14s | ~equal | 995 MB | 3099 MB | 14.3395 | 14.2162 |
+| `library_load` | — | 1.21s | — | — | 489 MB |  |  |
+| **shared pipeline** | **33.0s** | **45.7s** | **1.4x** | **1668 MB** | **3099 MB** |  |  |
 
 Median of 2 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up.
 
@@ -404,18 +416,18 @@ Median of 2 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.50s | — | — | 123 MB | — |  |  |
-| `prep` | 1.06s | 2.20s | **2.1x** | 808 MB | 985 MB | 8 | 9 |
-| `de_wilcox` | 0.36s | 0.08s | 4.8x slower | 816 MB | 1026 MB | 2022 | 2022 |
-| `de_t` | 0.44s | 2.12s | **4.8x** | 816 MB | 1143 MB | 2022 | 2022 |
-| `de_bimod` | 0.22s | 2.21s | **10.2x** | 817 MB | 1062 MB | 2022 | 2022 |
-| `de_LR` | 2.66s | 5.24s | **2.0x** | 868 MB | 1119 MB | 2022 | 2022 |
-| `de_negbinom` | 4.77s | 13.38s | **2.8x** | 878 MB | 1207 MB | 2022 | 2022 |
-| `de_roc` | 0.37s | 4.20s | **11.4x** | 878 MB | 1249 MB | 2022 | 2022 |
-| `de_MAST` | 3.08s | 10.34s | **3.4x** | 880 MB | 2133 MB | 2022 | 2022 |
-| `de_DESeq2` | _not available in Truecell_ | | | | | | |
-| `library_load` | — | 1.48s | — | — | 495 MB |  |  |
-| **shared pipeline** | **13.3s** | **53.6s** | **4.0x** | **911 MB** | **2673 MB** |  |  |
+| `import` | 0.44s | — | — | 143 MB | — |  |  |
+| `prep` | 1.01s | 1.91s | **1.9x** | 863 MB | 909 MB | 9 | 9 |
+| `de_wilcox` | 0.18s | 0.05s | 3.6x slower | 864 MB | 936 MB | 1254 | 1254 |
+| `de_t` | 0.22s | 0.75s | **3.3x** | 864 MB | 1126 MB | 1254 | 1254 |
+| `de_bimod` | 0.11s | 0.72s | **6.3x** | 865 MB | 992 MB | 1254 | 1254 |
+| `de_LR` | 1.44s | 2.41s | **1.7x** | 916 MB | 1053 MB | 1254 | 1254 |
+| `de_negbinom` | 2.38s | 6.25s | **2.6x** | 922 MB | 1108 MB | 1254 | 1254 |
+| `de_roc` | 0.19s | 1.54s | **8.2x** | 922 MB | 1145 MB | 1254 | 1254 |
+| `de_MAST` | 1.55s | 6.37s | **4.1x** | 924 MB | 1709 MB | 1254 | 1254 |
+| `de_DESeq2` | 2.50s | 9.67s | **3.9x** | 5175 MB | 2543 MB | 2347 | 2347 |
+| `library_load` | — | 1.21s | — | — | 475 MB |  |  |
+| **shared pipeline** | **9.6s** | **29.7s** | **3.1x** | **5177 MB** | **2543 MB** |  |  |
 
 Median of 2 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up.
 
@@ -423,14 +435,14 @@ Median of 2 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.52s | — | — | 124 MB | — |  |  |
-| `read_counts` | 0.26s | 2.43s | **9.3x** | 358 MB | 1063 MB | 13999 | 13999 |
-| `prep_to_pca` | 1.87s | 2.52s | **1.3x** | 2574 MB | 3101 MB | 8.7871 | 8.783 |
-| `harmony` | 1.06s | 2.22s | **2.1x** | 2580 MB | 3140 MB | 13999 | 13999 |
-| `integrate_cca` | 24.76s | 6.87s | 3.6x slower | 5348 MB | 3798 MB | 13999 | 13999 |
-| `integrate_rpca` | 9.04s | 8.41s | 1.1x slower | 4414 MB | 5329 MB | 13999 | 13999 |
-| `library_load` | — | 1.51s | — | — | 501 MB |  |  |
-| **shared pipeline** | **37.0s** | **22.4s** | 1.6x slower | **5348 MB** | **5329 MB** |  |  |
+| `import` | 0.46s | — | — | 145 MB | — |  |  |
+| `read_counts` | 0.23s | 1.97s | **8.4x** | 438 MB | 1025 MB | 13999 | 13999 |
+| `prep_to_pca` | 1.52s | 2.15s | **1.4x** | 2633 MB | 3066 MB | 8.7871 | 8.783 |
+| `harmony` | 1.27s | 2.00s | **1.6x** | 2638 MB | 3102 MB | 13999 | 13999 |
+| `integrate_cca` | 18.73s | 6.12s | 3.1x slower | 5423 MB | 3734 MB | 13999 | 13999 |
+| `integrate_rpca` | 3.74s | 7.08s | **1.9x** | 4464 MB | 5232 MB | 13999 | 13999 |
+| `library_load` | — | 1.27s | — | — | 475 MB |  |  |
+| **shared pipeline** | **25.5s** | **19.3s** | 1.3x slower | **5423 MB** | **5241 MB** |  |  |
 
 Median of 2 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up.
 
@@ -438,161 +450,161 @@ Median of 2 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes
 
 | Step | Truecell | Seurat | Faster by | Truecell peak RSS | Seurat peak RSS | Truecell result | Seurat result |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `import` | 0.52s | — | — | 124 MB | — |  |  |
-| `read_xenium` | 0.12s | 2.31s | **20.0x** | 221 MB | 791 MB | 36602 | 36602 |
-| `normalize` | 0.02s | 0.34s | **15.0x** | 255 MB | 812 MB | 36602 | 36602 |
-| `morans_i_2k` | 0.03s | 2.55s | **86.9x** | 302 MB | 1042 MB | 248 | 248 |
-| `morans_i_full` | 5.62s | — | — | 995 MB | — | 248 |  |
-| `library_load` | — | 1.50s | — | — | 496 MB |  |  |
-| **shared pipeline** | **0.2s** | **5.2s** | **31.0x** | **1000 MB** | **1042 MB** |  |  |
+| `import` | 0.46s | — | — | 144 MB | — |  |  |
+| `read_xenium` | 0.12s | 2.13s | **17.1x** | 255 MB | 788 MB | 36602 | 36602 |
+| `normalize` | 0.02s | 0.21s | **8.4x** | 297 MB | 844 MB | 36602 | 36602 |
+| `morans_i_2k` | 0.03s | 2.29s | **77.0x** | 408 MB | 1065 MB | 248 | 248 |
+| `morans_i_full` | 5.42s | — | — | 1024 MB | — | 248 |  |
+| `library_load` | — | 1.25s | — | — | 482 MB |  |  |
+| **shared pipeline** | **0.2s** | **4.6s** | **25.8x** | **1024 MB** | **1065 MB** |  |  |
 
 Median of 2 timed repeats per arm, warm-up discarded. *Shared pipeline* excludes interpreter start-up and the arm-specific asides (`morans_i_full`).
 
 
-**SCTransform** — 39.5s against 52.9s, and half the memory (1.6 GB vs 3.1 GB).
-Untouched by the BLAS swap, and read with the caveat in 2.2: Seurat is on its
-non-glmGamPoi fallback here, so the true gap is smaller than 1.3x by an
-unmeasured margin.
+**SCTransform** — 32.8s against 44.7s, on just over half the memory (1.7 GB
+against 3.1 GB). Read it with the caveat in 2.2: Seurat is on its non-glmGamPoi
+fallback here, so the true gap is smaller than 1.4x by an unmeasured margin.
 
 **Differential expression** — the cleanest comparison in the report, and
-completely unaffected by the BLAS. Both arms test the same 2,022 genes on the
-same two groups of cells (truecell writes the assignment, R adopts it) and both
-return 2,022 rows. Truecell wins six of the seven per-cell tests: `roc` 11.4x,
-`bimod` 10.2x, `t` 4.8x, `MAST` 3.4x, `negbinom` 2.8x, `LR` 2.0x. It loses
-`wilcox` by 4.8x, which is presto's C++ Wilcoxon against
-`scipy.stats.mannwhitneyu`.
+completely unaffected by the BLAS. Both arms test the same two groups of cells
+(truecell writes the assignment, R adopts it). The seven tests that apply the
+fold-change pre-filter test the same 1,254 genes and return 1,254 rows on both
+sides; DESeq2, which skips that filter in both tools, tests 2,347. Truecell
+wins seven of the eight: `roc` 8.2x, `bimod` 6.3x, `MAST` 4.1x, `DESeq2` 3.9x,
+`t` 3.3x, `negbinom` 2.6x, `LR` 1.7x. It loses `wilcox` by 3.6x, which is
+presto's C++ Wilcoxon against `scipy.stats.mannwhitneyu`. `negbinom` has been
+truecell's own GLM since 2.0.0, where it was statsmodels', and stays 2.6x ahead.
 
-`DESeq2` has no row because the two tools mean different things by the name:
-Seurat's runs per cell, truecell's is a pseudobulk test requiring a replicate
-column that PBMC 3k does not have. The DE vignette documents this as **seven**
-per-cell tests, not eight, so it is a design divergence rather than a gap.
+**DESeq2 has a row now, and a memory cost.** In 1.0.0 the two tools meant
+different things by the name and truecell's had no row here; since 2.0.0
+`test_use="deseq2"` is Seurat's per-cell `DESeq2DETest`. It is 3.9x faster
+(2.50s against 9.67s), but it takes the process tree from under 1 GB to 5.2 GB.
+That is pydeseq2: it starts one worker process per core, 18 here, and truecell
+does not limit it; the workers stay alive after the call returns. Measured
+separately, the same call held to one worker takes 4.2s and peaks at 1.2 GB,
+with identical output — still 2.3x faster than Seurat, which runs DESeq2 in
+one process.
 
-**Batch integration — the result the BLAS swap reversed.** Harmony still goes
-to truecell at 2.1x (harmonypy against R's harmony, neither BLAS-bound). CCA
-and RPCA go the other way: Seurat's CCA is **3.6x faster** (6.87s against
-24.76s) and its RPCA 1.1x, where on the reference BLAS truecell led CCA by
-3.6x. Same 13,999 cells, same PCA, same `k.weight` — the entire 13x that
-Seurat's CCA gained came from the BLAS.
+**Batch integration.** Harmony goes to truecell at 1.6x (harmonypy against R's
+harmony, neither BLAS-bound), and so does RPCA, at 1.9x. Seurat's CCA is
+**3.1x faster** (6.12s against 18.73s) on the same 13,999 cells, the same PCA
+and the same `k.weight`.
 
 **Moran's I — the one asymptotic difference in the report.** On the identical
-2,000-cell subset truecell is 87x faster. Then it keeps going: it computes the
-full 36,602-cell slide in 5.6s in 1.0 GB, which Seurat cannot do at all.
+2,000-cell subset truecell is 77x faster. Then it keeps going: it computes the
+full 36,602-cell slide in 5.4s in 1.0 GB, which Seurat cannot do at all.
 `RunMoransI` builds `as.matrix(dist(pos))`, a dense n x n distance matrix —
 10.7 GB at this n, before any statistic is computed. That is why the spatial
 vignette subsets in the first place. Every other gap here is a constant factor;
 this one is a wall, and no BLAS changes it.
 
+---
 
 ## 6. The tutorial scripts, end to end
 
 | Tutorial | Python script | R script | Faster by | Python peak RSS | R peak RSS |
 |---|---:|---:|---:|---:|---:|
-| `pbmc3k` | 15.4s | 8.1s | 1.9x slower | 2702 MB | 1876 MB |
-| `sctransform` | 59.2s | 64.4s | **1.1x** | 1669 MB | 3402 MB |
-| `de` | 102.5s | 336.8s | **3.3x** | 3362 MB | 5436 MB |
-| `dimreduc` | 8.1s | 21.4s | **2.7x** | 1003 MB | 1217 MB |
-| `objects` | 2.8s | 4.6s | **1.6x** | 1389 MB | 2052 MB |
-| `integration` | 47.5s | 51.1s | **1.1x** | 5447 MB | 6397 MB |
-| `cellcycle` | 3.8s | 13.0s | **3.4x** | 3569 MB | 9566 MB |
-| `svf` | 1.8s | 7.0s | **4.0x** | 381 MB | 1033 MB |
-| `visium` | 3.3s | 7.0s | **2.1x** | 1555 MB | 2067 MB |
-| `lazy` | 125.4s | 9.8s | 12.8x slower | 3327 MB | 4138 MB |
-
-
+| `pbmc3k` | 13.7s | 7.3s | 1.9x slower | 2693 MB | 1844 MB |
+| `sctransform` | 49.0s | 54.0s | **1.1x** | 1669 MB | 3316 MB |
+| `de` | 108.7s | 303.7s | **2.8x** | 7158 MB | 5503 MB |
+| `dimreduc` | 7.3s | 18.9s | **2.6x** | 1027 MB | 1205 MB |
+| `objects` | 1.5s | 3.9s | **2.6x** | 1403 MB | 2011 MB |
+| `integration` | 37.6s | 42.9s | **1.1x** | 5474 MB | 6296 MB |
+| `cellcycle` | 4.8s | 12.5s | **2.6x** | 3728 MB | 15482 MB |
+| `svf` | 0.8s | 5.8s | **7.7x** | 408 MB | 1068 MB |
+| `visium` | 2.8s | 5.6s | **2.0x** | 1615 MB | 2055 MB |
+| `lazy` | 139.0s | 8.1s | 17.2x slower | 11459 MB | 4064 MB |
 
 These are the tutorial scripts as they ship, not the benches — a different
 question, and a noisier one. Each script also prints validation, writes CSVs or
-draws figures, and the two sides do not do equal amounts of that. Three rows
-need saying out loud:
+draws figures, and the two sides do not do equal amounts of that. Two rows need
+saying out loud:
 
-* **`sctransform`'s Python peak fell from 7386 MB to 1669 MB**, the largest
-  memory change anywhere in this report, and none of it is SCTransform. The
-  `pbmc3k_sctransform` bench covers the script as far as PCA and peaks at
-  1643 MB, unchanged by the fix; the script then runs `find_all_markers` on an
-  SCT assay of 12,572 genes x 2,700 cells, which under the old code was ~0.5 GB
-  of dense array per cluster before `expm1` copied it again. That is the whole
-  of the difference, and the clearest illustration of 2.4: the cost was never in
-  the model, it was in what the marker call allocated afterwards.
-
-* **`lazy` is not a 13x loss.** The Python script runs all eight DE tests on an
+* **`lazy` is not a 17x loss.** The Python script runs eight DE tests on an
   out-of-core layer; `FindMarkers` on a BPCells `IterableMatrix` supports
   `wilcox` alone, so the R script attempts eight and completes one. That is a
   capability difference being reported by a stopwatch — the R script finishes
-  sooner because there is less it can do.
-* **`dimreduc`** was 15.3x on the reference BLAS and is the row the swap hit
-  hardest, because JackStraw is 300 permuted PCAs.
-
+  sooner because there is less it can do. Half its Python peak of 11.5 GB is
+  pydeseq2's per-core workers (section 5): held to one worker, the same script
+  peaks at 5.6 GB, measured separately.
+* **`de`** runs all nine tests on both sides, and Seurat's `MAST`, `DESeq2` and
+  `negbinom` are most of its 303.7s. Its Python peak of 7.2 GB is mostly
+  pydeseq2's workers again: held to one worker, the script peaks at 3.1 GB.
 
 ---
 
 ## 7. What each tool is good at
 
-**Truecell is faster at getting data in.** Reading 10x matrices 9–15x, building
-the object 4–21x, normalisation 2–7x, QC metrics 4–12x. None of this is BLAS;
-it is sparse I/O and object construction. On the THP-1 dense TSV truecell reads
-20,729 cells in 0.61s and 1.2 GB against Seurat's 6.04s and 9.6 GB, and that
-single step sets R's peak for the whole run.
+**Truecell is faster at getting data in.** Reading 10x matrices 8.6–16.1x,
+building the object 3.7–16.5x, normalisation 1.9–7.1x, QC metrics 4.1–9.8x.
+None of this is BLAS; it is sparse I/O and object construction. On the THP-1
+dense TSV truecell reads 20,729 cells in 0.57s and 1.2 GB against Seurat's
+5.61s and 9.7 GB, and that single step sets much of R's footprint for the run.
 
-**PCA is still truecell's, but by 1.6–2.3x rather than 12–15x.** Randomized SVD
-against irlba, both now on the same Accelerate. That residual gap is the real
-one; the rest was the BLAS.
+**PCA is truecell's by 1.5–2.2x.** Randomized SVD against irlba, both on the
+same Accelerate.
 
-**Truecell wins six of the seven shared DE tests** by 2.0–11.4x, and Moran's I
-by 87x with no *n* limit.
+**Truecell wins seven of the eight shared DE tests** by 1.7–8.2x, and Moran's I
+by 77x with no *n* limit.
 
-**Seurat wins seven operations, and two of them decide the totals.**
+**Seurat wins eight operations, and two of them decide the totals.**
 
 | Operation | Gap | Where it comes from |
 |---|---|---|
-| `umap` (seeded) | 1.6–4.3x | umap-learn drops to one thread under a `random_state` |
-| `de_wilcox` | 4.8x | presto's C++ Wilcoxon vs `scipy.stats.mannwhitneyu` |
-| `integrate_cca` | 3.6x | reversed by the BLAS swap; see 2.1 |
-| `hvg_vst` | 1.8–2.6x | |
-| `find_all_markers` | 1.7–2.4x | presto again, one call per cluster; was 3.2–5.9x before 2.4 |
-| `scale_hvg` | 1.4–1.9x on 3 of 4 datasets | |
-| `neighbours_exact` | 1.1–3.1x on 2 of 4 datasets | |
+| `umap` (seeded) | 1.7–3.9x | umap-learn drops to one thread under a `random_state` |
+| `de_wilcox` | 3.6x | presto's C++ Wilcoxon vs `scipy.stats.mannwhitneyu` |
+| `integrate_cca` | 3.1x | |
+| `find_all_markers` | 1.6–2.6x | presto again, one call per cluster |
+| `hvg_vst` | 1.7–2.5x | |
+| `cluster_louvain` | 1.1–2.3x | the same optimiser as Seurat's C++, translated to numba |
+| `scale_hvg` | 1.1–1.6x on 2 of 4 datasets | |
+| `neighbours_exact` | 1.1–3.0x on 2 of 4 datasets | |
 
-`hvg_vst`, `scale_hvg` and `neighbours_exact` are small in absolute terms —
-under 1.5s each on every dataset here — and none changes a total on its own.
+`hvg_vst`, `scale_hvg`, `neighbours_exact` and `cluster_louvain` are small in
+absolute terms — under 3s each on every dataset here — and none changes a total
+on its own.
 
-**Memory no longer crosses over on the larger sets.** Through `hvg_vst` truecell
-is lighter on every dataset, by 1.8x on PBMC 3k and up to 8x on THP-1. From
-`scale_hvg` onward on the 10x sets R pulls ahead for a stretch, partly because
-its GC returns pages to the OS — visible as the drop from 3.4 GB to 1.7 GB
-across `cluster_louvain` on ifnb, which CPython's arenas never do. But the
-process peak now goes to truecell on PBMC 8k, ifnb and THP-1: `find_all_markers`
-used to add 5–7 GB in one step, and adds 0.5–3.9 GB instead.
+**Memory crosses over on the larger sets.** Through `hvg_vst` truecell is
+lighter on every dataset, by 1.7x on PBMC 3k and 3.5x on THP-1. After that the
+lead changes hands on PBMC 8k and ifnb: R is lighter through clustering and
+UMAP, partly because its GC returns pages to the OS — visible as the drop from
+3.2 GB to 1.5 GB across `cluster_louvain` on ifnb, which CPython's arenas never
+do. But the process peak goes to truecell on PBMC 8k, ifnb and THP-1. On every
+dataset truecell's peak is set in `find_all_markers`.
 
-PBMC 3k is the one dataset where Seurat still takes the peak, and the cause is
-`scale_all_genes` — 2.5 GB for a dense 13,714 x 2,700 matrix, which is what the
-vignette asks for rather than what the pipeline needs.
+PBMC 3k is the one dataset where Seurat's peak is lower, and the cause is
+`scale_all_genes`: scaling all 13,714 genes, because the vignette asks for it,
+lifts truecell's process to 2.5 GB before marker detection starts.
 
 ## 8. What to do about it
 
-**1. ~~`find_markers` should filter before it densifies.~~ Done — see 2.4.**
-It was the largest item on this list; `find_all_markers` is now 1.5–3.2x faster
-and the memory it adds fell from 5–7 GB to 0.5–3.9 GB. What is left of that row
-is presto, which is item 3.
+**1. ~~`find_markers` should filter before it densifies.~~ Done in 1.0.0 — see
+2.4.**
 
-**2. Decide what `run_umap`'s seed should cost.** Now the largest item here.
-Passing one costs 3.6–9.0x because umap-learn silently single-threads, and it is
+**2. Decide what `run_umap`'s seed should cost.** Still the largest item here.
+Passing one costs 3.6–11.5x because umap-learn silently single-threads, and it is
 what keeps truecell behind on totals it would otherwise win at ≥8k cells (2.3).
 Either document it at the call site or expose the choice, so reproducibility is
 something a caller opts into knowingly rather than pays for by default.
 
-**3. Consider a fast path for Wilcoxon.** `scipy.stats.mannwhitneyu` is 4.8x
-off presto on the same 2,022 genes, and Wilcoxon is the default test — so it
-lands on `find_all_markers` too, and is now the whole of that gap rather than
-half of it.
+**3. Limit pydeseq2's worker processes.** One per core bought 1.6s on this DE
+bench and cost about 4 GB, which stays resident after the call returns. On a many-core
+server the cost grows with the core count. One worker gives the same output.
 
-**4. Look at `integrate_layers(method="cca")` again.** At 24.8s against Seurat's
-6.9s on the same input it is the largest single-step gap left in the report, and
-the reference-BLAS sweep hid it completely.
+**4. Consider a fast path for Wilcoxon.** `scipy.stats.mannwhitneyu` is 3.6x
+off presto on the same 1,254 genes, and Wilcoxon is the default test — so it
+lands on `find_all_markers` too, and is the whole of that gap.
 
-**5. For anyone running the R side: install presto, and glmGamPoi if you can.**
+**5. Look at `integrate_layers(method="cca")` again.** At 18.7s against Seurat's
+6.1s on the same input it is the largest single-step gap in the report in
+seconds.
+
+**6. For anyone running the R side: install presto, and glmGamPoi if you can.**
 presto is what makes Seurat's marker detection competitive. glmGamPoi does the
-same for SCTransform, and Seurat is on its fallback path here.
+same for SCTransform, and Seurat is on its fallback path here. Both change what
+Seurat computes as well as how fast, so the tutorials' R references were taken
+with presto and without glmGamPoi.
 
-**6. Keep R on Accelerate.** Already done on this machine. It changed no result
-anywhere in the suite and took up to 12.9x off individual steps; if you rebuild
-or reinstall R, redo the symlink in 2.1.
+**7. Keep R on Accelerate.** Done on this machine. On the M4 Pro it changed no
+result anywhere in the suite and took up to 12.9x off individual steps; if you
+rebuild or reinstall R, redo the symlink in 2.1.

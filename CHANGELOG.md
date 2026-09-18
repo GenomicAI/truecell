@@ -282,6 +282,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by constrained layout**, which keeps room for the legend beside or under the panels at
   any size. Calling `fig.tight_layout()` on one replaces that layout, with matplotlib's
   warning, and leaves no room for the legend.
+- **The performance report is re-measured for this release**, on an Apple M5 Pro;
+  it had stood at truecell 1.0.0 on an M4 Pro. truecell is faster in 45 of 68
+  like-for-like steps and still loses the standard workflow by 1.2–2.5x, to seeded
+  UMAP and presto's Wilcoxon. With Seurat's optimiser on both sides, clustering finds
+  the same number of clusters on all four datasets, at 1.1–1.2x Seurat's time from
+  8,000 cells up. DESeq2 has a row for the first time, 3.9x faster than Seurat's, but
+  pydeseq2 starts one worker process per core, and they took the process tree from
+  under 1 GB to 5.2 GB. The M4 Pro sweep is kept in `results_m4pro/`, and the report's
+  two findings from it are labelled as such.
 
 ### Fixed
 
