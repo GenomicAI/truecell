@@ -132,6 +132,7 @@ def fit(counts: pd.DataFrame, group1: np.ndarray):
     p-values, NaN where ``results()``' Cook's cutoff removes them, as R gives NA.
     """
     from pydeseq2.dds import DeseqDataSet
+    from pydeseq2.default_inference import DefaultInference
     from pydeseq2.ds import DeseqStats
 
     values = counts.to_numpy()
@@ -144,11 +145,17 @@ def fit(counts: pd.DataFrame, group1: np.ndarray):
     group1 = np.asarray(group1, dtype=bool)
     metadata = pd.DataFrame(
         {"condition": np.where(group1, "group1", "group2")}, index=counts.index)
+    # One process, as DESeq2 runs in R. Left to itself, pydeseq2 starts a joblib
+    # worker per CPU core for each object below, and the workers outlive the call:
+    # on the benchmark's PBMC 3k DE call they took the process tree from under 1 GB
+    # to 5.1 GB to save 1.6 s. The answer does not depend on the worker count.
+    inference = DefaultInference(n_cpus=1)
     # max_disp is DESeq2's maxDisp, max(10, samples). pydeseq2 enforces that maximum
     # itself; passing it keeps the rule from depending on that.
     dds = DeseqDataSet(
         counts=counts, metadata=metadata, design="~condition", refit_cooks=False,
         max_disp=max(10.0, float(counts.shape[0])), min_disp=MIN_DISP, quiet=True,
+        inference=inference,
     )
     dds.fit_size_factors(fit_type="ratio")
     dds.fit_genewise_dispersions()
@@ -175,7 +182,7 @@ def fit(counts: pd.DataFrame, group1: np.ndarray):
     dds.calculate_cooks()
 
     stats = DeseqStats(dds, contrast=["condition", "group1", "group2"], alpha=0.05,
-                       quiet=True)
+                       quiet=True, inference=inference)
     # nbinomWaldTest floors the fitted means at minmu before weighting them;
     # DeseqStats.run_wald_test does not, so run its Wald test with the floor.
     design = stats.design_matrix.to_numpy(dtype=float)

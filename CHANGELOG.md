@@ -287,10 +287,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   like-for-like steps and still loses the standard workflow by 1.2–2.5x, to seeded
   UMAP and presto's Wilcoxon. With Seurat's optimiser on both sides, clustering finds
   the same number of clusters on all four datasets, at 1.1–1.2x Seurat's time from
-  8,000 cells up. DESeq2 has a row for the first time, 3.9x faster than Seurat's, but
-  pydeseq2 starts one worker process per core, and they took the process tree from
-  under 1 GB to 5.2 GB. The M4 Pro sweep is kept in `results_m4pro/`, and the report's
-  two findings from it are labelled as such.
+  8,000 cells up. DESeq2 has a row for the first time, 2.5x faster than Seurat's on
+  half its memory. The M4 Pro sweep is kept in `results_m4pro/`, and the report's two
+  findings from it are labelled as such.
 
 ### Fixed
 
@@ -490,6 +489,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The DE tutorial's fold-change figure was titled "13,712 genes, 1,172 shared
     cells", typed in before the feature renaming and the new clusters. The title is
     now counted from the data: 13,714 genes and 1,183 cells.
+- **`find_markers(test_use="deseq2")` runs in one process.** pydeseq2 starts a joblib
+  worker per CPU core, once for its data set and again for its test, and the workers
+  outlive the call. Re-measuring the performance report found them taking the process
+  tree from under 1 GB to 5.2 GB on PBMC 3k's DE bench to save 1.5 s, and doubling
+  the out-of-core tutorial's peak to 11.5 GB. DESeq2 runs in one R process and the
+  answer does not depend on the worker count, so truecell now gives pydeseq2 one. The
+  bench's call takes 4.0 s where it took 2.5 s, still 2.5x faster than Seurat's, and
+  peaks at 1.2 GB. `tests/test_deseq2_seurat_parity.py` fails if any of pydeseq2's
+  parallel sections asks for more than one job.
 
 ## [1.2.0] - 2026-08-10
 

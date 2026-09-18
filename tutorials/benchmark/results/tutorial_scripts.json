@@ -4,7 +4,7 @@
     "cores": "18",
     "memory_gb": 51.5,
     "platform": "macOS-27.0-arm64-arm-64bit",
-    "timestamp": "2026-09-18T14:16:37"
+    "timestamp": "2026-09-18T18:55:33"
   },
   "blas": {
     "truecell": {
@@ -56,15 +56,15 @@
       "truecell": {
         "cmd": "python pbmc3k_de_tutorial.py",
         "exit_code": 0,
-        "wall_seconds": 108.65645098686218,
-        "peak_rss_mb": 7158.109375,
+        "wall_seconds": 121.00172519683838,
+        "peak_rss_mb": 3063.296875,
         "log": "tutorials/benchmark/logs/tutorial.de.truecell.log"
       },
       "seurat": {
         "cmd": "Rscript pbmc3k_de_verify.R",
         "exit_code": 0,
-        "wall_seconds": 303.6627948284149,
-        "peak_rss_mb": 5503.328125,
+        "wall_seconds": 304.3869881629944,
+        "peak_rss_mb": 5563.765625,
         "log": "tutorials/benchmark/logs/tutorial.de.seurat.log"
       }
     },
@@ -168,15 +168,15 @@
       "truecell": {
         "cmd": "python lazy_bpcells_tutorial.py",
         "exit_code": 0,
-        "wall_seconds": 138.96063613891602,
-        "peak_rss_mb": 11459.09375,
+        "wall_seconds": 165.416601896286,
+        "peak_rss_mb": 5648.78125,
         "log": "tutorials/benchmark/logs/tutorial.lazy.truecell.log"
       },
       "seurat": {
         "cmd": "Rscript lazy_bpcells_verify.R",
         "exit_code": 0,
-        "wall_seconds": 8.091996908187866,
-        "peak_rss_mb": 4063.765625,
+        "wall_seconds": 8.03419804573059,
+        "peak_rss_mb": 4118.140625,
         "log": "tutorials/benchmark/logs/tutorial.lazy.seurat.log"
       }
     }
