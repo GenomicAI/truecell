@@ -3,7 +3,7 @@
 #
 #   bash tutorials/benchmark/sweep.sh
 #
-# Takes about an hour on an M4 Pro. Run it on an otherwise idle machine — the
+# Takes about 40 minutes on an Apple M5 Pro. Run it on an otherwise idle machine — the
 # parent samples resident set size from outside the child, so anything else
 # competing for cores or memory lands in the numbers.
 #

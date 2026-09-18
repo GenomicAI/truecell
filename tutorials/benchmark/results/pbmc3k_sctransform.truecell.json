@@ -1,10 +1,16 @@
 {
   "machine": {
-    "cpu": "Apple M4 Pro",
-    "cores": "12",
-    "memory_gb": 25.8,
-    "platform": "macOS-26.5.2-arm64-arm-64bit",
-    "timestamp": "2026-08-03T21:42:23"
+    "cpu": "Apple M5 Pro",
+    "cores": "18",
+    "memory_gb": 51.5,
+    "platform": "macOS-27.0-arm64-arm-64bit",
+    "timestamp": "2026-09-18T14:09:11"
+  },
+  "blas": {
+    "numpy": "2.4.6",
+    "blas": "accelerate",
+    "lapack": "accelerate",
+    "threadpools": []
   },
   "runs": [
     {
@@ -13,60 +19,60 @@
       "repeat": 1,
       "threads": null,
       "exit_code": 0,
-      "wall_seconds": 40.42319989204407,
-      "process_peak_rss_mb": 1642.75,
-      "baseline_rss_mb": 1.0,
-      "n_samples": 609,
+      "wall_seconds": 33.5147020816803,
+      "process_peak_rss_mb": 1668.828125,
+      "baseline_rss_mb": 1.828125,
+      "n_samples": 477,
       "steps": [
         {
           "step": "import",
-          "t0": 1785773462.787331,
-          "t1": 1785773463.290185,
-          "seconds": 0.5028538703918457,
+          "t0": 1789720684.6288419,
+          "t1": 1789720685.0666199,
+          "seconds": 0.4377779960632324,
           "anchor": null,
-          "peak_rss_mb": 120.71875,
-          "rss_start_mb": 1.0,
-          "delta_rss_mb": 119.71875
+          "peak_rss_mb": 146.40625,
+          "rss_start_mb": 1.828125,
+          "delta_rss_mb": 144.578125
         },
         {
           "step": "read_counts",
-          "t0": 1785773463.290257,
-          "t1": 1785773463.34217,
-          "seconds": 0.05191302299499512,
+          "t0": 1789720685.06668,
+          "t1": 1789720685.109798,
+          "seconds": 0.04311800003051758,
           "anchor": 2700,
-          "peak_rss_mb": 151.421875,
-          "rss_start_mb": 151.421875,
-          "delta_rss_mb": 0.0
+          "peak_rss_mb": 245.671875,
+          "rss_start_mb": 146.40625,
+          "delta_rss_mb": 99.265625
         },
         {
           "step": "create_object",
-          "t0": 1785773463.3422248,
-          "t1": 1785773463.357306,
-          "seconds": 0.015081167221069336,
+          "t0": 1789720685.109856,
+          "t1": 1789720685.13537,
+          "seconds": 0.02551412582397461,
           "anchor": 13714,
-          "peak_rss_mb": 266.5,
-          "rss_start_mb": 266.5,
+          "peak_rss_mb": 245.671875,
+          "rss_start_mb": 245.671875,
           "delta_rss_mb": 0.0
         },
         {
           "step": "sctransform",
-          "t0": 1785773463.357365,
-          "t1": 1785773502.983068,
-          "seconds": 39.62570309638977,
+          "t0": 1789720685.135436,
+          "t1": 1789720717.942143,
+          "seconds": 32.80670690536499,
           "anchor": 3000,
-          "peak_rss_mb": 1642.75,
-          "rss_start_mb": 266.5,
-          "delta_rss_mb": 1376.25
+          "peak_rss_mb": 1668.828125,
+          "rss_start_mb": 245.671875,
+          "delta_rss_mb": 1423.15625
         },
         {
           "step": "pca_on_sct",
-          "t0": 1785773502.983132,
-          "t1": 1785773503.131552,
-          "seconds": 0.14842009544372559,
+          "t0": 1789720717.942208,
+          "t1": 1789720718.075489,
+          "seconds": 0.13328099250793457,
           "anchor": 14.3395,
-          "peak_rss_mb": 1001.546875,
-          "rss_start_mb": 1001.0,
-          "delta_rss_mb": 0.546875
+          "peak_rss_mb": 995.234375,
+          "rss_start_mb": 995.03125,
+          "delta_rss_mb": 0.203125
         }
       ],
       "log": "tutorials/benchmark/logs/pbmc3k_sctransform.truecell.1.log"
@@ -77,60 +83,60 @@
       "repeat": 2,
       "threads": null,
       "exit_code": 0,
-      "wall_seconds": 40.58741092681885,
-      "process_peak_rss_mb": 1642.96875,
-      "baseline_rss_mb": 1.734375,
-      "n_samples": 614,
+      "wall_seconds": 33.54053592681885,
+      "process_peak_rss_mb": 1667.46875,
+      "baseline_rss_mb": 1.3125,
+      "n_samples": 477,
       "steps": [
         {
           "step": "import",
-          "t0": 1785773503.2113783,
-          "t1": 1785773503.718879,
-          "seconds": 0.5075006484985352,
+          "t0": 1789720718.1442482,
+          "t1": 1789720718.587708,
+          "seconds": 0.44345974922180176,
           "anchor": null,
-          "peak_rss_mb": 125.296875,
-          "rss_start_mb": 1.734375,
-          "delta_rss_mb": 123.5625
+          "peak_rss_mb": 141.5,
+          "rss_start_mb": 1.3125,
+          "delta_rss_mb": 140.1875
         },
         {
           "step": "read_counts",
-          "t0": 1785773503.71894,
-          "t1": 1785773503.770185,
-          "seconds": 0.05124497413635254,
+          "t0": 1789720718.5877771,
+          "t1": 1789720718.6302762,
+          "seconds": 0.04249906539916992,
           "anchor": 2700,
-          "peak_rss_mb": 125.296875,
-          "rss_start_mb": 125.296875,
+          "peak_rss_mb": 240.875,
+          "rss_start_mb": 240.875,
           "delta_rss_mb": 0.0
         },
         {
           "step": "create_object",
-          "t0": 1785773503.7702441,
-          "t1": 1785773503.785158,
-          "seconds": 0.014913797378540039,
+          "t0": 1789720718.6303282,
+          "t1": 1789720718.6470149,
+          "seconds": 0.016686677932739258,
           "anchor": 13714,
-          "peak_rss_mb": 240.59375,
-          "rss_start_mb": 240.59375,
+          "peak_rss_mb": 240.875,
+          "rss_start_mb": 240.875,
           "delta_rss_mb": 0.0
         },
         {
           "step": "sctransform",
-          "t0": 1785773503.785206,
-          "t1": 1785773543.571787,
-          "seconds": 39.78658103942871,
+          "t0": 1789720718.6470559,
+          "t1": 1789720751.48371,
+          "seconds": 32.83665418624878,
           "anchor": 3000,
-          "peak_rss_mb": 1642.96875,
-          "rss_start_mb": 240.59375,
-          "delta_rss_mb": 1402.375
+          "peak_rss_mb": 1667.46875,
+          "rss_start_mb": 240.875,
+          "delta_rss_mb": 1426.59375
         },
         {
           "step": "pca_on_sct",
-          "t0": 1785773543.571857,
-          "t1": 1785773543.7188852,
-          "seconds": 0.14702820777893066,
+          "t0": 1789720751.4837701,
+          "t1": 1789720751.61628,
+          "seconds": 0.13250994682312012,
           "anchor": 14.3395,
-          "peak_rss_mb": 1000.171875,
-          "rss_start_mb": 999.453125,
-          "delta_rss_mb": 0.71875
+          "peak_rss_mb": 994.734375,
+          "rss_start_mb": 994.515625,
+          "delta_rss_mb": 0.21875
         }
       ],
       "log": "tutorials/benchmark/logs/pbmc3k_sctransform.truecell.2.log"

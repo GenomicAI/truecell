@@ -1,10 +1,15 @@
 {
   "machine": {
-    "cpu": "Apple M4 Pro",
-    "cores": "12",
-    "memory_gb": 25.8,
-    "platform": "macOS-26.5.2-arm64-arm-64bit",
-    "timestamp": "2026-08-03T21:48:42"
+    "cpu": "Apple M5 Pro",
+    "cores": "18",
+    "memory_gb": 51.5,
+    "platform": "macOS-27.0-arm64-arm-64bit",
+    "timestamp": "2026-09-18T14:13:38"
+  },
+  "blas": {
+    "r": "R version 4.6.1 (2026-06-24)",
+    "blas": "/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib",
+    "lapack": "/Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRlapack.dylib"
   },
   "runs": [
     {
@@ -13,110 +18,110 @@
       "repeat": 1,
       "threads": null,
       "exit_code": 0,
-      "wall_seconds": 55.36490607261658,
-      "process_peak_rss_mb": 2694.625,
-      "baseline_rss_mb": 0.03125,
-      "n_samples": 835,
+      "wall_seconds": 31.023848056793213,
+      "process_peak_rss_mb": 2543.21875,
+      "baseline_rss_mb": 0.0625,
+      "n_samples": 444,
       "steps": [
         {
           "step": "library_load",
-          "t0": 1785773812.508096,
-          "t1": 1785773814.004014,
-          "seconds": 1.495918,
+          "t0": 1789720957.051258,
+          "t1": 1789720958.27042,
+          "seconds": 1.219162,
           "anchor": null,
-          "peak_rss_mb": 505.75,
-          "rss_start_mb": 92.703125,
-          "delta_rss_mb": 413.046875
+          "peak_rss_mb": 475.671875,
+          "rss_start_mb": 74.09375,
+          "delta_rss_mb": 401.578125
         },
         {
           "step": "prep",
-          "t0": 1785773814.009355,
-          "t1": 1785773816.240421,
-          "seconds": 2.231066,
+          "t0": 1789720958.274396,
+          "t1": 1789720960.185013,
+          "seconds": 1.910617,
           "anchor": 9,
-          "peak_rss_mb": 1057.65625,
-          "rss_start_mb": 505.75,
-          "delta_rss_mb": 551.90625
+          "peak_rss_mb": 909.28125,
+          "rss_start_mb": 488.609375,
+          "delta_rss_mb": 420.671875
         },
         {
           "step": "de_wilcox",
-          "t0": 1785773816.253059,
-          "t1": 1785773816.330777,
-          "seconds": 0.077718,
-          "anchor": 2022,
-          "peak_rss_mb": 1043.84375,
-          "rss_start_mb": 966.9375,
-          "delta_rss_mb": 76.90625
+          "t0": 1789720960.193993,
+          "t1": 1789720960.245202,
+          "seconds": 0.051209,
+          "anchor": 1254,
+          "peak_rss_mb": 972.65625,
+          "rss_start_mb": 972.65625,
+          "delta_rss_mb": 0.0
         },
         {
           "step": "de_t",
-          "t0": 1785773816.330859,
-          "t1": 1785773818.480291,
-          "seconds": 2.149432,
-          "anchor": 2022,
-          "peak_rss_mb": 1151.765625,
-          "rss_start_mb": 1043.84375,
-          "delta_rss_mb": 107.921875
+          "t0": 1789720960.245268,
+          "t1": 1789720960.989371,
+          "seconds": 0.744103,
+          "anchor": 1254,
+          "peak_rss_mb": 1128.921875,
+          "rss_start_mb": 972.65625,
+          "delta_rss_mb": 156.265625
         },
         {
           "step": "de_bimod",
-          "t0": 1785773818.480375,
-          "t1": 1785773820.731796,
-          "seconds": 2.251421,
-          "anchor": 2022,
-          "peak_rss_mb": 1061.5,
-          "rss_start_mb": 1007.390625,
-          "delta_rss_mb": 54.109375
+          "t0": 1789720960.989436,
+          "t1": 1789720961.709029,
+          "seconds": 0.719593,
+          "anchor": 1254,
+          "peak_rss_mb": 996.015625,
+          "rss_start_mb": 876.234375,
+          "delta_rss_mb": 119.78125
         },
         {
           "step": "de_LR",
-          "t0": 1785773820.73187,
-          "t1": 1785773826.007755,
-          "seconds": 5.275885,
-          "anchor": 2022,
-          "peak_rss_mb": 1119.71875,
-          "rss_start_mb": 948.484375,
-          "delta_rss_mb": 171.234375
+          "t0": 1789720961.709099,
+          "t1": 1789720964.119707,
+          "seconds": 2.410608,
+          "anchor": 1254,
+          "peak_rss_mb": 1070.734375,
+          "rss_start_mb": 996.015625,
+          "delta_rss_mb": 74.71875
         },
         {
           "step": "de_negbinom",
-          "t0": 1785773826.007831,
-          "t1": 1785773839.421491,
-          "seconds": 13.41366,
-          "anchor": 2022,
-          "peak_rss_mb": 1208.890625,
-          "rss_start_mb": 1147.75,
-          "delta_rss_mb": 61.140625
+          "t0": 1789720964.119768,
+          "t1": 1789720970.38761,
+          "seconds": 6.267842,
+          "anchor": 1254,
+          "peak_rss_mb": 1108.171875,
+          "rss_start_mb": 1097.265625,
+          "delta_rss_mb": 10.90625
         },
         {
           "step": "de_roc",
-          "t0": 1785773839.421574,
-          "t1": 1785773843.667754,
-          "seconds": 4.24618,
-          "anchor": 2022,
-          "peak_rss_mb": 1249.890625,
-          "rss_start_mb": 1208.9375,
-          "delta_rss_mb": 40.953125
+          "t0": 1789720970.387675,
+          "t1": 1789720971.931042,
+          "seconds": 1.543367,
+          "anchor": 1254,
+          "peak_rss_mb": 1145.3125,
+          "rss_start_mb": 1134.3125,
+          "delta_rss_mb": 11.0
         },
         {
           "step": "de_MAST",
-          "t0": 1785773843.667844,
-          "t1": 1785773854.036752,
-          "seconds": 10.368908,
-          "anchor": 2022,
-          "peak_rss_mb": 2140.484375,
-          "rss_start_mb": 1249.921875,
-          "delta_rss_mb": 890.5625
+          "t0": 1789720971.931122,
+          "t1": 1789720978.298326,
+          "seconds": 6.367204,
+          "anchor": 1254,
+          "peak_rss_mb": 1708.625,
+          "rss_start_mb": 1171.484375,
+          "delta_rss_mb": 537.140625
         },
         {
           "step": "de_DESeq2",
-          "t0": 1785773854.036916,
-          "t1": 1785773867.752037,
-          "seconds": 13.715121,
-          "anchor": 2405,
-          "peak_rss_mb": 2694.625,
-          "rss_start_mb": 2140.546875,
-          "delta_rss_mb": 554.078125
+          "t0": 1789720978.298471,
+          "t1": 1789720987.964644,
+          "seconds": 9.666173,
+          "anchor": 2347,
+          "peak_rss_mb": 2543.21875,
+          "rss_start_mb": 1708.625,
+          "delta_rss_mb": 834.59375
         }
       ],
       "log": "tutorials/benchmark/logs/pbmc3k_de.seurat.1.log"
@@ -127,110 +132,110 @@
       "repeat": 2,
       "threads": null,
       "exit_code": 0,
-      "wall_seconds": 54.99604606628418,
-      "process_peak_rss_mb": 2650.96875,
-      "baseline_rss_mb": 0.03125,
-      "n_samples": 828,
+      "wall_seconds": 30.973789930343628,
+      "process_peak_rss_mb": 2543.125,
+      "baseline_rss_mb": 0.6875,
+      "n_samples": 443,
       "steps": [
         {
           "step": "library_load",
-          "t0": 1785773867.871938,
-          "t1": 1785773869.341052,
-          "seconds": 1.469114,
+          "t0": 1789720988.074703,
+          "t1": 1789720989.281916,
+          "seconds": 1.207213,
           "anchor": null,
-          "peak_rss_mb": 483.921875,
-          "rss_start_mb": 58.609375,
-          "delta_rss_mb": 425.3125
+          "peak_rss_mb": 474.734375,
+          "rss_start_mb": 77.03125,
+          "delta_rss_mb": 397.703125
         },
         {
           "step": "prep",
-          "t0": 1785773869.346334,
-          "t1": 1785773871.514862,
-          "seconds": 2.168528,
+          "t0": 1789720989.285879,
+          "t1": 1789720991.190007,
+          "seconds": 1.904128,
           "anchor": 9,
-          "peak_rss_mb": 913.0625,
-          "rss_start_mb": 492.53125,
-          "delta_rss_mb": 420.53125
+          "peak_rss_mb": 909.265625,
+          "rss_start_mb": 488.609375,
+          "delta_rss_mb": 420.65625
         },
         {
           "step": "de_wilcox",
-          "t0": 1785773871.52551,
-          "t1": 1785773871.599025,
-          "seconds": 0.073515,
-          "anchor": 2022,
-          "peak_rss_mb": 1008.40625,
-          "rss_start_mb": 905.90625,
-          "delta_rss_mb": 102.5
+          "t0": 1789720991.199089,
+          "t1": 1789720991.251864,
+          "seconds": 0.052775,
+          "anchor": 1254,
+          "peak_rss_mb": 899.921875,
+          "rss_start_mb": 899.921875,
+          "delta_rss_mb": 0.0
         },
         {
           "step": "de_t",
-          "t0": 1785773871.599104,
-          "t1": 1785773873.684036,
-          "seconds": 2.084932,
-          "anchor": 2022,
-          "peak_rss_mb": 1133.484375,
-          "rss_start_mb": 1008.40625,
-          "delta_rss_mb": 125.078125
+          "t0": 1789720991.25193,
+          "t1": 1789720991.999249,
+          "seconds": 0.747319,
+          "anchor": 1254,
+          "peak_rss_mb": 1122.1875,
+          "rss_start_mb": 1041.546875,
+          "delta_rss_mb": 80.640625
         },
         {
           "step": "de_bimod",
-          "t0": 1785773873.684108,
-          "t1": 1785773875.856471,
-          "seconds": 2.172363,
-          "anchor": 2022,
-          "peak_rss_mb": 1062.734375,
-          "rss_start_mb": 913.671875,
-          "delta_rss_mb": 149.0625
+          "t0": 1789720991.999313,
+          "t1": 1789720992.718474,
+          "seconds": 0.719161,
+          "anchor": 1254,
+          "peak_rss_mb": 988.6875,
+          "rss_start_mb": 875.390625,
+          "delta_rss_mb": 113.296875
         },
         {
           "step": "de_LR",
-          "t0": 1785773875.856549,
-          "t1": 1785773881.054986,
-          "seconds": 5.198437,
-          "anchor": 2022,
-          "peak_rss_mb": 1118.921875,
-          "rss_start_mb": 973.765625,
-          "delta_rss_mb": 145.15625
+          "t0": 1789720992.718545,
+          "t1": 1789720995.123911,
+          "seconds": 2.405366,
+          "anchor": 1254,
+          "peak_rss_mb": 1035.953125,
+          "rss_start_mb": 1004.375,
+          "delta_rss_mb": 31.578125
         },
         {
           "step": "de_negbinom",
-          "t0": 1785773881.055061,
-          "t1": 1785773894.404094,
-          "seconds": 13.349033,
-          "anchor": 2022,
-          "peak_rss_mb": 1206.046875,
-          "rss_start_mb": 1118.953125,
-          "delta_rss_mb": 87.09375
+          "t0": 1789720995.123976,
+          "t1": 1789721001.353446,
+          "seconds": 6.22947,
+          "anchor": 1254,
+          "peak_rss_mb": 1108.203125,
+          "rss_start_mb": 1087.1875,
+          "delta_rss_mb": 21.015625
         },
         {
           "step": "de_roc",
-          "t0": 1785773894.40417,
-          "t1": 1785773898.562133,
-          "seconds": 4.157963,
-          "anchor": 2022,
-          "peak_rss_mb": 1248.28125,
-          "rss_start_mb": 1206.046875,
-          "delta_rss_mb": 42.234375
+          "t0": 1789721001.353511,
+          "t1": 1789721002.891139,
+          "seconds": 1.537628,
+          "anchor": 1254,
+          "peak_rss_mb": 1145.34375,
+          "rss_start_mb": 1108.203125,
+          "delta_rss_mb": 37.140625
         },
         {
           "step": "de_MAST",
-          "t0": 1785773898.562227,
-          "t1": 1785773908.87535,
-          "seconds": 10.313123,
-          "anchor": 2022,
-          "peak_rss_mb": 2126.40625,
-          "rss_start_mb": 1248.28125,
-          "delta_rss_mb": 878.125
+          "t0": 1789721002.891238,
+          "t1": 1789721009.256625,
+          "seconds": 6.365387,
+          "anchor": 1254,
+          "peak_rss_mb": 1708.625,
+          "rss_start_mb": 1171.515625,
+          "delta_rss_mb": 537.109375
         },
         {
           "step": "de_DESeq2",
-          "t0": 1785773908.875516,
-          "t1": 1785773922.747761,
-          "seconds": 13.872245,
-          "anchor": 2405,
-          "peak_rss_mb": 2650.96875,
-          "rss_start_mb": 2126.515625,
-          "delta_rss_mb": 524.453125
+          "t0": 1789721009.256775,
+          "t1": 1789721018.939327,
+          "seconds": 9.682552,
+          "anchor": 2347,
+          "peak_rss_mb": 2543.125,
+          "rss_start_mb": 1708.65625,
+          "delta_rss_mb": 834.46875
         }
       ],
       "log": "tutorials/benchmark/logs/pbmc3k_de.seurat.2.log"
