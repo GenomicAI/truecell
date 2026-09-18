@@ -18,6 +18,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-18
+
+The release the Frontiers revision asked for. Re-running the paper against 1.2.0
+found defects, and defaults that departed from Seurat 5's; this release fixes the
+defects, brings the defaults to Seurat's, and adds a test that fails on any
+default that differs from Seurat's without a written reason.
+
+**A major version, because default results change.**
+- Marker calls default to Seurat 5's thresholds, so they return more genes, and
+  sort them in Seurat 5's order.
+- `find_clusters` runs Seurat's own modularity optimiser, at its default
+  resolution of 0.8, so every default partition moves.
+- `find_markers(test_use="deseq2")` is Seurat's per-cell test.
+- `run_umap` embeds on cosine distance, under Seurat 5's key.
+- Feature names have `_` and `|` rewritten to `-`.
+- The imaging loaders build the cells and images that Seurat's readers build.
+- Cell-cycle control genes, the Mixscape and Moran's I layers, and the
+  integration anchor features are Seurat's.
+
+Each is marked **BREAKING** below.
+
+**New alongside:** spatial coordinates through `as_anndata`, `show_versions()` for
+crash reports, `select_integration_features`, repelled plot labels, and a figure
+layout check.
+
+**Checked before release:** every tutorial was compared against 1.2.0 on the same
+machine and run again on Linux x86-64, and the performance report was re-measured.
+
 ### Added
 
 - **`tools/compare_defaults.py`: every default checked against Seurat's.** It
@@ -111,6 +139,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   agreement from ARI 0.928 to 0.969, cell hashing from 99.81 % to 100 %. truecell's
   random steps moved too (the sketch, JackStraw's permutations), and both tools'
   anchor sets. The pages keep the Mac's numbers.
+- **Every public name is in a skill, and a test keeps it so.** Three of 1.2.0's four
+  new functions reached the API map but no skill a reader loads. The README and the
+  skills caught up after that release, and `tests/test_docs.py` now fails when an
+  export of `truecell` appears in no skill.
 
 ### Changed
 
@@ -353,6 +385,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alphabetical order, the order each kind already had on its own. Running the guided
   tour's notebook against this release found it: an annotation map written for eight
   clusters, applied to the nine that `find_clusters` now finds, left one numbered.
+- **The guided-tour notebook follows the clusters this release finds.** Its annotation
+  named 1.2.0's eight clusters, so against the nine `find_clusters` now finds it left one
+  numbered, and its prose explained how the dendritic cells go missing at resolution 0.5,
+  which they no longer do. It now names all nine and asserts that its map covers exactly
+  the clusters produced. It follows `FCER1A` across five resolutions to show the 32
+  dendritic cells holding together from 0.3 to 1.5. It says that `rename_idents` maps by
+  name, where it claimed position. Its test-menu, cell-cycle and catalogue passages were
+  checked against a run on this release, and its labelled plots repel. The notebook is
+  committed without outputs until it is run in Colab against the release.
 - **The DE tutorial's `roc` band no longer fails a run that meets Seurat's
   rounding exactly.** Seurat rounds `myAUC` to three decimals, so the two AUCs can
   differ by at most 5e-4, but `0.488 - 0.4875` is 0.0005000000000000004, and six of
