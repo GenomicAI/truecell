@@ -166,6 +166,7 @@ gets blamed on the wrong function.
 | JackStraw PC cutoff | \|Δ\| ≤ 2 | R seeds each replicate from its loop index and is deterministic at 13; truecell seeds from `seed` and has mode 13 over 60 seeds. |
 | Visium spot radius | truecell = half of Seurat's | `spot_diameter_fullres` is a diameter; Seurat stores it in a `radius` slot. Here Seurat is the one that is wrong. |
 | R's `clara` | arm64 vs x86_64 | R's own function is architecture-dependent. truecell targets IEEE/x86_64 semantics on purpose. |
+| Seurat's numbers on another machine | e.g. CITE-seq RNA clusters 16 on a Mac, 15 on Linux | Seurat's pipeline moves with the platform and its BLAS. Across an Apple M5 Pro and a Linux x86-64 machine, truecell's deterministic steps gave the same cells, genes, clusters and labels, and Seurat's moved. Compare the two tools on one machine; the tutorial index has both machines side by side. |
 
 **And these should match, so investigate if they don't:** `avg_log2FC` (1.8e-15),
 CLR (4.9e-15), Moran's I (1.6e-14), the object-model accessors (91 of 91 anchors

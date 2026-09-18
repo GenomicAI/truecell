@@ -60,9 +60,11 @@ Needs `pip install truecell[integration]` (harmonypy).
 | `cca` | Batches with genuinely shared structure and modest cell numbers. Aggressive — can over-correct real biology. |
 | `rpca` | Large datasets, or batches with limited cell-type overlap. Conservative. |
 
-On the ifnb IFN-β benchmark all three reach batch mixing **0.991** — above
-Seurat's own 0.917. Method choice is about the data's shape, not about accuracy
-here.
+On the ifnb IFN-β benchmark Harmony and CCA reach batch mixing **0.991** and
+**0.992**, and RPCA **0.917**, each within 0.001 of Seurat's own. RPCA's lower
+figure is Seurat's too: on RPCA's graph, Seurat's clustering splits CD14
+monocytes along the batch, and `find_clusters` returns that partition. Method
+choice is about the data's shape, not about accuracy here.
 
 ## Integration — the v4 anchor path
 

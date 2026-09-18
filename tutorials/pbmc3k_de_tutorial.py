@@ -300,10 +300,11 @@ def compare_adjusted_p(py: pd.DataFrame, r: pd.DataFrame, shared,
     side of 0.05, not whether the mantissas agree.
 
     One trap this deliberately reports around: Seurat clamps ``p_val_adj`` at 1,
-    and on this contrast **11,858 of 13,712 genes** land there in both tools. A
-    bare "fraction identical" is therefore ~0.88 before any of the interesting
-    genes are considered, and would read as agreement where it is mostly just the
-    clamp. The unclamped subset is scored on its own line for that reason.
+    and on this contrast **11,948 of 13,714 genes** land there in both tools under
+    ``wilcox``. A bare "fraction identical" is therefore ~0.87 before any of the
+    interesting genes are considered, and would read as agreement where it is
+    mostly just the clamp. The unclamped subset is scored on its own line for
+    that reason.
     """
     res: dict = {}
     if "p_val_adj" not in py or "p_val_adj" not in r:

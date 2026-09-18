@@ -173,3 +173,4 @@ for gene in genes:
 | Plotting protein shows RNA | Pass `assay="ADT"`; there is no default-assay switch. |
 | Spatial plot mirrored | Toggle `flip_y`. |
 | Memory grows across a loop | Figures never closed. |
+| Legend squeezed off, or a layout-engine warning | `fig.tight_layout()` on `viz_dim_loadings`, `image_dim_plot` or `spatial_dim_plot`. They come laid out by constrained layout, which keeps room for the legend at any size; `tight_layout` replaces it. Save with `bbox_inches="tight"` instead. |

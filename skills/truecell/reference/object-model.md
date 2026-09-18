@@ -174,6 +174,12 @@ rebinding is the bug. QC filtering is normally expressed as a boolean mask over
 `obj.meta_data` turned into a barcode list, since there is no
 `subset(subset = expr)` string-expression form.
 
+The result keeps the **object's** cell order, whatever order `cells` arrives in,
+as Seurat's `intersect(colnames(x), cells)` does, so every slot stays aligned.
+Identity levels keep their order, and levels no kept cell carries are dropped
+(`Idents(x, drop = TRUE)`). A barcode the object does not have raises `KeyError`,
+where Seurat drops it silently.
+
 ## Slimming — `diet_truecell` (Seurat's `DietSeurat`)
 
 ```python

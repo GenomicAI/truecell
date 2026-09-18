@@ -1,7 +1,8 @@
 # truecell API map
 
 Every public function, with its real signature and its Seurat equivalent.
-The signatures are the code's: `tests/test_docs.py` checks each one against it.
+The signatures are the code's: `tests/test_api_map_signatures.py` checks each one
+against it, parameter for parameter and default for default.
 `seurat` / `obj` as the first parameter means a `Truecell` object.
 
 **Read the return column.** `None` means the function mutates in place — see

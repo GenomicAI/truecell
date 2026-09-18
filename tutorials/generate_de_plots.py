@@ -74,8 +74,13 @@ def _group_matrices(obj, groups):
     return X[:, i1], X[:, i2], list(assay.features())
 
 
-def log2fc_vs_r(before, after, r):
-    """Both formulas against Seurat, on the identity line."""
+def log2fc_vs_r(before, after, r, n_cells):
+    """Both formulas against Seurat, on the identity line.
+
+    The title counts the genes plotted and the cells in the two groups. It was
+    written out by hand once, and kept saying 13,712 genes and 1,172 cells after
+    the feature renaming and the clusters had both changed.
+    """
     import matplotlib.pyplot as plt
 
     shared = after.index.intersection(r.index)
@@ -93,8 +98,8 @@ def log2fc_vs_r(before, after, r):
     ax.set_xlim(lim)
     ax.set_ylim(lim)
     ax.set_aspect("equal")
-    ax.set_title("avg_log2FC per gene — 13,712 genes, 1,172 shared cells",
-                 fontsize=11)
+    ax.set_title(f"avg_log2FC per gene — {len(shared):,} genes, "
+                 f"{n_cells:,} shared cells", fontsize=11)
     # Below the axes. At upper left it covered points once the manuscript printed
     # the figure at 0.55 of its size.
     fig.legend(fontsize=8, frameon=False, loc="outside lower center")
@@ -192,7 +197,8 @@ def main(data_dir=None):
     after = py["avg_log2FC"]
     r_fc = r["avg_log2FC"]
 
-    _save(log2fc_vs_r(before, after, r_fc), "py_01_log2fc_vs_r.png")
+    _save(log2fc_vs_r(before, after, r_fc, mat1.shape[1] + mat2.shape[1]),
+          "py_01_log2fc_vs_r.png")
     _save(threshold_impact(before, r_fc), "py_02_threshold_impact.png")
 
     rows = []

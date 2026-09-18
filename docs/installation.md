@@ -15,7 +15,7 @@ runs without matplotlib, scikit-learn or umap-learn anywhere on the system.
 
 | Extra | Adds | You need it for |
 |---|---|---|
-| `analysis` | statsmodels, scikit-learn, numba, umap-learn, igraph, leidenalg, matplotlib, seaborn, scikit-misc | Clustering, UMAP/t-SNE, every plot, and the `LR`/`negbinom`/`poisson`/`mast` DE tests |
+| `analysis` | statsmodels, scikit-learn, numba, umap-learn, igraph, leidenalg, matplotlib, seaborn, scikit-misc | Clustering, UMAP/t-SNE, every plot, and the `LR`/`poisson`/`mast` DE tests (`negbinom` runs on the core install) |
 | `anndata` | anndata | `as_anndata` / `from_anndata` |
 | `integration` | harmonypy | `run_harmony`, and `integrate_layers(method="harmony")` |
 | `deseq2` | pydeseq2 | `find_markers(test_use="deseq2", ...)` |
@@ -95,3 +95,8 @@ remotes::install_github("satijalab/seurat-data")
 Four tutorials need more: `harmony` for integration, `MAST` and `DESeq2`
 (Bioconductor) for two of the DE tests, and `BPCells` for the out-of-core
 comparison.
+
+Two packages change what Seurat computes just by being installed. The references
+were taken **with** `presto`, which Seurat's Wilcoxon test uses when it finds it,
+and **without** `glmGamPoi`, which `SCTransform` would otherwise switch to. Match
+both, or expect Seurat's side of those comparisons to move.
