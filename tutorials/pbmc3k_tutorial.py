@@ -285,7 +285,7 @@ def run_tutorial(data_dir: str | None = None) -> None:
     # 0.5 is given **last** on purpose. Seurat leaves the object on the last
     # resolution in the sequence — last as given, not largest — so every step
     # below this one sees exactly the partition it saw before this sweep
-    # existed, and the tutorial's published numbers (9 clusters, ARI 0.938,
+    # existed, and the tutorial's published numbers (9 clusters, ARI 0.928,
     # the marker tables) are unaffected. A resolution's partition does not
     # depend on the ones before it, so 0.5 here is the same 0.5 as a lone call.
     t0 = time.time()
