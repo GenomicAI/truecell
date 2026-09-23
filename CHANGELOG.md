@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **R's labelled PBMC 3k UMAP, `r_11_umap_labeled.png`.** `pbmc3k_verify.R` drew no
+  UMAP, so there was no R panel from the same run to set beside Truecell's
+  `11_umap_labeled.png`. It now draws one, for the Frontiers paper's Figure 3A/B.
+  It uses the same title and size, and the cell types in Truecell's order,
+  radix-sorted so the locale cannot reorder them: under `en_US.UTF-8`, R's default
+  sort puts "Naive CD4 T" before "NK", which would have swapped two colours. The
+  tutorial page keeps the published vignette's image on R's side, and the PBMC 3k
+  comparison's numbers do not change.
+
 ### Fixed
 
 - **The CITE-seq tutorial's ADT-weight violins read as one comparison.** Reviewer 2

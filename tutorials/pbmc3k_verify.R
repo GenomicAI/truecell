@@ -4,6 +4,8 @@
 #
 # Runs the standard PBMC 3k workflow (mirrors pbmc3k_tutorial.py) and writes,
 # into tutorials/figures/:
+#   * r_11_umap_labeled.png this run's labelled UMAP, the R half of the
+#                           Frontiers paper's pair with 11_umap_labeled.png
 #   * r_12_ridge_plot.png   the one figure the published Seurat vignette omits
 #   * r_cell_meta.csv       per-cell QC, cluster, cell type and PC_1..PC_10
 #   * r_hvg.csv             per-gene VST statistics + the selected 2,000
@@ -199,6 +201,22 @@ anchors <- list(
 writeLines(jsonlite::toJSON(anchors, digits = 22, auto_unbox = TRUE, pretty = TRUE),
            file.path(FIG, "r_anchors.json"))
 cat("Wrote r_cell_meta.csv, r_hvg.csv, r_markers.csv and r_anchors.json to", FIG, "\n")
+
+# ---- Labelled UMAP, the R half of the Frontiers paper's Figure 3A/B ----------
+# pbmc3k_tutorial.md shows the published vignette's own labelled UMAP. The paper
+# pairs this run's with Truecell's 11_umap_labeled.png, so it is drawn to match:
+# the same title and size, and the cell types in Truecell's order. dim_plot
+# sorts names by code point, which a radix sort reproduces in any locale. A
+# collating sort would put "Naive CD4 T" before "NK" under en_US.UTF-8 and give
+# the two panels different colours. With the order matched, Seurat's default
+# hue_pal colours each type as Truecell does, since both sides name the same nine.
+pbmc$celltype_plot <- factor(pbmc$celltype,
+                             levels = sort(unique(pbmc$celltype), method = "radix"))
+p <- DimPlot(pbmc, reduction = "umap", group.by = "celltype_plot", label = TRUE,
+             repel = TRUE) + ggtitle("UMAP — Cell Type Annotations")
+ggsave(file.path(FIG, "r_11_umap_labeled.png"), p, width = 9, height = 7, dpi = 150,
+       bg = "white")
+cat("wrote", file.path(FIG, "r_11_umap_labeled.png"), "\n")
 
 # ---- RidgePlot (LYZ / NKG7 / MS4A1 / CD8A across clusters) -------------------
 # The one figure in pbmc3k_tutorial.md without a canonical satijalab.org image;
