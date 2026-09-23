@@ -146,6 +146,18 @@ _RNA_FALLBACK = {
     "Cycling":   ["STMN1", "MKI67", "TUBB"],
 }
 
+# Every label annotate_cells can return, in the order vln_plot draws groups:
+# plain string order, which puts "pDC" last. The ADT-weight violins are an R |
+# Truecell pair, so cbmc_citeseq_verify.R draws its groups in this order too and
+# takes one colour per label from Seurat's hue_pal over all twelve. A type one
+# side lacks then keeps its colour slot: R's clustering finds a DC / Mono cluster
+# that Truecell's folds into CD14+ Mono, and no other colour moves because of it.
+# tests/test_multimodal_tutorial.py holds the R copy of this list to this one.
+CELL_TYPES = (
+    "B", "CD14+ Mono", "CD4 T", "CD8 T", "Cycling", "DC / Mono", "Erythroid",
+    "NK", "Other", "Platelet", "Progenitor", "pDC",
+)
+
 
 def annotate_cells(obj):
     """Annotate RNA clusters using surface protein first, RNA as a fallback.

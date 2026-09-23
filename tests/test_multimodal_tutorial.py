@@ -5,7 +5,9 @@ signal and checks the combined protein-priority / RNA-fallback gating in
 annotate_cells(), the run_wnn() joint-clustering flow, and the figures the
 walkthrough's Step 8 embeds. Network-free.
 """
+import ast
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -24,9 +26,12 @@ from truecell.preprocessing import (  # noqa: E402
     normalize_data, find_variable_features, scale_data,
 )
 from truecell.reduction import run_pca  # noqa: E402
-from truecell.plotting import dim_plot, vln_plot  # noqa: E402
-from tutorials.cbmc_citeseq_tutorial import annotate_cells, run_wnn  # noqa: E402
-from tutorials.generate_multimodal_plots import _group_panel  # noqa: E402
+from truecell.plotting import dim_plot, hue_pal, vln_plot  # noqa: E402
+from truecell._utils import ident_sort_key
+from tutorials.cbmc_citeseq_tutorial import CELL_TYPES, annotate_cells, run_wnn  # noqa: E402
+from tutorials.generate_multimodal_plots import _group_panel, adt_weight_violins  # noqa: E402
+
+TUTORIALS = Path(__file__).resolve().parent.parent / "tutorials"
 
 
 def _two_assay_object(rna_levels, adt_levels, n=6):
@@ -206,6 +211,112 @@ def test_group_panel_colours_labels_consistently():
     assert axes[0].get_legend() is None
     assert [t.get_text() for t in axes[1].get_legend().get_texts()] == ["A", "B"]
     plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# Figure 10 is an R | Truecell pair
+# ---------------------------------------------------------------------------
+# Reviewer 2 of the Frontiers paper found R's and Truecell's ADT-weight violins
+# in different orders and colours. Both scripts now take both from CELL_TYPES.
+
+def _strings(node):
+    return {c.value for c in ast.walk(node)
+            if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+
+
+def _python_labels():
+    """Every label the Python annotate_cells can return, read from its source."""
+    import tutorials.cbmc_citeseq_tutorial as tutorial
+
+    tree = ast.parse(Path(tutorial.__file__).read_text())
+    func = next(node for node in ast.walk(tree)
+                if isinstance(node, ast.FunctionDef) and node.name == "annotate_cells")
+    labels = set(tutorial._RNA_FALLBACK)
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Assign):
+            continue
+        target = node.targets[0]
+        # assignment[c] = "B", or = "CD8 T" if cd8 > 1.0 else "CD4 T"
+        if isinstance(target, ast.Subscript) and getattr(target.value, "id", None) == "assignment":
+            labels |= _strings(node.value)
+        # rna_fallback's default: best, best_score = "Other", 0.30
+        if isinstance(target, ast.Tuple) and any(getattr(e, "id", None) == "best"
+                                                 for e in target.elts):
+            labels |= _strings(node.value)
+    return labels
+
+
+def _r_source():
+    return (TUTORIALS / "cbmc_citeseq_verify.R").read_text()
+
+
+def _r_labels():
+    """Every label the R port of annotate_cells can return, read from its source."""
+    text = _r_source()
+    fallback = text[text.index("RNA_FALLBACK <- list("):text.index("annotate_cells <- function")]
+    labels = set(re.findall(r"(\w+) = c\(", fallback))
+    for line in text.splitlines():
+        if "assignment[c] <-" in line:        # the gene names sit left of the arrow
+            labels |= set(re.findall(r'"([^"]+)"', line.split("assignment[c] <-", 1)[1]))
+    return labels | set(re.findall(r'best <- "([^"]+)"', text))
+
+
+def test_both_scripts_draw_the_violins_from_one_list():
+    """R keeps its own copy of CELL_TYPES, since it cannot import Python's. A copy
+    edited on one side only would put the two panels out of step again."""
+    text = _r_source()
+    block = text[text.index("CELL_TYPES <- c("):]
+    assert re.findall(r'"([^"]+)"', block[:block.index(")")]) == list(CELL_TYPES)
+
+
+def test_the_list_is_in_the_order_vln_plot_draws_groups():
+    """vln_plot sorts its groups and matches the palette to them by position, and
+    R draws in the list's order, so the list has to be vln_plot's order already."""
+    assert list(CELL_TYPES) == sorted(CELL_TYPES, key=ident_sort_key)
+    assert len(set(CELL_TYPES)) == len(CELL_TYPES)
+
+
+def test_the_list_is_every_label_annotate_cells_can_return():
+    """The colours are spread over the whole list, so a type one side lacks keeps
+    its slot. A label missing from it would stop the R script, and one that
+    annotate_cells can no longer return would shift every colour after it."""
+    assert _python_labels() == set(CELL_TYPES)
+    assert _r_labels() == set(CELL_TYPES)
+
+
+def _weights_by_type(labels, seed=0):
+    rng = np.random.default_rng(seed)
+    obj = create_truecell_object(
+        counts=sp.csc_matrix(rng.poisson(2.0, size=(5, len(labels))).astype(float)),
+        feature_names=[f"g{i}" for i in range(5)],
+        cell_names=[f"c{i}" for i in range(len(labels))])
+    obj.meta_data["protein_celltype"] = labels
+    obj.meta_data["ADT.weight"] = rng.uniform(0.0, 1.0, size=len(labels))
+    return obj
+
+
+def test_adt_weight_violins_keep_each_type_in_its_colour_slot():
+    """Three of the twelve types: drawn in list order, each in the colour its place
+    in the whole list gives it, with no points and the paired titles."""
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import to_hex
+
+    fig = adt_weight_violins(_weights_by_type(["pDC", "B", "NK"] * 10))
+    ax = fig.axes[0]
+    present = ["B", "NK", "pDC"]
+    assert [t.get_text() for t in ax.get_xticklabels()] == present
+    # One filled violin per type and nothing else: points would add collections.
+    palette = hue_pal(len(CELL_TYPES))
+    assert [to_hex(c.get_facecolor()[0]) for c in ax.collections] == \
+        [palette[CELL_TYPES.index(g)].lower() for g in present]
+    assert ax.get_title() == "ADT weight by cell type"
+    assert ax.get_ylabel() == "ADT weight"
+    plt.close(fig)
+
+
+def test_adt_weight_violins_refuse_a_type_outside_the_list():
+    with pytest.raises(ValueError, match="Mystery"):
+        adt_weight_violins(_weights_by_type(["B", "Mystery"] * 10))
 
 
 # ----------------------------------------------------------------------
