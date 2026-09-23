@@ -18,6 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The CITE-seq tutorial's ADT-weight violins read as one comparison.** Reviewer 2
+  of the Frontiers paper found R's and Truecell's panels of figure 10 in different
+  orders and colours, which defeats a side-by-side. Both scripts now draw the cell
+  types in one order, `vln_plot`'s, and colour each from Seurat's `hue_pal` over
+  all twelve labels `annotate_cells` can return. The DC / Mono cluster that only R's
+  clustering finds therefore moves no other colour. Neither draws points, the R
+  script adds the median bar `vln_plot` draws, and the titles and y-axis labels
+  match. The CITE-seq comparison's numbers do not change.
+  - R also writes `r_10_adt_weight_by_celltype_manuscript.png`, laid out 3.30 in
+    wide as the paper prints it, with its type at the sizes Truecell's panel prints
+    at. With Seurat's defaults at that width the y-axis labels overprinted.
+  - `tests/test_multimodal_tutorial.py` keeps the two scripts' label lists equal,
+    and the smoke suite checks the figure's layout at the width the paper uses.
+
 ## [2.0.0] - 2026-09-18
 
 The release the Frontiers revision asked for. Re-running the paper against 1.2.0

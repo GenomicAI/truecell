@@ -21,9 +21,9 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from tutorials.cbmc_citeseq_tutorial import run_full
+from tutorials.cbmc_citeseq_tutorial import CELL_TYPES, run_full
 from truecell.plotting import (
-    dim_plot, feature_plot, ridge_plot, feature_scatter, vln_plot,
+    dim_plot, feature_plot, ridge_plot, feature_scatter, hue_pal, vln_plot,
     _get_expression, _get_embedding, _palette,
 )
 
@@ -90,6 +90,36 @@ def _group_panel(ax, emb, labels, title, legend=False):
         s.set_visible(False)
 
 
+def adt_weight_violins(obj):
+    """The learned ADT weight per cell type (figure 10), drawn to pair with R's.
+
+    Reviewer 2 of the Frontiers paper found the R and Truecell panels in
+    different orders and colours, which defeats a side-by-side. Both scripts now
+    draw the groups in CELL_TYPES order, which is vln_plot's own, and colour each
+    type from Seurat's hue_pal over all of CELL_TYPES, so a type only one side
+    finds leaves every other colour where it was. Neither draws points, and
+    cbmc_citeseq_verify.R adds the median bar vln_plot draws. Its own function
+    so the smoke suite checks the layout of the figure this script saves.
+    """
+    labels = set(obj.meta_data["protein_celltype"].astype(str))
+    unknown = labels - set(CELL_TYPES)
+    if unknown:
+        raise ValueError(f"cell types missing from CELL_TYPES: {sorted(unknown)}")
+    colours = dict(zip(CELL_TYPES, hue_pal(len(CELL_TYPES))))
+    present = [g for g in CELL_TYPES if g in labels]
+    fig = vln_plot(obj, "ADT.weight", group_by="protein_celltype", pt_size=0,
+                   palette=[colours[g] for g in present], figsize=(9, 5))
+    ax = fig.axes[0]
+    # vln_plot matches the palette to its groups by position, so check it drew
+    # them in the order the colours were listed in.
+    drawn = [t.get_text() for t in ax.get_xticklabels()]
+    if drawn != present:
+        raise ValueError(f"vln_plot drew {drawn}, coloured for {present}")
+    ax.title.set_text("ADT weight by cell type")
+    ax.set_ylabel("ADT weight")
+    return fig
+
+
 def main(data_dir=None):
     obj, all_markers, anno = run_full(data_dir=data_dir, verbose=False)
     print("\nGenerating multimodal figures...")
@@ -146,8 +176,7 @@ def main(data_dir=None):
     # 10. The learned per-cell modality weights, read as a metadata "feature".
     # Seurat's WNN vignette plots RNA.weight; ADT.weight is 1 - RNA.weight, and
     # reads more directly as "how much this cell leans on protein".
-    _save(vln_plot(obj, "ADT.weight", group_by="protein_celltype", figsize=(9, 5)),
-          "10_adt_weight_by_celltype.png")
+    _save(adt_weight_violins(obj), "10_adt_weight_by_celltype.png")
 
     print(f"\nAll multimodal figures saved to {FIGURES}/")
 

@@ -458,6 +458,33 @@ def test_pbmc3k_labelled_umap_is_laid_out_cleanly():
         plt.close(fig)
 
 
+def test_cbmc_adt_weight_violins_are_laid_out_cleanly():
+    """The CITE-seq tutorial's figure 10 is the Truecell half of an R | Truecell
+    pair in the Frontiers paper, which prints each panel 3.30 in wide. Checked on
+    the real data at the tutorial's size, at 0.55, and at that width."""
+    if not (DATA_ROOT / "cbmc").is_dir():
+        pytest.skip("dataset 'cbmc' not cached")
+
+    import matplotlib.pyplot as plt
+
+    sys.path.insert(0, str(REPO_ROOT))
+    sys.path.insert(0, str(REPO_ROOT / "tests"))
+    import _layout
+
+    from tutorials.cbmc_citeseq_tutorial import run_full
+    from tutorials.generate_multimodal_plots import adt_weight_violins
+
+    obj, _, _ = run_full(verbose=False)
+    for scale in (1.0, _layout.MANUSCRIPT_SCALE, 3.30 / 9):
+        fig = adt_weight_violins(obj)
+        try:
+            if scale != 1.0:
+                _layout.shrink(fig, scale)
+            assert _layout.check_layout(fig) == [], f"at {scale:.2f} of its size"
+        finally:
+            plt.close(fig)
+
+
 def test_pbmc3k_variable_feature_names_are_laid_out_cleanly():
     """The ten gene names crowd the top of the plot, where vst's clip stacks the
     most variable genes. Unrepelled they overlapped, and the first repelled

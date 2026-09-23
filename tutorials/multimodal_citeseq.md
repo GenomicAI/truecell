@@ -469,8 +469,17 @@ description of a typical cell:
 </tr>
 </table>
 
+The two panels are drawn to be read against each other. Both put the cell types in
+the same order and give each one the same colour, taken from Seurat's `hue_pal`
+over all twelve labels `annotate_cells` can return. Both mark the median, which
+`vln_plot` always draws and the R script adds, and neither draws points. R has one
+more violin: its clustering finds a 69-cell **DC / Mono** cluster, and Truecell's
+puts the same 69 cells in CD14+ Mono. The colours are spread over the whole list,
+so the type Truecell lacks moves no other colour.
+
 > `ADT.weight` is a metadata column, not a gene, but `vln_plot` resolves it the
-> same way Seurat's `VlnPlot` does — hence the generic `Expression` y-axis label.
+> same way Seurat's `VlnPlot` does. Both panels label the axis `ADT weight` rather
+> than the generic `Expression`.
 
 > The whole flow is wrapped as `run_wnn(obj)` in
 > [`cbmc_citeseq_tutorial.py`](cbmc_citeseq_tutorial.py); `run_full()` prints the

@@ -7,6 +7,8 @@
 # WNN joint clustering. Writes the R-side figures for the side-by-side tables
 # into tutorials/figures_multimodal/:
 #   * r_01_rna_umap_clusters.png ... r_10_adt_weight_by_celltype.png
+#   * r_10_adt_weight_by_celltype_manuscript.png, figure 10 laid out at the
+#     width the Frontiers paper prints it
 #   * r_adt_clr.csv        per-protein CLR summary (mean/sd/min/max)
 #   * r_cell_weights.csv   per-cell WNN modality weights, keyed by barcode
 #   * r_anchors.json       scalars: cell/gene/protein counts, cluster counts
@@ -245,9 +247,48 @@ sv(brand((DimPlot(obj, reduction = "umap", group.by = "protein_celltype", label 
          "R Seurat - RNA-only vs WNN joint embedding"),
    "r_09_wnn_vs_rna_umap.png", 14, 6.5)
 
-# 10 learned per-cell modality weights
-sv(titled(VlnPlot(obj, features = "ADT.weight", group.by = "protein_celltype",
-                  pt.size = 0, sort = FALSE) + NoLegend(),
-          "R Seurat - ADT weight by cell type"), "r_10_adt_weight_by_celltype.png", 9, 5)
+# 10 learned per-cell modality weights, drawn to pair with Truecell's figure 10.
+# Reviewer 2 of the Frontiers paper found the two panels in different orders and
+# colours, which defeats a side-by-side. Both now draw the groups in CELL_TYPES
+# order, which is Truecell's vln_plot order, and colour each type from hue_pal
+# over every label annotate_cells can return, so a type one side lacks keeps its
+# colour slot. cbmc_citeseq_tutorial.py holds the same list, and
+# tests/test_multimodal_tutorial.py keeps the two copies equal. Neither side
+# draws points, and this one adds the median bar Truecell's vln_plot draws.
+CELL_TYPES <- c("B", "CD14+ Mono", "CD4 T", "CD8 T", "Cycling", "DC / Mono",
+                "Erythroid", "NK", "Other", "Platelet", "Progenitor", "pDC")
+labels <- as.character(obj$protein_celltype)
+stopifnot(all(labels %in% CELL_TYPES))
+present <- CELL_TYPES[CELL_TYPES %in% labels]
+obj$violin_celltype <- factor(labels, levels = present)   # this figure's order only
+colours <- setNames(scales::hue_pal()(length(CELL_TYPES)), CELL_TYPES)[present]
+# The median bar spans the violin at the median, as Truecell's does. ggplot draws
+# the violin from an nrd0 density over the observed range (trim = TRUE), every
+# group scaled to the same peak width (scale = "width"), 0.9 by default.
+medians <- do.call(rbind, lapply(seq_along(present), function(i) {
+  y <- obj$ADT.weight[obj$violin_celltype == present[i]]
+  if (length(y) < 2 || diff(range(y)) == 0) return(NULL)
+  d <- density(y, bw = "nrd0", n = 512, from = min(y), to = max(y))
+  m <- median(y)
+  data.frame(x = i, y = m, half = approx(d$x, d$y / max(d$y), xout = m)$y * 0.9 / 2)
+}))
+p <- titled(VlnPlot(obj, features = "ADT.weight", group.by = "violin_celltype",
+                    pt.size = 0, cols = colours) + NoLegend() +
+              geom_segment(data = medians, inherit.aes = FALSE,
+                           aes(x = x - half, xend = x + half, y = y, yend = y),
+                           colour = "black", linewidth = 0.7) +   # 1.5 pt, Truecell's
+              labs(x = NULL, y = "ADT weight"),
+            "ADT weight by cell type")
+sv(p, "r_10_adt_weight_by_celltype.png", 9, 5)
+# The paper prints this panel 3.30 in wide, where the 9 in figure's type would
+# land at about 4 pt. This copy is laid out at that width, with the dpi raised to
+# keep the same 1350 x 750 pixels. Its type is set to the sizes Truecell's panel
+# prints at, since tests/_layout.py's shrink() keeps each string's size: laid out
+# at 3.30 in, Seurat's larger defaults left the violins a sliver, with the y-axis
+# labels printed on top of each other.
+ggsave(file.path(FIG, "r_10_adt_weight_by_celltype_manuscript.png"),
+       p + theme(plot.title = element_text(size = 11), axis.title.y = element_text(size = 10),
+                 axis.text.x = element_text(size = 9), axis.text.y = element_text(size = 10)),
+       width = 3.30, height = 3.30 * 5 / 9, dpi = 150 * 9 / 3.30, bg = "white")
 
 cat("\nAll R-side multimodal figures written to", FIG, "\n")

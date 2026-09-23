@@ -58,6 +58,10 @@ _R_HUE_PAL = {
         "#00BFC4", "#00A9FF", "#C77CFF", "#FF61CC"],
     9: ["#F8766D", "#D39200", "#93AA00", "#00BA38", "#00C19F",
         "#00B9E3", "#619CFF", "#DB72FB", "#FF61C3"],
+    # The CITE-seq tutorial's violins colour its twelve possible cell types from
+    # this one, in R and in Python alike (R 4.6.1, scales 1.4).
+    12: ["#F8766D", "#DE8C00", "#B79F00", "#7CAE00", "#00BA38", "#00C08B",
+         "#00BFC4", "#00B4F0", "#619CFF", "#C77CFF", "#F564E3", "#FF64B0"],
 }
 
 
