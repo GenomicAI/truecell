@@ -45,6 +45,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/test_multimodal_tutorial.py` keeps the two scripts' label lists equal,
     and the smoke suite checks the figure's layout at the width the paper uses.
 
+### Documentation
+
+- **The README's roadmap and `ROADMAP.md` describe 2.0.0.** Both still read as of
+  0.9.0.
+  - The README adds a row for each release since.
+  - `ROADMAP.md` marks the lockfile decision made in 1.1.0 and gives the current
+    `mypy` count.
+  - It records that Seurat has since fixed the Visium `Radius()` `NULL` upstream,
+    and that Seurat keeps the spot diameter in its radius slot on purpose.
+  - It ends with the items still open after 2.0.0.
+
 ## [2.0.0] - 2026-09-18
 
 The release the Frontiers revision asked for. Re-running the paper against 1.2.0
