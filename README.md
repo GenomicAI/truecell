@@ -402,9 +402,9 @@ Truecell
 
 See **[`ROADMAP.md`](https://github.com/GenomicAI/truecell/blob/main/ROADMAP.md)** for the full
 development plan, and **[`CHANGELOG.md`](https://github.com/GenomicAI/truecell/blob/main/CHANGELOG.md)**
-for what has actually shipped. The two are not the same thing — these milestones are planning
-labels rather than release versions — but as of **0.9.0** every row below through v0.9.0 is
-released, not just landed on `main`. Milestones:
+for what has actually shipped. The two are not the same thing: these milestones are planning
+labels, not release versions. Every milestone below is released, the last of them in 0.9.0,
+and the current release is **2.0.0**. Milestones:
 
 | Milestone | Focus |
 |-----------|-------|
@@ -417,6 +417,17 @@ released, not just landed on `main`. Milestones:
 | v0.8.0 | Scale — `SketchData`/`ProjectData` (leverage-score sketching) ✅; BPCells-style lazy on-disk matrices (`LazyMatrix`) ✅ *(released in 0.9.0)* |
 | v0.9.0 | Specialized — `HTODemux` ✅ + `MULTIseqDemux` ✅ (cell hashing); Mixscape ✅ (`CalcPerturbSig` + `RunMixscape` + `MixscapeLDA` + `PlotPerturbScore` + `MixscapeHeatmap`, CRISPR screens) — **released in 0.9.0** |
 | v0.10.0 | Infrastructure — PyPI ✅, GitHub Actions CI ✅ (3.12–3.13 matrix, wheel build + clean-install verification, coverage), [`CHANGELOG.md`](https://github.com/GenomicAI/truecell/blob/main/CHANGELOG.md) ✅, `mypy` in CI ✅, the [documentation site](https://genomicai.github.io/truecell/) ✅ |
+
+The releases since then have been about fidelity to Seurat rather than new milestones:
+
+| Release | Focus |
+|---------|-------|
+| 1.0.0 | The rename from `shanuz` to `truecell`: same code, re-verified |
+| 1.1.0 | Plotting parity with Seurat, with fixes to the categorical palette, `vln_plot` and `aggregate_expression`; CI installs from `uv.lock` |
+| 1.2.0 | The last unblocked API gaps: all nine `find_markers` tests, `prep_sct_find_markers`, `diet_truecell`, `find_neighbors(return_neighbor=True)` |
+| 2.0.0 | Defaults brought to Seurat 5's, and a test that fails on any undocumented difference. A major version because default results change |
+
+What is still open is listed at the end of [`ROADMAP.md`](https://github.com/GenomicAI/truecell/blob/main/ROADMAP.md), under *After 2.0.0*.
 
 ---
 

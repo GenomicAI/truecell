@@ -4,6 +4,11 @@ This document tracks features planned for future releases, organized by mileston
 Each item includes the R Seurat equivalent, implementation notes, and dependencies
 so any item can be picked up and scoped independently.
 
+> **Status at 2.0.0 (2026-09-18):** every milestone on this page, v0.2.0 to v0.10.0,
+> is delivered and released; 0.9.0 released the last of them. The releases since
+> then, 1.0.0 to 2.0.0, are in [`CHANGELOG.md`](CHANGELOG.md). What is still open is
+> gathered in the last section, *After 2.0.0*.
+
 **What v0.1.0 already covers** (not listed below):  
 LogNormalize · CLR · VST · ScaleData (+ covariate regression) · SCTransform ·
 AddModuleScore · CellCycleScoring · PCA · UMAP · KNN/SNN · Louvain/Leiden ·
@@ -135,7 +140,7 @@ Spatial data structures (FOV/Centroids/Segmentation/Molecules)
 
 ---
 
-## v0.4.0 — Weighted Nearest Neighbor (WNN)
+## v0.4.0 — Weighted Nearest Neighbor (WNN) — ✅ complete
 
 > **Why:** truecell already stores RNA + ADT assays; WNN is the natural joint
 > analysis step for CITE-seq data and is well-scoped.
@@ -380,7 +385,7 @@ relied on the defaults are unaffected.
 
 ---
 
-## v0.7.0 — Spatial Transcriptomics
+## v0.7.0 — Spatial Transcriptomics — ✅ complete
 
 > **Delivered.** The data structures (`FOV`, `Centroids`, `Segmentation`,
 > `Molecules`) plus these loaders and analysis functions are done and validated
@@ -507,7 +512,7 @@ brute-force loop over every cell pair (`tests/test_markvariogram.py`).
 
 ---
 
-## v0.8.0 — Scale & Performance
+## v0.8.0 — Scale & Performance — ✅ complete
 
 > **Status:** ✅ **complete.** Leverage-score sketching (`sketch_data` /
 > `project_data` + `leverage_score`, `truecell/sketch.py`) draws an information-dense
@@ -761,7 +766,7 @@ regime. Don't "simplify" them.
 
 ### PyPI publication — ✅ delivered
 - `pip install truecell` works: published as [`truecell`](https://pypi.org/project/truecell/),
-  currently 0.9.0 (`build` + `twine` added to `[dev]` extras; published to
+  currently 2.0.0 (`build` + `twine` added to `[dev]` extras; published to
   TestPyPI then PyPI; verified with a clean-venv install + import + mini-pipeline
   smoke test)
 - ~~Still open: replace the hard-coded `__version__` string~~ — ✅ delivered:
@@ -773,7 +778,11 @@ regime. Don't "simplify" them.
   after a bump until it is reinstalled — a way to be wrong that the hard-coded
   string did not have. `tests/test_packaging.py::test_version_matches_pyproject`
   exists to make it loud rather than silent.
-- **Still open — decide what the `>=` dependency floors mean.** `pyproject`
+- ~~**Still open — decide what the `>=` dependency floors mean.**~~ ✅ Decided in
+  1.1.0: a tested lockfile. `uv.lock` is committed, CI installs with
+  `uv sync --all-extras --locked`, and the `wheel-tutorials` job runs the built
+  wheel in a venv pinned to the lock. The floors stay lower bounds for users. The
+  record of why it was needed follows. `pyproject`
   declares only lower bounds (`pandas>=2.0`, `numpy>=1.24`, `anndata>=0.10`,
   `umap-learn>=0.5`, `scikit-learn>=1.3`, …), so a fresh install resolves to
   whatever shipped this week and no two installs need agree. This has now caused
@@ -855,6 +864,9 @@ regime. Don't "simplify" them.
   and easy to confuse), and `ignore_missing_imports` silences the stub-less
   scientific stack — without it the run is 222 errors, 139 of them purely
   "this third party has no stubs".
+- **Now 4 errors in 2 files** (`compat/anndata.py`, `plotting.py`) on default
+  settings, at 2.0.0; #70 took it to 0. The rest of this item is the record from
+  when it was added.
 - **Baseline to work down:** ~80 errors in 15 modules on default settings, ~540
   in 47 under `--strict`. Neither is a fixed target: both drift with the
   interpreter and with the dependency versions each resolves against the `>=`
@@ -1191,6 +1203,12 @@ regime. Don't "simplify" them.
     fix" cannot reintroduce it. Second Seurat finding: **`Radius()` on a
     `VisiumV2` returns `NULL`** — `methods("Radius")` has Centroids, STARmap,
     SlideSeq, SpatialImage and VisiumV1, but no VisiumV2.
+    **Upstream since:** Seurat fixed the `NULL` in satijalab/seurat#10454
+    (merged 2026-09-08, not yet in a release; 5.5.1 still returns `NULL`). The
+    diameter is deliberate upstream: Seurat changed to it in 5.1.0
+    (satijalab/seurat#8420) and its own tests assert it. So that one is a Seurat
+    convention truecell does not follow, not a Seurat bug. Neither was reported
+    upstream from here.
     **The truecell defect:** `_imread` fell back from matplotlib to Pillow, which
     return **float32 in [0,1] and uint8 in [0,255]** — 255× apart, from the same
     file, and neither library is a declared dependency, so `get_image()` was a
@@ -1277,7 +1295,8 @@ regime. Don't "simplify" them.
 - **Expect bugs, and read a mismatch as a bug report.** Wave 1 went T7, T9 and T8
   clean, while **T6 found the first two defects**, **T-dr the next two**,
   **T-sk two more**, **T-obj eleven**, **T-sp three**, **T-de two**, **T-lazy seven**,
-  **T-vis one** (plus two in Seurat itself) and **T-int eighteen** —
+  **T-vis one** (plus one in Seurat itself, and a Seurat convention truecell does
+  not follow) and **T-int eighteen** —
   exactly the point: a green synthetic suite (balanced batches, self-consistent
   fixtures) hid a crash, a 4× under-integration, a mis-specified permutation null,
   the wrong significance test, a flattened sampling weight and a label transfer
@@ -1401,3 +1420,39 @@ If milestones are too large, these are the highest-value individual items:
 8. ~~**`run_spca` + `glm_pca`** (Poisson + negative binomial)~~ ✅ (`v0.5.0`) —
    **v0.5.0 is complete**; GLM-PCA now fits both `family="poisson"` and
    `family="nb"` (dispersion estimated by ML), closing the last gap in it
+
+---
+
+## After 2.0.0 — open items
+
+Candidates, not commitments. Each says why it is open.
+
+- **Name the missing extra in import errors.** On a core-only install,
+  `find_markers(test_use="LR")` (statsmodels), `find_neighbors` (scikit-learn) and
+  `run_umap` (umap-learn) raise a bare `ModuleNotFoundError` rather than naming the
+  extra to install. It has been this way since 1.2.0 at least. A package change, so
+  it ships with the next release.
+- **`vln_plot` group order and median bar.** Seurat's `VlnPlot` orders groups by
+  factor level; `vln_plot` sorts them with `ident_sort_key` and ignores a
+  categorical order, and it always draws a median bar, which Seurat does not.
+  Following Seurat would change existing plots, so it waits for a release that can
+  say so, if it happens at all. The CITE-seq tutorial works around it with a fixed
+  list (#138).
+- **Seurat's next release.** Seurat's `main` has fixes that are not in 5.5.1, the
+  version every R reference here was taken on, to functions the tutorials compare
+  against: `Radius()` on a `VisiumV2` (#10454), `FindSpatiallyVariableFeatures` and
+  `RunMarkVario` (#10504, #10505), and `AddModuleScore` on on-disk assays (#10448).
+  When it is released, re-run the tutorials that call them. The Visium tutorial
+  reports the `Radius()` result rather than matching it, so nothing fails, but its
+  text will need to say the `NULL` is fixed.
+- **The Visium radius wording.** Some docs and skills call Seurat's
+  diameter-in-a-radius-slot a Seurat error: `skills/truecell-from-seurat`,
+  `skills/truecell-spatial`, `skills/truecell-dev` and `tutorials/README.md`. It is
+  deliberate upstream (see the T-vis entry above). truecell's half-size radius stays;
+  the wording should call it a convention truecell does not follow.
+- **`DEenrichRPlot`** is not ported. It calls the enrichR web service, which would
+  put a network dependency in the test path (see Mixscape above).
+- **Python 3.14** waits on a `harmonypy` cp314 wheel. harmonypy 2.0.2 still ships
+  cp39–cp313 only (checked 2026-09-28).
+- **Type annotations:** 4 `mypy` errors on default settings, and `--strict` not
+  started (see *Type annotations* above).
