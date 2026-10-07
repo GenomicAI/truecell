@@ -111,6 +111,28 @@ def test_a_sample_in_both_levels_is_an_error():
         composition_test(obj, "ct", "cond", sample_col="donor")
 
 
+def test_a_cell_with_no_sample_is_left_out_whatever_the_pandas_version():
+    """Left to `astype(str)` it is a sample called "nan" on pandas 2 and vanishes on pandas 3,
+    and either way its cell would still be counted in `n_<level>`."""
+    whole = _simulate(2)
+    with_gaps = SimpleNamespace(meta_data=whole.meta_data.copy())
+    gaps = with_gaps.meta_data.index[::7]                      # every seventh cell has no sample
+    with_gaps.meta_data.loc[gaps, "donor"] = np.nan
+    left_in = SimpleNamespace(meta_data=whole.meta_data.drop(index=gaps))
+    got = composition_test(with_gaps, "ct", "cond", sample_col="donor")
+    want = composition_test(left_in, "ct", "cond", sample_col="donor")
+    pd.testing.assert_frame_equal(got, want)
+    assert got.attrs["n_samples"] == {"A": 6, "B": 6}
+    assert got[["n_A", "n_B"]].to_numpy().sum() == len(left_in.meta_data)
+
+
+def test_a_level_whose_cells_have_no_sample_is_an_error_not_a_scipy_one():
+    obj = _simulate(0)
+    obj.meta_data["donor"] = obj.meta_data["donor"].where(obj.meta_data["cond"] == "A")   # B has none
+    with pytest.raises(ValueError, match="No sample in split_by level 'B'"):
+        composition_test(obj, "ct", "cond", sample_col="donor")
+
+
 def test_an_unknown_sample_column_is_a_keyerror():
     with pytest.raises(KeyError, match="'nope' not in meta_data"):
         composition_test(_simulate(0), "ct", "cond", sample_col="nope")

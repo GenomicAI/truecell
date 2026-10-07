@@ -46,14 +46,18 @@ def _finish(df: pd.DataFrame, ref: str, test: str) -> pd.DataFrame:
     return df.sort_values("log2_ratio", ascending=False).reset_index(drop=True)
 
 
-def _across_samples(md, tab, group_by, split_by, sample_col, ref, test) -> pd.DataFrame:
+def _across_samples(md, group_by, split_by, sample_col, ref, test) -> pd.DataFrame:
     """The per-sample version: one observation per sample, not one per cell.
 
     Each group's proportion in each sample is compared between the two levels with a
-    two-sided Mann-Whitney U test. ``tab`` is the cell-level group x level table.
+    two-sided Mann-Whitney U test. A cell with no sample is left out, up front: left to
+    ``astype(str)`` it would become a sample called "nan" on pandas 2 and vanish on
+    pandas 3.
     """
-    cond = md[split_by].astype(str)
-    sample = md[sample_col].astype(str)
+    keep = md[sample_col].notna()
+    cond = md.loc[keep, split_by].astype(str)
+    sample = md.loc[keep, sample_col].astype(str)
+    group = md.loc[keep, group_by].astype(str)
     # A sample is one donor, so it sits in one condition; if it does not, the
     # comparison is not between samples at all.
     spans = cond.groupby(sample).nunique()
@@ -63,11 +67,18 @@ def _across_samples(md, tab, group_by, split_by, sample_col, ref, test) -> pd.Da
             f"sample_col='{sample_col}' must sit inside one level of split_by='{split_by}', "
             f"but {spans[:5]} have cells in both."
         )
-    counts = pd.crosstab(sample, md[group_by].astype(str)).reindex(columns=tab.index)
+    counts = pd.crosstab(sample, group)
+    cells = pd.crosstab(group, cond)                          # the cells used, group x level
     props = counts.div(counts.sum(axis=1), axis=0)
     level = cond.groupby(sample).first().reindex(props.index)
     in_ref, in_test = (level == ref).to_numpy(), (level == test).to_numpy()
     n_ref, n_test = int(in_ref.sum()), int(in_test.sum())
+    if not (n_ref and n_test):
+        empty = ref if not n_ref else test
+        raise ValueError(
+            f"No sample in split_by level '{empty}': sample_col='{sample_col}' is missing "
+            f"for every one of its cells."
+        )
 
     # The smallest p an exact two-sided test can give, with every sample of one level
     # above every sample of the other: 2 / C(n1 + n2, n1). Past 0.05 nothing can come
@@ -82,7 +93,7 @@ def _across_samples(md, tab, group_by, split_by, sample_col, ref, test) -> pd.Da
         )
 
     rows = []
-    for grp in tab.index:
+    for grp in counts.columns:
         x_test, x_ref = props.loc[in_test, grp].to_numpy(), props.loc[in_ref, grp].to_numpy()
         p = float(stats.mannwhitneyu(x_test, x_ref, alternative="two-sided").pvalue)
         # Identical in every sample: scipy returns NaN, and one NaN would turn every
@@ -92,7 +103,7 @@ def _across_samples(md, tab, group_by, split_by, sample_col, ref, test) -> pd.Da
         with np.errstate(divide="ignore"):
             log2 = np.log2(prop_test / prop_ref) if prop_ref else np.nan
         rows.append({
-            "group": grp, f"n_{ref}": tab.loc[grp, ref], f"n_{test}": tab.loc[grp, test],
+            "group": grp, f"n_{ref}": cells.loc[grp, ref], f"n_{test}": cells.loc[grp, test],
             f"prop_{ref}": prop_ref, f"prop_{test}": prop_test,
             "log2_ratio": log2, "p": p,
         })
@@ -136,12 +147,12 @@ def composition_test(
                  test then has one observation per sample: each group's proportion
                  in each sample is compared between the two levels with a two-sided
                  Mann-Whitney U test, BH-adjusted across groups. Every sample must sit
-                 in one level of ``split_by``. ``prop_<level>`` is then the mean of the
-                 per-sample proportions, ``odds_ratio`` and ``chisq_p`` are not
-                 reported (they are cell-level), and ``df.attrs['n_samples']`` counts
-                 the samples per level. With few samples the test cannot reach
-                 significance whatever the data, three against three cannot give a
-                 p-value below 0.1, and a warning says so.
+                 in one level of ``split_by``, and a cell with no sample is left out.
+                 ``prop_<level>`` is then the mean of the per-sample proportions,
+                 ``odds_ratio`` and ``chisq_p`` are not reported (they are cell-level),
+                 and ``df.attrs['n_samples']`` counts the samples per level. With few
+                 samples the test cannot reach significance whatever the data: three
+                 against three cannot give a p-value below 0.1, and a warning says so.
 
     Returns
     -------
@@ -164,7 +175,7 @@ def composition_test(
         raise ValueError(f"reference '{ref}' not a level of {split_by}: {conds}.")
     test = [c for c in conds if c != ref][0]
     if sample_col is not None:
-        return _across_samples(md, tab, group_by, split_by, sample_col, ref, test)
+        return _across_samples(md, group_by, split_by, sample_col, ref, test)
 
     n_ref, n_test = tab[ref].sum(), tab[test].sum()
     rows = []

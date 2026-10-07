@@ -43,8 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `prop_<level>` is then the mean of the per-sample proportions. `odds_ratio` and
     `chisq_p` are cell-level quantities and are not reported, and `df.attrs` carries
     `method`, `sample_col` and `n_samples`.
-  - A sample in both levels is an error. A design too small to reach significance, such
-    as three samples against three, whose smallest possible p is 0.1, warns.
+  - A sample in both levels is an error, and so is a level none of whose cells has a
+    sample. A cell with no sample is left out. A design too small to reach significance,
+    such as three samples against three, whose smallest possible p is 0.1, warns.
   - Without `sample_col` nothing changes except the docstring, which now says what the
     p-values assume, and `df.attrs['method']`.
 
