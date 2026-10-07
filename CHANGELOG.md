@@ -29,6 +29,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tutorial page keeps the published vignette's image on R's side, and the PBMC 3k
   comparison's numbers do not change.
 
+- **`composition_test(sample_col=)` tests per-sample proportions (#144).** The Fisher
+  test counts every cell as a replicate, so with thousands of cells nearly every
+  difference is significant, including one that is only donor-to-donor variation. In a
+  simulation with no condition effect (12 donors, 6 against 6, each with its own
+  cell-type proportions) at least one cell type came out BH-significant in 35 of 40
+  runs. The unit that replicates is the donor.
+  - `sample_col` names the sample each cell came from. Each group's proportion in each
+    sample is compared between the two levels with a two-sided Mann-Whitney test, BH
+    adjusted across groups, as before. In the same simulation it reports a significant
+    type in 1 of 40 runs, and it still finds a type that is three times as common in
+    one condition in 10 of 10.
+  - `prop_<level>` is then the mean of the per-sample proportions. `odds_ratio` and
+    `chisq_p` are cell-level quantities and are not reported, and `df.attrs` carries
+    `method`, `sample_col` and `n_samples`.
+  - A sample in both levels is an error, and so is a level none of whose cells has a
+    sample. A cell with no sample is left out. A design too small to reach significance,
+    such as three samples against three, whose smallest possible p is 0.1, warns.
+  - Without `sample_col` nothing changes except the docstring, which now says what the
+    p-values assume, and `df.attrs['method']`.
+
 ### Removed
 
 - **Sixteen names from `truecell.generics`, none of which ever did anything (#142).**
@@ -49,6 +69,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`as_anndata` no longer fails on an object from the standard workflow (#141).**
+  `scale_data()` scales only the variable features unless it is given others, so
+  `scale.data` has one row per variable feature, and AnnData rejects a layer that is
+  not as wide as `var`. `as_anndata` raised a `ValueError` from inside AnnData on any
+  object that had been through `normalize_data`, `find_variable_features` and
+  `scale_data`, in either assay class.
+  - A layer with fewer features than the assay is now left out, with a warning that
+    names it and says how to keep it: `scale_data(obj, features=obj.feature_names())`
+    before converting, which scales every feature and exports the layer as before.
+  - It is left out rather than padded because `from_anndata` turns every layer back
+    into an assay layer, and padded rows would read back as scaled values that never
+    were.
+  - No test had converted an object that had been scaled. `tests/test_anndata_compat.py`
+    now does, for both assay classes, and `docs/interop.md` says what is left out.
+
 - **The CITE-seq tutorial's ADT-weight violins read as one comparison.** Reviewer 2
   of the Frontiers paper found R's and Truecell's panels of figure 10 in different
   orders and colours, which defeats a side-by-side. Both scripts now draw the cell
@@ -62,6 +97,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     at. With Seurat's defaults at that width the y-axis labels overprinted.
   - `tests/test_multimodal_tutorial.py` keeps the two scripts' label lists equal,
     and the smoke suite checks the figure's layout at the width the paper uses.
+
+- **Plots follow a categorical column's order, so a lineage-ordered `dot_plot` is
+  possible, and `reorder_ident` has an effect (#143).** In Seurat the order of a
+  factor's levels decides the order of the groups in `DotPlot` and `VlnPlot`.
+  `dot_plot`, `vln_plot`, `dim_plot`, `feature_scatter`, `do_heatmap` and
+  `ridge_plot` sorted the groups themselves, whatever the categories said, so after
+  `obj.reorder_ident("score")` they still drew Alpha, Mu, Zeta.
+  - A categorical column, or the active identity, is drawn in its category order. The
+    colours follow, as `hue_pal` is assigned in that order in R.
+  - Categories nobody chose are not an order, so they are not followed.
+    `pd.Categorical(values)` and `rename_idents` leave the string-sorted categories
+    "1", "10", "2", and those still sort numbers first, then names, as before.
+  - Categories with no cells are not drawn, and a missing value is still last.
+  - Nothing changes for an existing workflow: `find_clusters` already orders its
+    categories numbers then names, and no tutorial sets a category order.
+  - `image_dim_plot` and `spatial_dim_plot` still sort alphabetically, which
+    `ROADMAP.md` now lists.
 
 - **`dim_heatmap`, the plots that take `layer=`, and `add_module_score` read the wrong
   rows of `scale.data` (#140).** `scale_data()` scales only the variable features

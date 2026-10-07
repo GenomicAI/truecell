@@ -498,6 +498,36 @@ def _get_groups(obj, group_by: Optional[str]) -> np.ndarray:
     raise KeyError(f"group_by column '{group_by}' not found in meta_data.")
 
 
+def _group_levels(obj, group_by: str | None, groups: np.ndarray) -> list[str]:
+    """The groups to draw, in the order to draw them.
+
+    R draws a factor's levels in the order they are declared, so ``DotPlot`` and
+    ``VlnPlot`` follow ``factor(x, levels = ...)``, and ``ReorderIdent`` changes the
+    plots by changing the levels. A categorical's own order is followed here too.
+
+    The one exception is categories that are only the sorted order every categorical
+    starts with, which is what ``pd.Categorical(values)`` and ``rename_idents`` leave.
+    That order says nothing about the order wanted, and string order puts "10" before
+    "2", so those are sorted as any other column is: numbers numerically, then names.
+    Groups no cell belongs to are not drawn, as ggplot drops unused levels.
+    """
+    present = set(groups)
+    column = obj.idents if group_by is None else obj.meta_data[group_by]
+    categories = None
+    if isinstance(column, pd.Categorical):
+        categories = column.categories
+    elif isinstance(column.dtype, pd.CategoricalDtype):
+        categories = column.cat.categories
+    if categories is not None:
+        declared = [str(c) for c in categories]
+        if declared != sorted(declared):
+            # A missing value comes through `astype(str)` as "nan" or as NaN, by pandas
+            # version, and no category names it: it goes last, as it always has.
+            return ([g for g in declared if g in present]
+                    + sorted(present - set(declared), key=ident_sort_key))
+    return sorted(present, key=ident_sort_key)
+
+
 def _strip_axes(ax):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -617,7 +647,8 @@ def vln_plot(
     ----------
     obj      : Truecell object
     features : gene name(s) or metadata column(s)
-    group_by : metadata column used for grouping (default: active idents)
+    group_by : metadata column used for grouping (default: active idents). A categorical
+               column is drawn in its category order, as R draws a factor's levels.
     pt_size  : marker area for the jittered points, in matplotlib's units.
                ``None`` (default) follows Seurat's ``AutoPointSize``, which
                shows points and shrinks them as the cell count grows; ``0``
@@ -643,7 +674,7 @@ def vln_plot(
         features = [features]
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=ident_sort_key)
+    unique = _group_levels(obj, group_by, groups)
     if pt_size is None:
         pt_size = _auto_point_size(len(groups))
 
@@ -951,7 +982,8 @@ def dim_plot(
     Parameters
     ----------
     reduction : which reduction to use ("umap", "pca", …)
-    group_by  : metadata column for colouring (default: active idents)
+    group_by  : metadata column for colouring (default: active idents). A categorical
+                column is drawn in its category order, as R draws a factor's levels.
     label     : label each group at the median of its cells' coordinates, in
                 each panel, as Seurat's ``LabelClusters`` does
     label_size: font size for the group labels (default: scales with the theme)
@@ -979,7 +1011,7 @@ def dim_plot(
     plt = _mpl()
     emb = _get_embedding(obj, reduction)
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=ident_sort_key)
+    unique = _group_levels(obj, group_by, groups)
     colors = palette or _palette(len(unique))
     # On the whole embedding, not the per-group slice: the decision is about the
     # figure's total path count, and a 200k-cell object split across 20 clusters
@@ -1132,7 +1164,8 @@ def feature_scatter(
     Parameters
     ----------
     feature1 / feature2 : gene names or metadata columns
-    group_by : column for colouring; default: active idents
+    group_by : column for colouring; default: active idents. A categorical column is
+               coloured in its category order, as R colours a factor's levels.
     raster   : draw the cells as a raster layer instead of vector paths.
                ``None`` (default) rasterises above 100,000 cells.
     """
@@ -1140,7 +1173,7 @@ def feature_scatter(
     x = _get_expression(obj, feature1, assay, layer)
     y = _get_expression(obj, feature2, assay, layer)
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=ident_sort_key)
+    unique = _group_levels(obj, group_by, groups)
     colors = palette or _palette(len(unique))
     rast = _should_raster(raster, len(x))
 
@@ -1516,7 +1549,8 @@ def do_heatmap(
     Parameters
     ----------
     features : list of gene names to show as rows
-    group_by : column used to sort and colour cells (default: active idents)
+    group_by : column used to sort and colour cells (default: active idents). A
+               categorical column is ordered by its categories, as R orders a factor's levels.
     layer    : which data layer to use (default: "scale.data")
     label    : annotate cluster boundaries with group names
     cells    : restrict to these cells *and* show them in this exact order,
@@ -1531,7 +1565,7 @@ def do_heatmap(
     mat, all_feats = _resolve_layer(assay_obj, layer)
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=ident_sort_key)
+    unique = _group_levels(obj, group_by, groups)
     colors = palette or _palette(len(unique))
 
     if cells is None:
@@ -1643,7 +1677,7 @@ def ridge_plot(
         features = [features]
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=ident_sort_key)[::-1]
+    unique = _group_levels(obj, group_by, groups)[::-1]
     colors = palette or _palette(len(unique))
 
     nrow, nc = _subplot_grid(len(features), ncol)
@@ -1775,7 +1809,8 @@ def dot_plot(
     Parameters
     ----------
     features : gene name(s) to plot (x-axis).
-    group_by : metadata column for grouping (default: active idents, y-axis).
+    group_by : metadata column for grouping (default: active idents, y-axis). A
+               categorical column is drawn in its category order, as R draws a factor's levels.
     scale    : z-score each feature's average expression across groups.
     col_min/col_max : colour scale limits for the scaled average expression.
     dot_min  : minimum fraction-expressing to draw a dot.
@@ -1788,7 +1823,7 @@ def dot_plot(
         features = [features]
 
     groups = _get_groups(obj, group_by)
-    unique = sorted(set(groups), key=ident_sort_key)
+    unique = _group_levels(obj, group_by, groups)
 
     # Per (feature, group): average expression and fraction expressing.
     avg = np.zeros((len(features), len(unique)))
