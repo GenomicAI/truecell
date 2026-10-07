@@ -284,7 +284,7 @@ build_niche_assay(seurat, group_by, image=None, k=20, niches=4, assay_name="nich
 find_spatially_variable_features(seurat, features=None, method="moransi", k=10,
                                  weights="inverse_square", assay=None, layer="scale.data",
                                  image=None, r_metric=5.0, bandwidth=1.0) -> pd.DataFrame
-composition_test(seurat, group_by, split_by, reference=None) -> pd.DataFrame
+composition_test(seurat, group_by, split_by, reference=None, sample_col=None) -> pd.DataFrame
 ```
 
 The loaders' `fov` names the one image they build, as Seurat's `fov` argument does

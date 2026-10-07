@@ -29,6 +29,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tutorial page keeps the published vignette's image on R's side, and the PBMC 3k
   comparison's numbers do not change.
 
+- **`composition_test(sample_col=)` tests per-sample proportions (#144).** The Fisher
+  test counts every cell as a replicate, so with thousands of cells nearly every
+  difference is significant, including one that is only donor-to-donor variation. In a
+  simulation with no condition effect (12 donors, 6 against 6, each with its own
+  cell-type proportions) at least one cell type came out BH-significant in 35 of 40
+  runs. The unit that replicates is the donor.
+  - `sample_col` names the sample each cell came from. Each group's proportion in each
+    sample is compared between the two levels with a two-sided Mann-Whitney test, BH
+    adjusted across groups, as before. In the same simulation it reports a significant
+    type in 1 of 40 runs, and it still finds a type that is three times as common in
+    one condition in 10 of 10.
+  - `prop_<level>` is then the mean of the per-sample proportions. `odds_ratio` and
+    `chisq_p` are cell-level quantities and are not reported, and `df.attrs` carries
+    `method`, `sample_col` and `n_samples`.
+  - A sample in both levels is an error. A design too small to reach significance, such
+    as three samples against three, whose smallest possible p is 0.1, warns.
+  - Without `sample_col` nothing changes except the docstring, which now says what the
+    p-values assume, and `df.attrs['method']`.
+
 ### Fixed
 
 - **The CITE-seq tutorial's ADT-weight violins read as one comparison.** Reviewer 2
