@@ -24,14 +24,12 @@ def _assay_data(seurat, assay: Optional[str], layer: str = "data"):
 
     assay_obj = seurat.assays[assay or seurat.active_assay]
     if isinstance(assay_obj, Assay5):
-        feats = assay_obj._all_feature_names
-        if layer in assay_obj.layers:
-            mat = assay_obj.layers[layer]
-        elif "data" in assay_obj.layers:
-            mat = assay_obj.layers["data"]
-        else:
-            mat = assay_obj.layers["counts"]
-        return mat, feats
+        key = layer if layer in assay_obj.layers else (
+            "data" if "data" in assay_obj.layers else "counts")
+        # The layer's own features: scale.data holds only the ones that were
+        # scaled, so the assay's list names the wrong rows of it.
+        feats = assay_obj._layer_features.get(key, assay_obj._all_feature_names)
+        return assay_obj.layers[key], feats
     else:
         feats = assay_obj._feature_names
         if layer == "counts":
