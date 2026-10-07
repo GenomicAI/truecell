@@ -7,10 +7,10 @@ reading; it is not a package layout you need to know.
 Two pages are the exception, and on those the import path shown is the one to
 use. The [generics](generics.md) live on `truecell.generics` —
 `truecell.generics.features(obj)`, not `truecell.features(obj)`, which raises
-`AttributeError`. Seven of them are re-exported at the top level as well
-(`create_truecell_object`, `create_assay_object`, `create_centroids`,
-`create_segmentation`, `create_fov`, `get_tissue_coordinates`, `as_graph`); the
-other 65 are not. The loaders on [Loading data](io.md) likewise stay on their own
+`AttributeError`. Two of them are re-exported at the top level as well
+(`get_tissue_coordinates`, `as_graph`); the other 54 are not. R's constructors
+(`CreateSeuratObject`, `CreateFOV`, …) are the top-level `create_*` functions, not
+generics. The loaders on [Loading data](io.md) likewise stay on their own
 modules: `truecell.io.read_10x`, `truecell.datasets.pbmc3k`,
 `truecell.compat.anndata.as_anndata`.
 

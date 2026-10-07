@@ -337,15 +337,22 @@ BLAS runtimes loaded. Its numba checks run in child processes.
 `reorder_ident` · `which_cells` · `fetch_data` · `layer_data` · `set_layer_data` ·
 `layers` · `split_layers` · `join_layers` · `get_assay_data` · `set_assay_data` ·
 `embeddings` · `loadings` · `set_loadings` · `stdev` · `variable_features` ·
-`set_variable_features` · `hvf_info` · `default_assay` · `set_default_assay` ·
-`set_default_layer` · `key` · `set_key` · `keys` · `assay_names` · `assay_class` ·
-`cast_assay` · `add_meta_data` · `rename_cells` · `match_cells` · `calc_n` ·
+`set_variable_features` · `default_assay` · `set_default_assay` ·
+`set_default_layer` · `key` · `set_key` · `assay_names` ·
+`cast_assay` · `add_meta_data` · `rename_cells` · `calc_n` ·
 `command` · `misc` / `set_misc` · `tool` / `set_tool` · `version` · `as_sparse` ·
-`as_graph` · `as_neighbor` · `as_seurat` · `check_matrix` · `is_matrix_empty` ·
+`as_graph` · `as_neighbor` · `is_matrix_empty` ·
 `simplify` · `distances` · `indices` ·
 spatial: `boundaries` · `crop` · `overlay` · `radius` · `theta` · `get_image` ·
-`get_molecules` · `get_tissue_coordinates` · `default_boundary` · `default_fov` ·
-`is_global` · `as_centroids` · `as_segmentation` · `create_fov` · `create_centroids` ·
-`create_segmentation`
+`get_molecules` · `get_tissue_coordinates` · `default_boundary` ·
+`is_global` · `as_centroids`
+
+Each one is the object's own method, property or log reached by its R name, so
+`g.set_ident(obj, cells, "x")` and `obj.set_ident(cells, "x")` are the same call.
+What R has and the port does not is not stubbed here. The constructors
+(`CreateSeuratObject`, `CreateFOV`, …) are the top-level `create_*` functions, which
+take their input by keyword; `HVFInfo()` is the per-feature columns of
+`assay.meta_data`; `Keys()`, `DefaultFOV()`, `DefaultDimReduc()`, `as.Seurat()` and
+the S4 conversions have no counterpart.
 
 See [`object-model.md`](object-model.md) for what each dispatches on.

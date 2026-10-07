@@ -49,7 +49,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Without `sample_col` nothing changes except the docstring, which now says what the
     p-values assume, and `df.attrs['method']`.
 
+### Removed
+
+- **Sixteen names from `truecell.generics`, none of which ever did anything (#142).**
+  Each was declared with only the `NotImplementedError` fallback, so each raised for
+  every type of object and no working code changes.
+  - R's constructors `create_truecell_object`, `create_assay_object`, `create_fov`,
+    `create_centroids` and `create_segmentation`. The top-level functions of the same
+    names are the constructors. They take their input by keyword, which a dispatcher
+    on the first positional argument cannot.
+  - Nothing in the port is behind `as_segmentation`, `as_seurat`, `assay_class`,
+    `default_dim_reduc`, `default_fov`, `hvf_info`, `keys`, `list_to_s4` and
+    `s4_to_list`. The last two are R's S4 plumbing, and `HVFInfo()`'s table is the
+    per-feature columns of `assay.meta_data`.
+  - `check_matrix` and `match_cells` had only internal helpers behind the same names,
+    and those do something other than R's `CheckMatrix` and `MatchCells`.
+  - `docs/api/index.md` and `tests/test_docs.py` count the generics that are
+    module-only: 65 became 54.
+
 ### Fixed
+
+- **`as_anndata` no longer fails on an object from the standard workflow (#141).**
+  `scale_data()` scales only the variable features unless it is given others, so
+  `scale.data` has one row per variable feature, and AnnData rejects a layer that is
+  not as wide as `var`. `as_anndata` raised a `ValueError` from inside AnnData on any
+  object that had been through `normalize_data`, `find_variable_features` and
+  `scale_data`, in either assay class.
+  - A layer with fewer features than the assay is now left out, with a warning that
+    names it and says how to keep it: `scale_data(obj, features=obj.feature_names())`
+    before converting, which scales every feature and exports the layer as before.
+  - It is left out rather than padded because `from_anndata` turns every layer back
+    into an assay layer, and padded rows would read back as scaled values that never
+    were.
+  - No test had converted an object that had been scaled. `tests/test_anndata_compat.py`
+    now does, for both assay classes, and `docs/interop.md` says what is left out.
 
 - **The CITE-seq tutorial's ADT-weight violins read as one comparison.** Reviewer 2
   of the Frontiers paper found R's and Truecell's panels of figure 10 in different
@@ -64,6 +97,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     at. With Seurat's defaults at that width the y-axis labels overprinted.
   - `tests/test_multimodal_tutorial.py` keeps the two scripts' label lists equal,
     and the smoke suite checks the figure's layout at the width the paper uses.
+
+- **Plots follow a categorical column's order, so a lineage-ordered `dot_plot` is
+  possible, and `reorder_ident` has an effect (#143).** In Seurat the order of a
+  factor's levels decides the order of the groups in `DotPlot` and `VlnPlot`.
+  `dot_plot`, `vln_plot`, `dim_plot`, `feature_scatter`, `do_heatmap` and
+  `ridge_plot` sorted the groups themselves, whatever the categories said, so after
+  `obj.reorder_ident("score")` they still drew Alpha, Mu, Zeta.
+  - A categorical column, or the active identity, is drawn in its category order. The
+    colours follow, as `hue_pal` is assigned in that order in R.
+  - Categories nobody chose are not an order, so they are not followed.
+    `pd.Categorical(values)` and `rename_idents` leave the string-sorted categories
+    "1", "10", "2", and those still sort numbers first, then names, as before.
+  - Categories with no cells are not drawn, and a missing value is still last.
+  - Nothing changes for an existing workflow: `find_clusters` already orders its
+    categories numbers then names, and no tutorial sets a category order.
+  - `image_dim_plot` and `spatial_dim_plot` still sort alphabetically, which
+    `ROADMAP.md` now lists.
 
 - **`dim_heatmap`, the plots that take `layer=`, and `add_module_score` read the wrong
   rows of `scale.data` (#140).** `scale_data()` scales only the variable features
@@ -84,6 +134,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     scaled every feature, which is why none of them saw this;
     `tests/test_layer_feature_alignment.py` uses the standard workflow and checks
     that its own fixture can tell the two lookups apart.
+
+- **The generics the docs list now work (#142).** `truecell.generics` declared 72
+  functions and 39 had only the fallback, so they raised `NotImplementedError` for every
+  object. `skills/truecell/reference/api-map.md` listed many as the way to do things,
+  and `docs/api/generics.md` says each is the same code path as the object's own
+  method.
+  - Twenty-three now delegate to what already existed: `assay_names`, `calc_n`,
+    `cast_assay`, `reorder_ident`, `set_ident`, `tool`, `set_tool`, `version`,
+    `set_layer_data`, `set_assay_data`, `set_loadings`, `set_default_assay`,
+    `set_default_layer`, `set_variable_features`, `set_key`, `misc`, `set_misc`, and
+    the spatial `as_centroids`, `crop`, `overlay`, `default_boundary`, `get_molecules`,
+    plus `command`. Arguments are handed through untouched, so a method's signature
+    has no second copy to drift.
+  - `command` reads the command log as R's `Command()` does: no argument gives the
+    names of the commands that have run, a name gives that entry, and a second
+    argument gives one of its parameters. An unknown command or parameter is an error,
+    as in R, and a command run twice appears once, holding its latest run, as in
+    R's named list.
+  - `tests/test_generics.py` fails on a generic with no implementation, and on a
+    mismatch in either direction between the module and the api-map's list.
 
 ### Documentation
 

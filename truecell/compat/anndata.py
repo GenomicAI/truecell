@@ -59,6 +59,11 @@ def as_anndata(
 
     AnnData has nowhere to put cell polygons or molecules, so those stay behind, as
     does a second image of cells another image already placed, such as a crop.
+
+    An AnnData layer is as wide as ``var``, so a layer with fewer features than the
+    assay also stays behind, with a warning. That is ``scale.data`` after
+    ``scale_data()``'s default, which scales only the variable features; scaling every
+    feature first, ``scale_data(obj, features=obj.feature_names())``, keeps it.
     """
     try:
         import anndata
@@ -113,9 +118,28 @@ def as_anndata(
     var.index = feature_names
 
     # ---- layers ----
+    # An AnnData layer is as wide as `var`. scale_data() scales only the variable
+    # features unless it is given others, so scale.data is usually narrower, and has
+    # no place here: AnnData rejects it, and padding it would hand `from_anndata` a
+    # layer of rows that were never scaled. The varm loop below guards the same
+    # mismatch.
     layers_out = {}
+    narrow = {}
     for layer_name, mat in extra_layers.items():
+        if mat.shape[0] != len(feature_names):
+            narrow[layer_name] = mat.shape[0]
+            continue
         layers_out[layer_name] = mat.T if sp.issparse(mat) else mat.T
+    if narrow:
+        held = ", ".join(f"{name!r} ({n} features)" for name, n in narrow.items())
+        warnings.warn(
+            f"as_anndata left out {held}: an AnnData layer has to be as wide as var, "
+            f"which has {len(feature_names)} features. scale_data() scales only the "
+            f"variable features unless it is given others, so "
+            f"scale_data(obj, features=obj.feature_names()) before converting keeps "
+            f"a scale.data layer.",
+            stacklevel=2,
+        )
 
     # ---- obsm ----
     obsm = {}

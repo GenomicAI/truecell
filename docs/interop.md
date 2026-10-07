@@ -36,6 +36,11 @@ The conversion transposes for you, so don't transpose again by hand.
 `from_anndata` reverses the table, with `X` as the counts layer. Pass the assay name
 on the way back, because it is not read from `uns`.
 
+An AnnData layer is as wide as `var`, so a layer with fewer features than the assay
+stays behind, and `as_anndata` warns and names it. That is `scale.data` after
+`scale_data()`'s default, which scales only the variable features. To keep it, scale
+every feature first: `scale_data(obj, features=obj.feature_names())`.
+
 ## Space
 
 The spatial fields follow the layout Scanpy and Squidpy read.
