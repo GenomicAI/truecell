@@ -3,6 +3,14 @@
 Each public function dispatches on the first argument's type.
 The base (object) implementation raises NotImplementedError so
 unregistered types get a clear message.
+
+A generic is declared here only where something implements it: the object's own
+method, property or log, reached by its R name, which is the "same code path"
+``docs/api/generics.md`` promises. R's constructors (``CreateSeuratObject``,
+``CreateFOV``, …) are not here, because the top-level factories take their input
+by keyword and a dispatcher cannot; nor is anything the port has no counterpart
+for, such as the S4 plumbing. ``tests/test_generics.py`` fails on a generic with
+no implementation.
 """
 from __future__ import annotations
 
@@ -14,6 +22,7 @@ def _not_implemented(func_name: str):
         raise NotImplementedError(
             f"{func_name}() is not implemented for {type(x).__name__}."
         )
+    _impl._is_stub = True  # type: ignore[attr-defined]
     return _impl
 
 
@@ -49,7 +58,6 @@ misc = _generic("misc")
 command = _generic("command")
 version = _generic("version")
 key = _generic("key")
-keys = _generic("keys")
 
 # ======================================================================
 # DATA ASSIGNMENT
@@ -83,15 +91,12 @@ stash_ident = _generic("stash_ident")
 assay_names = _generic("assay_names")
 default_assay = _generic("default_assay")
 cast_assay = _generic("cast_assay")
-create_assay_object = _generic("create_assay_object")
 calc_n = _generic("calc_n")
-assay_class = _generic("assay_class")
 
 # ======================================================================
 # REDUCTION / NEIGHBOR
 # ======================================================================
 
-default_dim_reduc = _generic("default_dim_reduc")
 as_neighbor = _generic("as_neighbor")
 
 # ======================================================================
@@ -107,33 +112,23 @@ split_layers = _generic("split_layers")
 # ======================================================================
 
 variable_features = _generic("variable_features")
-hvf_info = _generic("hvf_info")
 
 # ======================================================================
 # OBJECT CREATION / CONVERSION
 # ======================================================================
 
-create_truecell_object = _generic("create_truecell_object")
-as_seurat = _generic("as_seurat")
 as_graph = _generic("as_graph")
 as_sparse = _generic("as_sparse")
-s4_to_list = _generic("s4_to_list")
-list_to_s4 = _generic("list_to_s4")
 
 # ======================================================================
 # SPATIAL
 # ======================================================================
 
-create_fov = _generic("create_fov")
-create_segmentation = _generic("create_segmentation")
-create_centroids = _generic("create_centroids")
 as_centroids = _generic("as_centroids")
-as_segmentation = _generic("as_segmentation")
 crop = _generic("crop")
 overlay = _generic("overlay")
 simplify = _generic("simplify")
 boundaries = _generic("boundaries")
-default_fov = _generic("default_fov")
 default_boundary = _generic("default_boundary")
 get_molecules = _generic("get_molecules")
 radius = _generic("radius")
@@ -145,8 +140,6 @@ theta = _generic("theta")
 
 is_global = _generic("is_global")
 is_matrix_empty = _generic("is_matrix_empty")
-check_matrix = _generic("check_matrix")
-match_cells = _generic("match_cells")
 rename_cells = _generic("rename_cells")
 
 # ======================================================================
@@ -391,6 +384,108 @@ def _register_all() -> None:
     @as_sparse.register(np.ndarray)
     def _asp_nd(x, fmt="csc"):
         return sp.csc_matrix(x) if fmt == "csc" else sp.csr_matrix(x)
+
+    # ------------------------------------------------------------------
+    # Delegates: the object's own method, property or log, by its R name
+    # ------------------------------------------------------------------
+    # `docs/api/generics.md` says each generic is the same code path as the method,
+    # so these hand their arguments through untouched. A signature copied here would
+    # be a second place to drift, which is how 39 generics came to be declared and
+    # never wired to anything.
+
+    def _delegate(generic, classes, method):
+        def impl(x, *args, **kwargs):
+            return getattr(x, method)(*args, **kwargs)
+        for cls in classes:
+            generic.register(cls)(impl)
+
+    # methods
+    _delegate(assay_names, (Truecell,), "assay_names")
+    _delegate(calc_n, (Assay, StdAssay), "calc_n")
+    _delegate(cast_assay, (StdAssay,), "cast_assay")
+    _delegate(reorder_ident, (Truecell,), "reorder_ident")
+    _delegate(set_ident, (Truecell,), "set_ident")
+    _delegate(tool, (Truecell,), "tool")
+    _delegate(set_tool, (Truecell,), "set_tool")
+    _delegate(set_layer_data, (StdAssay,), "set_layer_data")
+    _delegate(set_assay_data, (Assay,), "set_assay_data")
+    _delegate(set_loadings, (DimReduc,), "set_loadings")
+    _delegate(set_default_assay, (DimReduc, Graph, SpatialImage), "set_default_assay")
+    # spatial; VisiumV2 is an FOV
+    _delegate(as_centroids, (Segmentation,), "as_centroids")
+    _delegate(crop, (FOV,), "crop")
+    _delegate(overlay, (FOV,), "overlay")
+    _delegate(default_boundary, (FOV,), "default_boundary")
+    _delegate(get_molecules, (FOV,), "get_molecules")
+
+    # properties and attributes
+    @set_assay_data.register(StdAssay)
+    def _sad_std(x, layer, new_data, **kwargs):
+        return x.set_layer_data(layer, new_data, **kwargs)
+
+    @set_default_assay.register(Truecell)
+    def _sda_s(x, value):
+        x.default_assay = value
+
+    @set_default_layer.register(StdAssay)
+    def _sdl_std(x, value):
+        x.default_layer = value
+
+    def _set_variable_features(x, features):
+        x.variable_features = list(features)
+
+    set_variable_features.register(Assay)(_set_variable_features)
+    set_variable_features.register(StdAssay)(_set_variable_features)
+
+    @set_variable_features.register(Truecell)
+    def _svf_s(x, features, assay=None):
+        x.get_assay(assay).variable_features = list(features)
+
+    def _set_key(x, value):
+        x.key = value
+
+    def _misc(x, slot=None):
+        return x.misc if slot is None else x.misc[slot]
+
+    def _set_misc(x, value, slot=None):
+        # Misc(x) <- value replaces the whole list; Misc(x, slot) <- value one entry.
+        if slot is None:
+            x.misc = dict(value)
+        else:
+            x.misc[slot] = value
+
+    for keyed in (Assay, StdAssay, DimReduc, SpatialImage):
+        set_key.register(keyed)(_set_key)
+    for container in (Truecell, Assay, StdAssay, DimReduc, SpatialImage):
+        misc.register(container)(_misc)
+        set_misc.register(container)(_set_misc)
+
+    @version.register(Truecell)
+    def _ver_s(x):
+        return x.version
+
+    # the command log
+    @command.register(Truecell)
+    def _command_s(x, command=None, value=None):
+        """R's ``Command()``: the commands that have run, one of them, or one parameter.
+
+        ``obj@commands`` is a named list in R, so a command run twice keeps one entry,
+        in the place of the first run and holding the latest. ``x.commands`` is a
+        list that grows with every run, so the same view is taken here. As in R, an
+        unknown command or parameter is an error, and ``value`` reads ``params``
+        only, not the name or the time stamp.
+        """
+        latest = {entry.key: entry for entry in x.commands}
+        if command is None:
+            return list(latest)
+        if command not in latest:
+            raise KeyError(f"{command} has not been run or is not a valid command.")
+        entry = latest[command]
+        if value is None:
+            return entry
+        if value not in entry.params:
+            raise KeyError(f"{value} is not a valid parameter for {entry.name}.")
+        return entry.params[value]
 
 
 _register_all()
