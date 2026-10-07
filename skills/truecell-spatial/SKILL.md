@@ -97,10 +97,19 @@ d = truecell.nearest_neighbor_distance(obj, group_by="cell_type", reference="Ast
 n = truecell.local_neighborhood(obj, group_by="cell_type", k=10)
 
 # Is a type over- or under-represented between conditions?
-c = truecell.composition_test(obj, group_by="cell_type", split_by="condition")
+c = truecell.composition_test(obj, group_by="cell_type", split_by="condition",
+                              sample_col="donor")
 ```
 
 All three return DataFrames and leave the object alone.
+
+`composition_test`'s p-values need `sample_col` whenever a condition has more than one
+donor. Without it every cell is a replicate, so with thousands of cells nearly every
+type comes out significant, including a difference that is only donor-to-donor
+variation: in a simulation with no condition effect and six donors a side, at least one
+type was called significant in 35 of 40 runs. With it the test compares per-sample
+proportions. Each sample must sit inside one condition, and with three donors a side no
+type can reach p < 0.05, which the function warns about.
 
 ## Niches
 
