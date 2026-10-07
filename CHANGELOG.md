@@ -45,6 +45,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/test_multimodal_tutorial.py` keeps the two scripts' label lists equal,
     and the smoke suite checks the figure's layout at the width the paper uses.
 
+- **`dim_heatmap`, the plots that take `layer=`, and `add_module_score` read the wrong
+  rows of `scale.data` (#140).** `scale_data()` scales only the variable features
+  unless it is given others, so row *i* of `scale.data` is not feature *i* of the
+  assay. `dim_heatmap` and the helper behind `dot_plot`, `feature_plot`,
+  `feature_scatter`, `ridge_plot`, `vln_plot`, `image_feature_plot` and
+  `spatial_feature_plot` still found a gene by its place in the assay's full list.
+  That raised `IndexError` when the place fell past the last scaled row, and drew
+  another gene's row under the right label when it did not.
+  - `dim_heatmap` on the standard workflow raised, or drew rows that were none of the
+    genes it labelled. `feature_scatter(layer="scale.data")` plotted two other genes.
+  - `add_module_score(layer="scale.data")` had the same lookup, found while checking
+    the other users of `layer=`. It raised `IndexError` on the standard workflow.
+  - A gene that is in the assay but not in the layer now raises a `KeyError` that
+    names the layer and how many of the assay's features it holds, instead of
+    "not found in assay".
+  - Nothing changes for a full-width layer such as `data`. The plotting tests all
+    scaled every feature, which is why none of them saw this;
+    `tests/test_layer_feature_alignment.py` uses the standard workflow and checks
+    that its own fixture can tell the two lookups apart.
+
 ### Documentation
 
 - **The README's roadmap and `ROADMAP.md` describe 2.0.0.** Both still read as of

@@ -433,7 +433,12 @@ def _resolve_layer(assay_obj, layer: Optional[str] = None):
 
 def _get_expression(obj, feature: str, assay: Optional[str] = None,
                     layer: Optional[str] = None) -> np.ndarray:
-    """Return a 1-D expression vector for *feature* (gene or metadata col)."""
+    """Return a 1-D expression vector for *feature* (gene or metadata col).
+
+    The gene is looked up in *layer's own* feature list, not the assay's:
+    ``scale.data`` holds only the features that were scaled (the variable ones, by
+    default), so a gene's position in the assay is not its row in that layer.
+    """
     import scipy.sparse as sp
 
     # Metadata columns (nFeature_RNA, percent.mt, nCount_RNA, …)
@@ -441,13 +446,22 @@ def _get_expression(obj, feature: str, assay: Optional[str] = None,
         return obj.meta_data[feature].values.astype(float)
 
     assay_obj = _get_assay_obj(obj, assay)
-    mat = _get_data_matrix(assay_obj, layer)
-    feat_names = assay_obj._all_feature_names
+    mat, feat_names = _resolve_layer(assay_obj, layer)
 
-    if feature not in feat_names:
-        raise KeyError(f"Feature '{feature}' not found in assay or metadata.")
+    try:
+        idx = feat_names.index(feature)
+    except ValueError:
+        # Say so when the gene exists but this layer does not hold it, rather than
+        # claiming it is missing, or reading some other gene's row.
+        n_assay = len(assay_obj.features())
+        if len(feat_names) < n_assay and feature in assay_obj.features():
+            raise KeyError(
+                f"Feature '{feature}' is not in layer '{layer or 'data'}': that layer holds "
+                f"{len(feat_names)} of the assay's {n_assay} features (scale_data() scales "
+                f"only the variable features unless it is given others)."
+            ) from None
+        raise KeyError(f"Feature '{feature}' not found in assay or metadata.") from None
 
-    idx = feat_names.index(feature)
     row = mat[idx, :]
     if sp.issparse(row):
         return np.asarray(row.todense()).flatten()
@@ -1375,6 +1389,10 @@ def dim_heatmap(
     fig, axes = plt.subplots(nrow, nc, figsize=figsize, squeeze=False)
     axes_flat = axes.flatten()
 
+    assay_obj = _get_assay_obj(obj, None)
+    mat, scaled_feats = _resolve_layer(assay_obj, "scale.data")
+    scaled_row = {g: i for i, g in enumerate(scaled_feats)}
+
     for plot_i, (dim, d0) in enumerate(zip(dims, dims_0)):
         ax = axes_flat[plot_i]
         scores = emb[:, d0]
@@ -1394,11 +1412,8 @@ def dim_heatmap(
         top_genes_idx = np.unique(top_genes_idx)
         top_genes_idx = top_genes_idx[np.argsort(col_loads[top_genes_idx])[::-1]]
 
-        # Build expression matrix: top genes × selected cells
-        assay_obj = _get_assay_obj(obj, None)
-        mat = _get_data_matrix(assay_obj, "scale.data")
-        all_feats = assay_obj._all_feature_names
-
+        # Build expression matrix: top genes × selected cells. A gene's row is its
+        # place in scale.data's own feature list, which is narrower than the assay's.
         rows = []
         gene_labels = []
         for gi in top_genes_idx:
@@ -1406,9 +1421,8 @@ def dim_heatmap(
                 gname = feat_names[gi]
             else:
                 continue
-            if gname in all_feats:
-                aidx = all_feats.index(gname)
-                row = mat[aidx, :]
+            if gname in scaled_row:
+                row = mat[scaled_row[gname], :]
                 row = np.asarray(row.todense()).flatten() if sp.issparse(row) else np.asarray(row).flatten()
                 rows.append(row[sel_cells])
                 gene_labels.append(gname)
