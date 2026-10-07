@@ -45,6 +45,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/test_multimodal_tutorial.py` keeps the two scripts' label lists equal,
     and the smoke suite checks the figure's layout at the width the paper uses.
 
+- **Plots follow a categorical column's order, so a lineage-ordered `dot_plot` is
+  possible, and `reorder_ident` has an effect (#143).** In Seurat the order of a
+  factor's levels decides the order of the groups in `DotPlot` and `VlnPlot`.
+  `dot_plot`, `vln_plot`, `dim_plot`, `feature_scatter`, `do_heatmap` and
+  `ridge_plot` sorted the groups themselves, whatever the categories said, so after
+  `obj.reorder_ident("score")` they still drew Alpha, Mu, Zeta.
+  - A categorical column, or the active identity, is drawn in its category order. The
+    colours follow, as `hue_pal` is assigned in that order in R.
+  - Categories nobody chose are not an order, so they are not followed.
+    `pd.Categorical(values)` and `rename_idents` leave the string-sorted categories
+    "1", "10", "2", and those still sort numbers first, then names, as before.
+  - Categories with no cells are not drawn, and a missing value is still last.
+  - Nothing changes for an existing workflow: `find_clusters` already orders its
+    categories numbers then names, and no tutorial sets a category order.
+  - `image_dim_plot` and `spatial_dim_plot` still sort alphabetically, which
+    `ROADMAP.md` now lists.
+
 - **`dim_heatmap`, the plots that take `layer=`, and `add_module_score` read the wrong
   rows of `scale.data` (#140).** `scale_data()` scales only the variable features
   unless it is given others, so row *i* of `scale.data` is not feature *i* of the

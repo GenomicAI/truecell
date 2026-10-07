@@ -1432,12 +1432,15 @@ Candidates, not commitments. Each says why it is open.
   `run_umap` (umap-learn) raise a bare `ModuleNotFoundError` rather than naming the
   extra to install. It has been this way since 1.2.0 at least. A package change, so
   it ships with the next release.
-- **`vln_plot` group order and median bar.** Seurat's `VlnPlot` orders groups by
-  factor level; `vln_plot` sorts them with `ident_sort_key` and ignores a
-  categorical order, and it always draws a median bar, which Seurat does not.
-  Following Seurat would change existing plots, so it waits for a release that can
-  say so, if it happens at all. The CITE-seq tutorial works around it with a fixed
-  list (#138).
+- **`vln_plot`'s median bar.** It always draws one, which Seurat's `VlnPlot` does
+  not. Dropping it would change existing plots, so it waits for a release that can
+  say so, if it happens at all. The CITE-seq tutorial's R panel draws the bar to
+  match (#138). Group order is no longer part of this: the plots follow a categorical
+  column's categories since the fix for #143.
+- **Spatial plots still sort groups alphabetically.** `image_dim_plot` and
+  `spatial_dim_plot` use a plain `sorted()`, so they ignore a categorical's order and
+  put "10" before "2", unlike the other group plots. Changing it would move committed
+  spatial figures.
 - **Seurat's next release.** Seurat's `main` has fixes that are not in 5.5.1, the
   version every R reference here was taken on, to functions the tutorials compare
   against: `Radius()` on a `VisiumV2` (#10454), `FindSpatiallyVariableFeatures` and
