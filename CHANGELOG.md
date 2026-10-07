@@ -31,6 +31,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`as_anndata` no longer fails on an object from the standard workflow (#141).**
+  `scale_data()` scales only the variable features unless it is given others, so
+  `scale.data` has one row per variable feature, and AnnData rejects a layer that is
+  not as wide as `var`. `as_anndata` raised a `ValueError` from inside AnnData on any
+  object that had been through `normalize_data`, `find_variable_features` and
+  `scale_data`, in either assay class.
+  - A layer with fewer features than the assay is now left out, with a warning that
+    names it and says how to keep it: `scale_data(obj, features=obj.feature_names())`
+    before converting, which scales every feature and exports the layer as before.
+  - It is left out rather than padded because `from_anndata` turns every layer back
+    into an assay layer, and padded rows would read back as scaled values that never
+    were.
+  - No test had converted an object that had been scaled. `tests/test_anndata_compat.py`
+    now does, for both assay classes, and `docs/interop.md` says what is left out.
+
 - **The CITE-seq tutorial's ADT-weight violins read as one comparison.** Reviewer 2
   of the Frontiers paper found R's and Truecell's panels of figure 10 in different
   orders and colours, which defeats a side-by-side. Both scripts now draw the cell
