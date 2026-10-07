@@ -29,6 +29,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tutorial page keeps the published vignette's image on R's side, and the PBMC 3k
   comparison's numbers do not change.
 
+### Removed
+
+- **Sixteen names from `truecell.generics`, none of which ever did anything (#142).**
+  Each was declared with only the `NotImplementedError` fallback, so each raised for
+  every type of object and no working code changes.
+  - R's constructors `create_truecell_object`, `create_assay_object`, `create_fov`,
+    `create_centroids` and `create_segmentation`. The top-level functions of the same
+    names are the constructors. They take their input by keyword, which a dispatcher
+    on the first positional argument cannot.
+  - Nothing in the port is behind `as_segmentation`, `as_seurat`, `assay_class`,
+    `default_dim_reduc`, `default_fov`, `hvf_info`, `keys`, `list_to_s4` and
+    `s4_to_list`. The last two are R's S4 plumbing, and `HVFInfo()`'s table is the
+    per-feature columns of `assay.meta_data`.
+  - `check_matrix` and `match_cells` had only internal helpers behind the same names,
+    and those do something other than R's `CheckMatrix` and `MatchCells`.
+  - `docs/api/index.md` and `tests/test_docs.py` count the generics that are
+    module-only: 65 became 54.
+
 ### Fixed
 
 - **The CITE-seq tutorial's ADT-weight violins read as one comparison.** Reviewer 2
@@ -64,6 +82,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     scaled every feature, which is why none of them saw this;
     `tests/test_layer_feature_alignment.py` uses the standard workflow and checks
     that its own fixture can tell the two lookups apart.
+
+- **The generics the docs list now work (#142).** `truecell.generics` declared 72
+  functions and 39 had only the fallback, so they raised `NotImplementedError` for every
+  object. `skills/truecell/reference/api-map.md` listed many as the way to do things,
+  and `docs/api/generics.md` says each is the same code path as the object's own
+  method.
+  - Twenty-three now delegate to what already existed: `assay_names`, `calc_n`,
+    `cast_assay`, `reorder_ident`, `set_ident`, `tool`, `set_tool`, `version`,
+    `set_layer_data`, `set_assay_data`, `set_loadings`, `set_default_assay`,
+    `set_default_layer`, `set_variable_features`, `set_key`, `misc`, `set_misc`, and
+    the spatial `as_centroids`, `crop`, `overlay`, `default_boundary`, `get_molecules`,
+    plus `command`. Arguments are handed through untouched, so a method's signature
+    has no second copy to drift.
+  - `command` reads the command log as R's `Command()` does: no argument gives the
+    names of the commands that have run, a name gives that entry, and a second
+    argument gives one of its parameters. An unknown command or parameter is an error,
+    as in R, and a command run twice appears once, holding its latest run, as in
+    R's named list.
+  - `tests/test_generics.py` fails on a generic with no implementation, and on a
+    mismatch in either direction between the module and the api-map's list.
 
 ### Documentation
 
