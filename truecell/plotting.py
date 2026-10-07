@@ -766,6 +766,29 @@ def vln_plot(
 # 2. feature_plot — FeaturePlot
 # ---------------------------------------------------------------------------
 
+def _set_quantile(cutoff, values: np.ndarray) -> float:
+    """Seurat's ``SetQuantile``: a number is itself, ``"q05"`` is a percentile.
+
+    Any ``q`` and one or two digits is a percentile, and it is taken over the cells
+    that express the feature, the values above zero, not over every cell. Over every
+    cell, a gene detected in under 5% of them has a 5th and a 95th percentile of 0,
+    which leaves the colour scale no range.
+
+    A feature nothing expresses has no percentile; R returns ``NA`` there, and 0 is
+    what a colour scale can use.
+    """
+    if isinstance(cutoff, str):
+        if not re.fullmatch(r"q[0-9]{1,2}", cutoff):
+            raise ValueError(
+                f"A cutoff is a number or a quantile such as 'q05' or 'q95', got {cutoff!r}."
+            )
+        expressed = values[values > 0]
+        if expressed.size == 0:
+            return 0.0
+        return float(np.percentile(expressed, int(cutoff[1:])))
+    return float(cutoff)
+
+
 def feature_plot(
     obj,
     features: Union[str, list[str]],
@@ -774,8 +797,8 @@ def feature_plot(
     layer: Optional[str] = None,
     ncol: Optional[int] = None,
     order: bool = True,
-    min_cutoff: Optional[float] = None,
-    max_cutoff: Optional[float] = None,
+    min_cutoff: float | str | None = None,
+    max_cutoff: float | str | None = None,
     colormap: str = "YlOrRd",
     pt_size: float = 3.0,
     figsize: Optional[tuple] = None,
@@ -791,8 +814,15 @@ def feature_plot(
     features    : gene name(s) or metadata column(s) to plot
     reduction   : which reduction to use ("umap", "pca", …)
     order       : plot cells with highest expression on top
-    min_cutoff  : clip expression below this percentile (e.g. "q05")
-    max_cutoff  : clip expression above this percentile
+    min_cutoff  : expression at or below this is drawn as not expressed (grey). A
+                  number, or a quantile such as ``"q05"``; default 0.
+    max_cutoff  : expression above this takes the top of the colour scale. A number,
+                  or a quantile such as ``"q95"``; default the feature's maximum.
+                  As in Seurat, a quantile is taken over the cells that express the
+                  feature (values above zero), so ``"q05"``/``"q95"`` suit a gene
+                  detected in a few percent of cells. If the two cutoffs leave the
+                  scale no range, a warning says so and the feature is drawn over
+                  its own range instead.
     colormap    : matplotlib colormap name for expression
     pt_size     : scatter point size
     raster      : draw the cells as a raster layer instead of vector paths.
@@ -836,8 +866,19 @@ def feature_plot(
 
         # Cutoffs from every cell, not the panel's subset — that is what makes
         # the row comparable.
-        vmin = np.percentile(expr, 5) if min_cutoff == "q05" else (min_cutoff or 0)
-        vmax = np.percentile(expr, 95) if max_cutoff == "q95" else (max_cutoff or expr.max())
+        vmin = 0.0 if min_cutoff is None else _set_quantile(min_cutoff, expr)
+        vmax = float(expr.max()) if max_cutoff is None else _set_quantile(max_cutoff, expr)
+        if not vmax > vmin and expr.max() > 0:
+            # The feature varies, so it is the cutoffs that left the scale no range:
+            # one colour for every cell, and nothing to tell the plot is wrong.
+            warnings.warn(
+                f"feature_plot: for {feat!r}, min_cutoff={min_cutoff!r} and "
+                f"max_cutoff={max_cutoff!r} give {vmin:.3g} and {vmax:.3g}, which leaves "
+                f"the colour scale no range. Drawing it over the feature's own range, "
+                f"0 to {expr.max():.3g}, instead.",
+                stacklevel=2,
+            )
+            vmin, vmax = 0.0, float(expr.max())
         vmax = max(vmax, vmin + 1e-9)
 
         for ci, (level, in_panel) in enumerate(cells):

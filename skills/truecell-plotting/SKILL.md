@@ -91,8 +91,12 @@ fig = truecell.do_heatmap(obj, list(top["gene"]), layer="scale.data")
 ```
 
 `min_cutoff` / `max_cutoff` on `feature_plot` accept a number **or** a quantile
-string (`"q05"`, `"q95"`) — the usual fix when one outlier cell flattens the
-whole colour scale.
+string, `"q"` and one or two digits (`"q05"`, `"q95"`, `"q99"`) — the usual fix when one
+outlier cell flattens the whole colour scale. As in Seurat, a quantile is taken over
+the cells that express the feature, the values above zero, so it suits a gene detected
+in a few percent of cells too. If two cutoffs leave no range, for instance when every
+expressing cell has the same value, `feature_plot` warns and draws the feature over
+its own range.
 
 `do_heatmap` reads `scale.data` by default, so the genes you pass must have been
 scaled. If your heatmap is empty, that is usually why: `scale_data` defaults to
@@ -169,7 +173,7 @@ for gene in genes:
 | `ModuleNotFoundError: matplotlib` | Install `truecell[analysis]`. |
 | Hangs or errors in CI / headless | Set `matplotlib.use("Agg")` before importing pyplot. |
 | `do_heatmap` blank | Genes not in `scale.data` — see above. |
-| Colour scale washed out | One outlier cell; use `min_cutoff="q05"`, `max_cutoff="q95"`. |
+| Colour scale washed out | One outlier cell; use `min_cutoff="q05"`, `max_cutoff="q95"`. They are taken over the cells expressing the gene, as in Seurat, so a sparse gene is fine. |
 | Plotting protein shows RNA | Pass `assay="ADT"`; there is no default-assay switch. |
 | Spatial plot mirrored | Toggle `flip_y`. |
 | Memory grows across a loop | Figures never closed. |

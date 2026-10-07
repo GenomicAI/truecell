@@ -83,6 +83,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `tests/test_layer_feature_alignment.py` uses the standard workflow and checks
     that its own fixture can tell the two lookups apart.
 
+- **`feature_plot`'s quantile cutoffs are Seurat's, so `min_cutoff="q05", max_cutoff="q95"`
+  works for a sparse gene (#145).** That call, the one the skills recommend for a
+  washed-out scale, collapsed the colour bar of a gene detected in under 5% of cells to
+  (0, 1e-9): every expressing cell the same colour, and no sign anything was wrong. The
+  committed SCTransform tutorial figure showed it, on `XCL1`.
+  - Seurat's `SetQuantile` takes the percentile over the cells that express the feature,
+    the values above zero. `feature_plot` took it over every cell, so a sparse gene's 5th
+    and 95th percentiles were both 0. The values are pinned to `Seurat:::SetQuantile` on
+    Seurat 5.5.1 in `tests/test_feature_plot_cutoffs.py`, negatives and all-zero
+    features included.
+  - Only the strings `"q05"` and `"q95"` were recognised, and `"q99"` raised a
+    `TypeError` from comparing a string with a float. Any `q` and one or two digits
+    works now, as in Seurat, and anything else is a `ValueError` that says what is
+    allowed.
+  - Cutoffs that still leave the scale no range, whether equal, inverted, or because
+    every expresser has the same value, now warn and draw the feature over its own
+    range, instead of one colour.
+  - `tutorials/figures_sctransform/03_sct_featureplots_1.png` and
+    `04_sct_featureplots_2.png` are redrawn. The other four figures from the same
+    script are identical to the pixel. The CITE-seq ADT panel does not change: every
+    cell has a positive CLR value there, so the cells that express a protein are all
+    of them, and R's panel already used these quantiles.
+
 - **The generics the docs list now work (#142).** `truecell.generics` declared 72
   functions and 39 had only the fallback, so they raised `NotImplementedError` for every
   object. `skills/truecell/reference/api-map.md` listed many as the way to do things,
